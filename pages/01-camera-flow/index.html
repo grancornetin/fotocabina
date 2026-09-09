@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10233c">
+  <title>FotoCabina MVP</title>
+  
+<link rel="stylesheet" href="./styles.css"></head>
+<body>
+  <main class="app">
+    <header class="top"><div class="brand"><div class="mark">◉</div><div><b>FotoCabina</b><span>MVP local de prueba</span></div></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Cámara sin conectar</span></div></header>
+    <section class="grid">
+      <div class="camera-card">
+        <div class="viewfinder"><video id="video" autoplay playsinline muted></video><div class="guide"></div><div class="count" id="count"></div><div class="flash" id="flash"></div></div>
+        <div class="camera-bottom"><div class="hint" id="cameraHint">Conecta la cámara para comenzar. En celular se usará la cámara frontal.</div><button class="primary" id="startBtn">Conectar cámara</button></div>
+        <div class="notice" id="notice"></div>
+      </div>
+      <aside class="editor">
+        <p class="section-title">Diseño de impresión</p><h1>Tu primer 4×6 está listo para armar.</h1>
+        <div class="control"><label for="eventName">Texto principal</label><input id="eventName" maxlength="46" value="Mi gran momento"></div>
+        <div class="control"><label>Color del marco</label><div class="swatches"><button aria-label="Azul" class="swatch active" data-color="navy"></button><button aria-label="Berries" class="swatch" data-color="berry"></button><button aria-label="Sol" class="swatch" data-color="sun"></button><button aria-label="Menta" class="swatch" data-color="mint"></button></div></div>
+        <div class="control"><label>Opciones</label><div class="toggles"><button class="chip active" id="mirrorBtn">Espejo activado</button><button class="chip active" id="threeBtn">3 fotografías</button></div></div>
+        <div class="workflow"><div class="steps"><i class="step" id="s1"></i><i class="step" id="s2"></i><i class="step" id="s3"></i></div><div class="step-text"><span>Captura</span><span>Diseño</span><span>Imprimir</span></div></div>
+        <div class="strip" id="strip"><span class="empty">Tus capturas aparecerán aquí.</span></div>
+        <div class="result" id="result"><img id="finalPrint" class="print-preview" alt="Diseño final de impresión"><div class="actions"><button class="action download" id="downloadBtn">Descargar PNG</button><button class="action" id="printBtn">Imprimir</button><button class="action" id="newBtn" style="grid-column:1/-1">Nueva sesión</button></div></div>
+      </aside>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
