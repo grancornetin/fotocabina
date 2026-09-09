@@ -20,6 +20,10 @@ pages/NN-nombre/
 
 No requiere dependencias ni conexión a Internet para abrir estas páginas en un navegador. En el futuro, los componentes reutilizables irán en `shared/` y las páginas se enlazarán desde un flujo UI/UX común, sin perder su independencia.
 
+## Documento de continuidad
+
+La visión de producto, el estudio de DSLRBooth/LumaBooth, las decisiones de impresión/corte, la arquitectura propuesta y el roadmap están en [docs/DSLRBOOTH_PRODUCT_CONTEXT.md](docs/DSLRBOOTH_PRODUCT_CONTEXT.md).
+
 ## Trabajo futuro
 
 1. Integrar las páginas en el flujo de cabina.
