@@ -2,22 +2,52 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-09.
+> Última revisión: 2026-09-15.
+
+## 0. Norte del producto (léase primero)
+
+FotoCabina tiene dos etapas de vida, en este orden:
+
+1. **Etapa 1 — Uso propio.** Nico la usa en sus propios eventos privados. El objetivo es que funcione bien en un solo caso real: su hardware, sus plantillas, sus eventos. No hay todavía clientes externos ni cobros.
+2. **Etapa 2 — Producto comercial.** Una vez validada en uso real, FotoCabina se vende como **suscripción** a otros operadores de cabinas fotográficas (fotógrafos, empresas de eventos). Cada cliente paga una licencia y usa la app con sus propios eventos, sin ver ni tocar los datos de otros clientes.
+
+Esto significa que, desde ahora, toda decisión técnica debe evitar dos errores:
+
+- **No optimizar de más para "producto"** cuando todavía no hay un segundo usuario real (sería construir andamiaje que nadie prueba).
+- **No atarse tanto al uso personal** que después haya que reescribir la base para separar los datos y la sesión de un cliente de los de otro (multi-tenant).
+
+La forma de balancear esto: separar desde el diseño (aunque no desde el código todavía) **el motor de cabina** (captura, plantillas, impresión — lo que ya existe y sigue evolucionando igual, lo use uno o mil clientes) de **la capa de negocio** (cuentas, licencias, pagos, planes — que se puede sumar después sin tocar el motor).
 
 ## 1. Propósito del producto
 
-FotoCabina será una aplicación de fotocabina profesional orientada a eventos. La experiencia final no debe depender del navegador ni de Internet: debe funcionar localmente, incluyendo captura, composición, impresión y entrega de las fotos.
+FotoCabina será una aplicación de fotocabina profesional orientada a eventos, distribuida en varias plataformas y pensada para operar sin depender de Internet durante el evento en sí.
 
 El primer uso objetivo es una sesión de tres fotografías que genera una composición de dos tiras idénticas de **2 × 6 pulgadas** dentro de una hoja de **4 × 6 pulgadas**. Esto es una configuración inicial, no una limitación del producto: una plantilla podrá definir libremente cuántas fotos tiene, su orden, tamaños, capas y salida de impresión.
 
 ### Principios acordados
 
-1. **Offline primero.** El evento debe poder operar sin Internet. La nube será opcional para respaldo, QR público o administración remota.
-2. **Aplicación de escritorio.** El navegador sirve para prototipar la interfaz, pero no para la integración final con cámaras DSLR/mirrorless, drivers Windows, impresoras de sublimación, colas y periféricos.
-3. **Una plataforma, varias páginas.** Este repositorio contiene las pantallas/módulos separados dentro de `pages/`; después se unirán en un solo flujo UI/UX.
+1. **Offline primero durante el evento.** La sesión de captura, composición e impresión debe poder operar sin Internet. La nube se usa para licencias/cuentas (validación periódica, no continua), respaldo, QR público o administración remota — nunca debe bloquear una sesión en curso.
+2. **Multi-plataforma por caso de uso, no por moda.** Cada plataforma existe porque resuelve un escenario real de cabina, no porque "hay que estar en todos lados" (ver sección 1.1).
+3. **Una plataforma, varias páginas/módulos.** El código de interfaz y lógica se organiza en módulos independientes (hoy `pages/`, luego se reorganizará en motor + shells por plataforma); no se debe volver a concentrar todo en un único archivo monolítico.
 4. **Plantillas libres.** No se debe codificar el diseño de tres fotos. El usuario agrega slots de foto, texto, imágenes PNG, formas y otros elementos según lo requiera cada diseño.
 5. **Impresión confiable antes que rapidez aparente.** La app debe verificar perfil, tamaño de papel, impresora elegida, estado y cola antes de aceptar una sesión para imprimir.
 6. **Entrega digital sin fila.** El huésped debe poder recibir una copia digital por un canal local; Internet no será un requisito.
+7. **Motor de cabina separado del negocio.** La lógica de sesión/plantilla/impresión no debe saber de suscripciones ni de planes; solo pregunta "¿esta licencia está activa?" a una capa aparte.
+
+### 1.1 Las plataformas y para qué sirve cada una
+
+FotoCabina no es una sola app: son varios "shells" (cascarones de interfaz) que comparten el mismo motor de cabina y las mismas plantillas, pero están pensados para escenarios distintos.
+
+| Plataforma | Escenario real | Rol |
+| --- | --- | --- |
+| **Desktop (Windows)** | Cabina profesional: PC + DSLR/mirrorless por USB + impresora de sublimación (DNP/HiTi). | Motor principal. Es donde vive primero cada función nueva (captura real, impresión con driver, cola persistente). |
+| **Mobile — cabina con DSLR (iPad + cámara USB)** | Igual que la de LumaBooth/dslrBooth "iPad edition": un iPad conectado por USB/adaptador a una DSLR real, con impresora conectada por red o USB. | Segundo motor de captura, mismo nivel profesional que desktop pero en tablet. No es una versión reducida: apunta al mismo resultado de calidad. |
+| **Mobile — cabina liviana (cámara del propio dispositivo)** | Cliente sin DSLR: usa la cámara del celular/tablet como cabina completa, imprime en una impresora fotográfica doméstica o solo entrega digital. | Versión de entrada, para quien no invirtió en equipo profesional todavía. Mismo motor de plantillas, captura más simple. |
+| **Mobile — control remoto** | Una cabina desktop ya está corriendo en el evento; el operador quiere disparar la sesión, ver el preview o aprobar la foto desde el celular sin pararse frente al PC. | No captura ni imprime por sí sola: es un cliente remoto que habla con la cabina desktop activa (red local). |
+| **Mobile / Web — app complementaria** | Antes/después del evento: gestionar eventos, revisar o editar plantillas, ver la galería de fotos tomadas, compartir/descargar, administrar cuenta y suscripción. | No opera la cabina en el momento del evento. Es la cara "de oficina" del producto. |
+| **PWA** | Evolución natural de la app complementaria (y eventualmente de la cabina liviana) para no depender de tiendas de apps en ciertos flujos — por ejemplo la galería que ve el invitado desde el QR. | Capa web ligera sobre el mismo backend; no reemplaza a las apps nativas para control de hardware. |
+
+Cada plataforma que controla hardware (desktop, iPad+DSLR, cabina liviana) tiene **su propia licencia y su propio pago** en la tienda/canal correspondiente (Windows, App Store, Play Store). La app complementaria/PWA se autentica contra la misma cuenta de usuario, no contra una licencia de plataforma.
 
 ## 2. Estado del repositorio
 
@@ -188,11 +218,38 @@ Interfaz de cabina / editor
         ├── CameraAdapter
         ├── FlashProfile / configuración de captura
         └── PrintAdapter
-             ├── Windows printer spooler
-             └── SDK directo validado por fabricante (opcional)
+             ├── Windows printer spooler / SDK directo (desktop)
+             └── Adaptador de cámara USB en iPad (mobile con DSLR)
 ```
 
-La interfaz puede ser web tecnológica por dentro, pero debe vivir en una aplicación de escritorio Windows con permisos controlados para llegar a hardware local. La elección concreta de shell (por ejemplo, Tauri o Electron) queda pendiente de una prueba que abarque impresión, cámara y actualización offline.
+Este bloque —el "motor de cabina"— es el mismo sin importar la plataforma ni si hay uno o mil clientes. No debe tener ninguna dependencia de licencias, planes o cuentas de usuario.
+
+La elección concreta de shell de escritorio (por ejemplo, Tauri o Electron) y de framework mobile (nativo, React Native, Capacitor, etc.) queda pendiente de una prueba que abarque impresión, cámara y actualización offline en cada plataforma. Sea cual sea la elección, debe permitir compartir el motor de plantillas/composición entre desktop y mobile sin reescribirlo dos veces.
+
+### 5.1.1 Capa de negocio (licencias, cuentas, planes)
+
+Separada del motor de cabina, vive una capa liviana que responde una sola pregunta antes de dejar operar la app: **¿esta licencia/cuenta está activa?**
+
+```text
+App (desktop / iPad+DSLR / mobile liviana / complementaria)
+        │
+        ▼
+  Capa de negocio (Firebase — reutilizando infraestructura de Luz Ai Studio)
+        ├── Auth (cuenta del operador/cliente)
+        ├── Licencias por plataforma (desktop / App Store / Play Store, cada una con su compra)
+        ├── Estado de suscripción (activa / vencida / en gracia)
+        └── Datos de cuenta compartidos entre plataformas (perfil, plantillas propias, eventos)
+                 │
+                 ▼
+        Motor de cabina (offline, no sabe nada de lo anterior)
+```
+
+Reglas de esta capa:
+
+- La validación de licencia es **periódica, no continua**: se chequea al abrir la app o cada cierto tiempo, y se guarda un permiso local con vencimiento corto (por ejemplo, algunos días de gracia). Nunca debe cortar una sesión de evento en curso por falta de señal de Internet.
+- El modelo de planes (único plan vs. niveles Basic/Pro/etc.) **todavía no está definido** — se decide con más uso real y clientes concretos. La arquitectura solo debe dejar un lugar claro (`SubscriptionStatus`/`PlanId`) para no tener que reescribir el motor cuando se defina.
+- Cada plataforma con hardware (desktop, iPad+DSLR, cabina liviana) valida **su propia licencia de esa tienda/canal**; la cuenta de usuario en Firebase es la que une todo (mismo login, plantillas y eventos visibles en la app complementaria/PWA sin importar desde qué plataforma se generaron).
+- Durante la Etapa 1 (uso propio de Nico), esta capa puede ser tan simple como una bandera "licencia válida" fija; no hace falta construir el sistema de planes completo hasta que haya un segundo cliente real.
 
 ### 5.2 Entidades que deben persistirse
 
@@ -217,6 +274,8 @@ ready → countdown → capturing → review → composing → queued → printi
 Un error de cámara o impresora debe conservar la sesión y permitir reintentar; nunca debe borrar las fotos originales ni bloquear la siguiente sesión sin informar el estado.
 
 ## 6. Plan de implementación
+
+Las fases A–D construyen el motor de cabina y corren en **desktop primero**, para uso propio de Nico (Etapa 1). Mobile y la capa de negocio (Fase E) se abordan recién cuando el motor esté validado con eventos reales — no antes, para no construir "para clientes" sin tener todavía ni un cliente.
 
 ### Fase A — prototipo visual y paquetes de plantilla
 
@@ -246,6 +305,14 @@ Un error de cámara o impresora debe conservar la sesión y permitir reintentar;
 2. QR offline por sesión, descarga rápida y vencimiento automático.
 3. Panel de operador: estado de cámara, flash, papel, impresora, cola y red.
 4. Telemetría o respaldo opcional cuando haya Internet, sin bloquear el evento.
+
+### Fase E — comercialización (Etapa 2, después de validar con eventos reales)
+
+1. Sumar la capa de negocio (sección 5.1.1) sobre Firebase: cuentas, licencia básica activa/inactiva.
+2. Empaquetar y publicar la versión mobile "cabina con DSLR" (iPad + cámara USB), reusando el motor de plantillas/composición ya probado en desktop.
+3. Publicar la app mobile complementaria (gestión de eventos, galería, cuenta) y evaluar la PWA para la galería que ve el invitado desde el QR.
+4. Definir recién ahí el modelo de planes/precios (único vs. niveles) con datos de clientes reales, y construir el control remoto desktop↔mobile.
+5. Agregar la cabina liviana (cámara del propio dispositivo) como entrada de menor costo, una vez validado el resto.
 
 ## 7. Validaciones antes de comprar o prometer compatibilidad
 

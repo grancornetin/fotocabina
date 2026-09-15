@@ -3,3 +3,4 @@ Thumbs.db
 *.tar.gz
 *.zip
 node_modules/
+.claude/
