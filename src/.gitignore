@@ -5,3 +5,6 @@ Thumbs.db
 node_modules/
 .claude/
 memoria_trabajo_para_ias.txt
+# Material de referencia local (capturas de terceros, moodboard): no se publica
+pantallas dslrbooth/
+ui inspo/

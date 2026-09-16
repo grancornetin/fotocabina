@@ -1,32 +1,399 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#10233c">
-  <title>FotoCabina MVP</title>
-  
-<link rel="stylesheet" href="./styles.css"></head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0A0A0B" />
+  <title>FotoCabina — Sesión</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
 <body>
-  <main class="app">
-    <header class="top"><div class="brand"><div class="mark">◉</div><div><b>FotoCabina</b><span>MVP local de prueba</span></div></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Cámara sin conectar</span></div></header>
-    <section class="grid">
-      <div class="camera-card">
-        <div class="viewfinder"><video id="video" autoplay playsinline muted></video><div class="guide"></div><div class="count" id="count"></div><div class="flash" id="flash"></div></div>
-        <div class="camera-bottom"><div class="hint" id="cameraHint">Conecta la cámara para comenzar. En celular se usará la cámara frontal.</div><button class="primary" id="startBtn">Conectar cámara</button></div>
-        <div class="notice" id="notice"></div>
+
+  <div class="cabin" id="cabin">
+
+    <!-- Header de operador: visible solo hasta lanzar el evento -->
+    <header class="op-header" id="opHeader">
+      <div class="op-brand">
+        <span class="op-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/></svg>
+        </span>
+        <span class="op-brand-text">FotoCabina</span>
       </div>
-      <aside class="editor">
-        <p class="section-title">Diseño de impresión</p><h1>Tu primer 4×6 está listo para armar.</h1>
-        <div class="control"><label for="eventName">Texto principal</label><input id="eventName" maxlength="46" value="Mi gran momento"></div>
-        <div class="control"><label>Color del marco</label><div class="swatches"><button aria-label="Azul" class="swatch active" data-color="navy"></button><button aria-label="Berries" class="swatch" data-color="berry"></button><button aria-label="Sol" class="swatch" data-color="sun"></button><button aria-label="Menta" class="swatch" data-color="mint"></button></div></div>
-        <div class="control"><label>Opciones</label><div class="toggles"><button class="chip active" id="mirrorBtn">Espejo activado</button><button class="chip active" id="threeBtn">3 fotografías</button></div></div>
-        <div class="workflow"><div class="steps"><i class="step" id="s1"></i><i class="step" id="s2"></i><i class="step" id="s3"></i></div><div class="step-text"><span>Captura</span><span>Diseño</span><span>Imprimir</span></div></div>
-        <div class="strip" id="strip"><span class="empty">Tus capturas aparecerán aquí.</span></div>
-        <div class="result" id="result"><img id="finalPrint" class="print-preview" alt="Diseño final de impresión"><div class="actions"><button class="action download" id="downloadBtn">Descargar PNG</button><button class="action" id="printBtn">Imprimir</button><button class="action" id="newBtn" style="grid-column:1/-1">Nueva sesión</button></div></div>
-      </aside>
+
+      <!-- Contexto: el único dropdown que vive en la barra -->
+      <div class="ds-select" data-select="event">
+        <span class="ds-select-label">Evento</span>
+        <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ds-select-value">Sesión de prueba</span>
+          <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <ul class="ds-select-menu" role="listbox" hidden>
+          <li class="ds-select-option" role="option" data-value="demo" aria-selected="true">Sesión de prueba</li>
+        </ul>
+      </div>
+
+      <!-- Semáforos de hardware -->
+      <div class="op-status">
+        <span class="ds-badge" id="cameraStatusBadge" data-state="idle"><span id="cameraStatusText">Cámara sin conectar</span></span>
+        <button class="ds-badge ds-badge--button" id="printerStatusBadge" data-state="idle" type="button">Impresora sin configurar</button>
+      </div>
+
+      <!-- Riel de herramientas: íconos con etiqueta al pasar/tocar -->
+      <nav class="op-rail" aria-label="Herramientas">
+        <button class="rail-btn" id="galleryBtn" type="button" data-label="Galería" aria-label="Galería">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="7" height="7" rx="1.5"/><rect x="13" y="3" width="7" height="7" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button class="rail-btn" id="templatesBtn" type="button" data-label="Plantillas" aria-label="Plantillas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="4" rx="1"/><rect x="8" y="12" width="8" height="4" rx="1"/></svg>
+        </button>
+        <a class="rail-btn" id="editorLink" href="../02-layout-editor/index.html" data-label="Editor" aria-label="Editor de plantillas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg>
+        </a>
+        <button class="rail-btn" id="settingsBtn" type="button" data-label="Ajustes" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 00-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 00-2.7-1.6L13 2h-4l-.4 2.8a7 7 0 00-2.7 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 004 12a7 7 0 00.2 1.6l-2 1.5 2 3.4 2.3-.9a7 7 0 002.7 1.6L9 22h4l.4-2.8a7 7 0 002.7-1.6l2.3.9 2-3.4-2-1.5c.13-.5.2-1.05.2-1.6z"/></svg>
+        </button>
+        <button class="rail-btn" id="helpBtn" type="button" data-label="Ayuda" aria-label="Ayuda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.6-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></svg>
+        </button>
+      </nav>
+
+      <button class="ds-btn ds-btn--primary" id="launchBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Lanzar evento
+      </button>
+    </header>
+
+    <!-- Escenario: cámara en vivo, siempre presente de fondo -->
+    <main class="stage" id="stage">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="stage-vignette" aria-hidden="true">
+        <div class="frame-window" id="frameWindow"></div>
+      </div>
+      <div class="flash" id="flash" aria-hidden="true"></div>
+
+      <!-- Plantilla activa: un vistazo antes de lanzar (solo modo operador) -->
+      <div class="template-card" id="templateCard">
+        <svg class="template-thumb" viewBox="0 0 40 60" aria-hidden="true"><rect width="40" height="60" rx="4" fill="#0A0A0B"/><rect x="6" y="6" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/><rect x="6" y="23.5" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/><rect x="6" y="41" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/></svg>
+        <div class="template-info">
+          <p class="template-name">Tira clásica 2×6</p>
+          <p class="template-meta" id="templateMeta">3 fotos · 2×6 en 4×6 · cuenta 3 s · pausa 3 s</p>
+        </div>
+        <button class="thumb-chip" id="templateChangeBtn" type="button">Cambiar</button>
+      </div>
+
+      <!-- Estado: cámara aún no conectada (previo a lanzar) -->
+      <div class="stage-panel" id="connectPanel">
+        <button class="ds-btn ds-btn--primary ds-btn--compact" id="connectBtn">
+          Conectar cámara
+        </button>
+        <p class="stage-hint" id="connectHint">Conectá la cámara para previsualizar antes de lanzar el evento.</p>
+      </div>
+
+      <!-- Modo invitado: pantalla de espera -->
+      <button class="guest-idle" id="guestIdle">
+        <span class="guest-idle-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/></svg>
+        </span>
+        <span class="guest-idle-text">Tocá la pantalla para empezar</span>
+      </button>
+
+      <!-- Modo invitado: countdown -->
+      <div class="countdown-layer" id="countdownLayer">
+        <span class="countdown-label" id="countdownLabel">Foto 1 de 3</span>
+        <span class="countdown-number" id="countdownNumber">3</span>
+      </div>
+
+      <!-- Modo invitado: interstitial entre fotos (tiempo para cambiar pose/prop) -->
+      <div class="interstitial-layer" id="interstitialLayer">
+        <span class="interstitial-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 10-3 6.3"/><path d="M20 6v6h-6"/></svg>
+        </span>
+        <p class="interstitial-text" id="interstitialText">¡Cambiá de pose!</p>
+        <span class="interstitial-timer" id="interstitialTimer">3</span>
+      </div>
+
+      <!-- Controles de operador durante el modo invitado, esquina superior -->
+      <div class="stage-controls" id="stageControls">
+        <button class="pause-btn" id="pauseBtn" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          <span>Pausar</span>
+        </button>
+        <button class="lock-btn" id="lockBtn" aria-label="Acceso de operador">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+          <span>Operador</span>
+        </button>
+      </div>
+
+      <!-- Overlay de pausa: aparece sobre countdown/interstitial al pausar -->
+      <div class="pause-overlay" id="pauseOverlay">
+        <p class="pause-overlay-title">Sesión en pausa</p>
+        <div class="pause-overlay-actions">
+          <button class="ds-btn ds-btn--secondary" id="cancelSessionBtn">Cancelar sesión</button>
+          <button class="ds-btn ds-btn--primary" id="resumeBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+            Reanudar
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Panel de revisión de la sesión -->
+    <section class="review" id="review" hidden>
+      <div class="review-inner">
+        <h1 class="review-title">¿Usamos estas fotos?</h1>
+        <p class="review-hint">Tocá "Repetir" en una foto para volver a tomarla, o confirmá para continuar.</p>
+        <div class="review-strip" id="reviewStrip"></div>
+        <div class="review-actions">
+          <button class="ds-btn ds-btn--secondary" id="retakeAllBtn">Repetir toda la sesión</button>
+          <button class="ds-btn ds-btn--primary" id="confirmBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
+            Confirmar
+          </button>
+        </div>
+      </div>
     </section>
-  </main>
-  <script src="./app.js"></script>
+
+    <!-- Componiendo (estado de carga breve) -->
+    <section class="composing" id="composing" hidden>
+      <span class="composing-spinner" aria-hidden="true"></span>
+      <p class="composing-text">Armando tu tira…</p>
+    </section>
+
+    <!-- Resultado final -->
+    <section class="result" id="result" hidden>
+      <div class="result-inner">
+        <h1 class="review-title">¡Listo!</h1>
+
+        <div class="ds-tabs" role="tablist" aria-label="Vista del resultado" id="resultTabs">
+          <button class="ds-tab" role="tab" data-tab="strip" aria-selected="true">Tira</button>
+          <button class="ds-tab" role="tab" data-tab="photos" aria-selected="false">Fotos</button>
+          <button class="ds-tab" role="tab" data-tab="gif" aria-selected="false">GIF</button>
+        </div>
+
+        <div class="result-view" id="resultViewStrip" data-view="strip">
+          <img id="finalPrint" class="result-preview" alt="Diseño final de impresión" />
+        </div>
+
+        <div class="result-view" id="resultViewPhotos" data-view="photos" hidden>
+          <div class="result-photos" id="resultPhotosGrid"></div>
+        </div>
+
+        <div class="result-view result-view--gif" id="resultViewGif" data-view="gif" hidden>
+          <img id="resultGif" class="result-preview result-preview--gif" alt="GIF animado de la sesión" hidden />
+          <p class="gif-status" id="gifStatus">Generando GIF…</p>
+        </div>
+
+        <div class="result-actions">
+          <button class="ds-btn ds-btn--secondary" id="downloadBtn">Descargar</button>
+          <button class="ds-btn ds-btn--secondary" id="shareBtn" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg>
+            Compartir
+          </button>
+          <button class="ds-btn ds-btn--primary" id="printBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
+            Imprimir
+          </button>
+        </div>
+
+        <div class="result-footer">
+          <button class="ds-btn ds-btn--ghost" id="retakeSessionBtn">Borrar y repetir sesión</button>
+          <button class="ds-btn ds-btn--primary ds-btn--compact" id="finishBtn">
+            Finalizar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Galería de sesiones guardadas (modo operador) -->
+    <section class="gallery" id="gallery" hidden>
+      <div class="gallery-inner" id="galleryList">
+        <header class="gallery-head">
+          <h1 class="review-title">Galería</h1>
+          <div class="ds-tabs" role="tablist" aria-label="Filtro de galería" id="galleryTabs">
+            <button class="ds-tab" role="tab" data-filter="event" aria-selected="true">Este evento</button>
+            <button class="ds-tab" role="tab" data-filter="all" aria-selected="false">Todos los eventos</button>
+          </div>
+          <button class="ds-btn ds-btn--ghost" id="galleryCloseBtn">Cerrar</button>
+        </header>
+        <div class="gallery-grid" id="galleryGrid"></div>
+        <p class="gallery-empty" id="galleryEmpty" hidden>Todavía no hay sesiones guardadas. Se guardan solas cada vez que se arma una tira.</p>
+      </div>
+
+      <div class="gallery-inner gallery-detail" id="galleryDetail" hidden>
+        <header class="gallery-head">
+          <button class="ds-btn ds-btn--ghost" id="detailBackBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+            Volver a la galería
+          </button>
+          <p class="gallery-detail-meta" id="detailMeta"></p>
+        </header>
+        <div class="gallery-detail-body">
+          <img id="detailStrip" class="result-preview" alt="Tira de la sesión" />
+          <div class="gallery-detail-side">
+            <p class="ds-label-text">Fotos de la sesión</p>
+            <div class="gallery-detail-photos" id="detailPhotos"></div>
+            <div class="gallery-detail-actions">
+              <button class="ds-btn ds-btn--primary" id="detailPrintBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
+                Reimprimir
+              </button>
+              <button class="ds-btn ds-btn--secondary" id="detailDownloadBtn">Descargar tira</button>
+              <button class="ds-btn ds-btn--secondary" id="detailGifBtn">Descargar GIF</button>
+              <button class="ds-btn ds-btn--destructive" id="detailDeleteBtn">Eliminar sesión</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Teclado PIN para volver a los controles de operador -->
+    <div class="pin-overlay" id="pinOverlay">
+      <div class="pin-card">
+        <p class="pin-title">Acceso de operador</p>
+        <p class="pin-hint" id="pinHint">Ingresá el PIN para volver a los controles.</p>
+        <div class="pin-dots" id="pinDots" aria-live="polite">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="pin-pad" id="pinPad">
+          <button class="pin-key" data-key="1">1</button>
+          <button class="pin-key" data-key="2">2</button>
+          <button class="pin-key" data-key="3">3</button>
+          <button class="pin-key" data-key="4">4</button>
+          <button class="pin-key" data-key="5">5</button>
+          <button class="pin-key" data-key="6">6</button>
+          <button class="pin-key" data-key="7">7</button>
+          <button class="pin-key" data-key="8">8</button>
+          <button class="pin-key" data-key="9">9</button>
+          <button class="pin-key pin-key--muted" data-key="cancel" aria-label="Cancelar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+          <button class="pin-key" data-key="0">0</button>
+          <button class="pin-key pin-key--muted" data-key="back" aria-label="Borrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H9l-6 6 6 6h12a1 1 0 001-1V7a1 1 0 00-1-1z"/><path d="M17 9l-6 6M11 9l6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel lateral de ajustes (modo operador) -->
+    <div class="drawer-backdrop" id="drawerBackdrop" data-visible="false"></div>
+    <aside class="drawer" id="settingsDrawer" aria-label="Ajustes" data-open="false">
+      <header class="drawer-head">
+        <h2 class="drawer-title">Ajustes</h2>
+        <button class="rail-btn" id="drawerCloseBtn" type="button" aria-label="Cerrar ajustes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+
+      <section class="drawer-section" id="seccionSesion">
+        <h3 class="ds-label-text">Sesión</h3>
+        <div class="drawer-row">
+          <div class="ds-select" data-select="photos">
+            <span class="ds-select-label">Fotos por sesión</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">3</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="2">2</li>
+              <li class="ds-select-option" role="option" data-value="3" aria-selected="true">3</li>
+              <li class="ds-select-option" role="option" data-value="4">4</li>
+            </ul>
+          </div>
+          <div class="ds-select" data-select="countdown">
+            <span class="ds-select-label">Cuenta regresiva</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">3 s</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="3" aria-selected="true">3 s</li>
+              <li class="ds-select-option" role="option" data-value="5">5 s</li>
+              <li class="ds-select-option" role="option" data-value="10">10 s</li>
+              <li class="ds-select-option" role="option" data-value="15">15 s</li>
+              <li class="ds-select-option" role="option" data-value="30">30 s</li>
+            </ul>
+          </div>
+        </div>
+        <div class="drawer-row">
+          <div class="ds-select" data-select="pause">
+            <span class="ds-select-label">Pausa entre fotos</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">3 s</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="0">Sin pausa</li>
+              <li class="ds-select-option" role="option" data-value="3" aria-selected="true">3 s</li>
+              <li class="ds-select-option" role="option" data-value="5">5 s</li>
+              <li class="ds-select-option" role="option" data-value="10">10 s</li>
+              <li class="ds-select-option" role="option" data-value="15">15 s</li>
+            </ul>
+          </div>
+          <label class="drawer-field">
+            <span class="ds-select-label">Mensaje de la pausa</span>
+            <input class="ds-input" id="pauseMessageInput" type="text" maxlength="40" value="¡Cambiá de pose!" />
+          </label>
+        </div>
+        <div class="drawer-row">
+          <label class="drawer-field">
+            <span class="ds-select-label">PIN de operador</span>
+            <input class="ds-input" id="pinInput" type="text" inputmode="numeric" maxlength="4" value="1234" autocomplete="off" />
+            <span class="drawer-help">4 dígitos. Se pide para salir del modo invitado.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="drawer-section" id="seccionCamara">
+        <h3 class="ds-label-text">Cámara</h3>
+        <div class="drawer-row">
+          <div class="ds-select" data-select="camera">
+            <span class="ds-select-label">Dispositivo</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">Cámara del dispositivo</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="user" aria-selected="true">Cámara del dispositivo</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="drawer-section" id="seccionImpresion">
+        <div class="drawer-section-head"><h3 class="ds-label-text">Impresión</h3><span class="ds-badge" data-state="idle">Próximamente</span></div>
+        <p class="drawer-soon-text">Elegir impresora, tamaño de papel, copias por sesión e impresión automática al terminar.</p>
+      </section>
+
+      <section class="drawer-section" id="seccionCompartir">
+        <div class="drawer-section-head"><h3 class="ds-label-text">Compartir</h3><span class="ds-badge" data-state="idle">Próximamente</span></div>
+        <p class="drawer-soon-text">QR de entrega digital en la cabina, envío por email y redes sociales.</p>
+      </section>
+
+      <section class="drawer-section" id="seccionEfectos">
+        <div class="drawer-section-head"><h3 class="ds-label-text">Efectos y asistente</h3><span class="ds-badge" data-state="idle">Próximamente</span></div>
+        <p class="drawer-soon-text">Filtros, marca de agua y animaciones propias para la pausa entre fotos.</p>
+      </section>
+    </aside>
+
+    <!-- Hoja "Próximamente" para accesos aún no construidos -->
+    <div class="soon-overlay" id="soonOverlay" data-visible="false">
+      <div class="soon-card" role="dialog" aria-labelledby="soonTitle">
+        <span class="ds-badge" data-state="idle">Próximamente</span>
+        <h2 class="soon-title" id="soonTitle">Plantillas</h2>
+        <p class="soon-text" id="soonText"></p>
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="soonCloseBtn" type="button">Entendido</button>
+      </div>
+    </div>
+
+    <!-- Aviso / error -->
+    <div class="notice" id="notice" role="alert" hidden></div>
+
+  </div>
+
+  <script src="almacen-sesiones.js"></script>
+  <script src="codificador-gif.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

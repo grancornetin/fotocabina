@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FotoCabina — Sistema de diseño</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="ds-shell">
+
+    <header class="ds-hero">
+      <div class="ds-hero-top">
+        <span class="ds-eyebrow">Sistema de diseño</span>
+        <div class="ds-theme-switch" role="radiogroup" aria-label="Modo de color">
+          <button class="ds-theme-btn" data-theme-choice="dark" aria-checked="true" role="radio">Oscuro</button>
+          <button class="ds-theme-btn" data-theme-choice="light" aria-checked="false" role="radio">Claro</button>
+          <button class="ds-theme-btn" data-theme-choice="system" aria-checked="false" role="radio">Sistema</button>
+        </div>
+      </div>
+      <h1>El vestuario de alto rendimiento.</h1>
+      <p>Negro y grafito en reposo. Un único verde lima eléctrico cuando algo está vivo, listo o accionable. Precisión de iPhone, actitud de Nike.</p>
+    </header>
+
+    <!-- Colores -->
+    <section class="ds-section" id="colores">
+      <div class="ds-section-head">
+        <h2>Colores</h2>
+        <p class="ds-note">El verde lima aparece en un único elemento protagonista por pantalla. Nunca decorativo.</p>
+      </div>
+      <div class="ds-grid cols-4">
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#C6FF3D"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Lima Voltaje</p>
+            <p class="ds-swatch-hex">#C6FF3D — acción</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#0A0A0B"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Negro Vestuario</p>
+            <p class="ds-swatch-hex">#0A0A0B — fondo</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#18191B"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Grafito Superficie</p>
+            <p class="ds-swatch-hex">#18191B — cards</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#222325"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Grafito Alta</p>
+            <p class="ds-swatch-hex">#222325 — elevado</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#2E3033"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Acero Borde</p>
+            <p class="ds-swatch-hex">#2E3033 — bordes</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#8A8D91"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Niebla</p>
+            <p class="ds-swatch-hex">#8A8D91 — texto 2°</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#F4F5F2"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Blanco Hueso</p>
+            <p class="ds-swatch-hex">#F4F5F2 — texto</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#FF4D4D"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Rojo Señal</p>
+            <p class="ds-swatch-hex">#FF4D4D — error</p>
+          </div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-fill" style="background:#FFB13D"></div>
+          <div class="ds-swatch-meta">
+            <p class="ds-swatch-name">Ámbar Espera</p>
+            <p class="ds-swatch-hex">#FFB13D — advertencia</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tipografía -->
+    <section class="ds-section" id="tipografia">
+      <div class="ds-section-head">
+        <h2>Tipografía</h2>
+        <p class="ds-note">Inter, números siempre tabulares. Los números grandes son un componente, no solo texto.</p>
+      </div>
+      <div class="ds-component-card">
+        <div class="ds-type-row">
+          <span class="ds-type-label">Display</span>
+          <p class="ds-type-sample ds-display">03</p>
+        </div>
+        <div class="ds-type-row">
+          <span class="ds-type-label">Headline</span>
+          <p class="ds-type-sample ds-headline">Sonreí, ya salió</p>
+        </div>
+        <div class="ds-type-row">
+          <span class="ds-type-label">Title</span>
+          <p class="ds-type-sample ds-title">Plantillas del evento</p>
+        </div>
+        <div class="ds-type-row">
+          <span class="ds-type-label">Body</span>
+          <p class="ds-type-sample ds-body">Elegí una plantilla para empezar la sesión de fotos. Se imprimen dos tiras 2×6 en una hoja 4×6.</p>
+        </div>
+        <div class="ds-type-row">
+          <span class="ds-type-label">Label</span>
+          <p class="ds-type-sample ds-label">Impresora conectada</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Botones -->
+    <section class="ds-section" id="botones">
+      <div class="ds-section-head">
+        <h2>Botones</h2>
+        <p class="ds-note">Radio 20px, altura mínima 56px. El glow es exclusivo del primario.</p>
+      </div>
+      <div class="ds-component-card">
+        <p class="ds-component-label">Variantes</p>
+        <div class="ds-row">
+          <button class="ds-btn ds-btn--primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            Empezar sesión
+          </button>
+          <button class="ds-btn ds-btn--secondary">Ver plantillas</button>
+          <button class="ds-btn ds-btn--ghost">Cancelar</button>
+          <button class="ds-btn ds-btn--destructive">Eliminar evento</button>
+        </div>
+      </div>
+      <div class="ds-component-card">
+        <p class="ds-component-label">Estados — primario</p>
+        <div class="ds-row">
+          <button class="ds-btn ds-btn--primary">Normal</button>
+          <button class="ds-btn ds-btn--primary ds-btn--loading">Cargando</button>
+          <button class="ds-btn ds-btn--primary" disabled>Deshabilitado</button>
+          <button class="ds-btn ds-btn--primary ds-btn--compact">Compacto</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabs -->
+    <section class="ds-section" id="tabs">
+      <div class="ds-section-head">
+        <h2>Tabs</h2>
+        <p class="ds-note">Indicador de línea inferior en Lima Voltaje bajo el tab activo.</p>
+      </div>
+      <div class="ds-component-card">
+        <div class="ds-tabs" role="tablist" aria-label="Ejemplo de tabs">
+          <button class="ds-tab" role="tab" aria-selected="true">Hoy</button>
+          <button class="ds-tab" role="tab" aria-selected="false">Próximos</button>
+          <button class="ds-tab" role="tab" aria-selected="false">Archivo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cards -->
+    <section class="ds-section" id="cards">
+      <div class="ds-section-head">
+        <h2>Cards</h2>
+        <p class="ds-note">Estado seleccionado con borde lima; estado "en vivo" con glow.</p>
+      </div>
+      <div class="ds-grid cols-3">
+        <article class="ds-card ds-card--interactive">
+          <div class="ds-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6l1.5-2h3L15 6"/></svg>
+          </div>
+          <h3>Cámara</h3>
+          <p>Canon EOS conectada por USB. Live view activo.</p>
+          <div class="ds-card-foot">
+            <span class="ds-badge ds-badge--ready">Lista</span>
+            <span class="ds-label">Ver detalle</span>
+          </div>
+        </article>
+
+        <article class="ds-card ds-card--selected">
+          <div class="ds-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M9 21v-3h6v3"/></svg>
+          </div>
+          <h3>Plantilla · Fiesta Neón</h3>
+          <p>2×6 duplicado en hoja 4×6. Seleccionada para este evento.</p>
+          <div class="ds-card-foot">
+            <span class="ds-badge ds-badge--idle">Seleccionada</span>
+            <span class="ds-label">Editar</span>
+          </div>
+        </article>
+
+        <article class="ds-card ds-card--live">
+          <div class="ds-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+          </div>
+          <h3>Sesión en curso</h3>
+          <p>Invitado #48 · componiendo la tira final.</p>
+          <div class="ds-card-foot">
+            <span class="ds-badge ds-badge--ready">En vivo</span>
+            <span class="ds-label">00:14</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Inputs -->
+    <section class="ds-section" id="inputs">
+      <div class="ds-section-head">
+        <h2>Inputs</h2>
+        <p class="ds-note">Foco siempre en Lima Voltaje, nunca el azul del navegador.</p>
+      </div>
+      <div class="ds-grid cols-3">
+        <div class="ds-field">
+          <label for="f-evento">Nombre del evento</label>
+          <input class="ds-input" id="f-evento" type="text" placeholder="Casamiento de Juli y Fran" />
+        </div>
+        <div class="ds-field ds-field--error">
+          <label for="f-copias">Copias por sesión</label>
+          <input class="ds-input" id="f-copias" type="text" value="0" />
+          <span class="ds-field-help">Ingresá al menos 1 copia</span>
+        </div>
+        <div class="ds-field ds-field--disabled">
+          <label for="f-impresora">Impresora</label>
+          <input class="ds-input" id="f-impresora" type="text" value="DNP DS620 · offline" disabled />
+        </div>
+      </div>
+      <div class="ds-component-card" style="margin-top: var(--sp-2);">
+        <p class="ds-component-label">Toggle</p>
+        <div class="ds-row">
+          <button class="ds-toggle" role="switch" aria-checked="true" aria-label="Entrega digital"></button>
+          <span class="ds-body">Entrega digital por QR</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Badges de estado -->
+    <section class="ds-section" id="estados">
+      <div class="ds-section-head">
+        <h2>Estados</h2>
+        <p class="ds-note">Un solo color por significado: verde listo, ámbar espera, rojo error.</p>
+      </div>
+      <div class="ds-component-card">
+        <div class="ds-row">
+          <span class="ds-badge ds-badge--ready">Impresora lista</span>
+          <span class="ds-badge ds-badge--warn">Reconectando cámara</span>
+          <span class="ds-badge ds-badge--error">Sin papel</span>
+          <span class="ds-badge ds-badge--idle">En espera</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Iconos -->
+    <section class="ds-section" id="iconos">
+      <div class="ds-section-head">
+        <h2>Iconos</h2>
+        <p class="ds-note">Trazo grueso 2.2–2.4px, sin relleno inactivo. Activo = relleno sólido en Lima Voltaje.</p>
+      </div>
+      <div class="ds-grid cols-4">
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Cámara</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile ds-icon-tile--active">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Imprimir</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="7" height="7" rx="1.5"/><rect x="13" y="3" width="7" height="7" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Plantillas</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Eventos</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Entrega</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Cola</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 9l6-6 6 6"/><path d="M5 21h14"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Exportar</p>
+        </div>
+        <div class="ds-icon-cell">
+          <div class="ds-icon-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 00-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 00-2.7-1.6L13 2h-4l-.4 2.8a7 7 0 00-2.7 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 004 12a7 7 0 00.2 1.6l-2 1.5 2 3.4 2.3-.9a7 7 0 002.7 1.6L9 22h4l.4-2.8a7 7 0 002.7-1.6l2.3.9 2-3.4-2-1.5c.13-.5.2-1.05.2-1.6z"/></svg>
+          </div>
+          <p class="ds-icon-grid-label">Config</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Countdown / disparo — componente de firma para el tótem -->
+    <section class="ds-section" id="countdown">
+      <div class="ds-section-head">
+        <h2>Countdown del invitado</h2>
+        <p class="ds-note">Componente de firma: un solo número gigante, un solo gesto.</p>
+      </div>
+      <div class="ds-countdown">
+        <span class="ds-countdown-label">Foto 2 de 3</span>
+        <span class="ds-countdown-number" id="countdownNumber">3</span>
+        <button class="ds-shutter-btn" id="shutterBtn" aria-label="Disparar"></button>
+      </div>
+    </section>
+
+    <p class="ds-footnote">FotoCabina — <a href="../02-layout-editor/index.html">Ir al editor de plantillas</a></p>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

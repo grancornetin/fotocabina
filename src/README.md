@@ -6,8 +6,25 @@ Proyecto único de fotocabina, organizado como páginas independientes que luego
 
 | Carpeta | Página | Estado |
 | --- | --- | --- |
-| `pages/01-camera-flow` | MVP de captura: flujo de sesión de 3 fotos y salida de dos tiras 2 × 6. | Recuperado del primer MVP. |
-| `pages/02-layout-editor` | Editor de layouts: capas, selección múltiple, guías, alineación, espaciado y preparación para impresión. | En evolución. |
+| `pages/00-design-system` | Sistema de diseño: paleta, tipografía, botones, tabs, cards, inputs, iconos y estados vivos. | Referencia visual para todas las pantallas futuras. |
+| `pages/01-camera-flow` | Flujo de cabina: modo operador (lanzar evento) y modo invitado (countdown, captura, revisión, resultado). | Migrado al sistema de diseño. Pendientes listados en `docs/MAPA_DE_PANTALLAS.md`. |
+| `pages/02-layout-editor` | Editor de layouts: capas, selección múltiple, guías, alineación, espaciado y preparación para impresión. | En evolución, pendiente de aplicar el nuevo sistema visual. |
+
+## Reglas para trabajar en este proyecto (personas y agentes de IA)
+
+Antes de crear o modificar cualquier pantalla, leer en este orden:
+
+1. [PRODUCT.md](PRODUCT.md) — quién usa la app, para qué, y qué no se puede inventar (precios, planes, capacidades).
+2. [DESIGN.md](DESIGN.md) — **el sistema de diseño, de cumplimiento obligatorio**: paleta exacta (negro / grafito / verde lima solo como acento funcional), tipografía, radios, elevación, componentes y las reglas "Do / Don't". Nada de emojis, nada de glassmorphism, nada de degradés multicolor, un solo verde por pantalla.
+3. [pages/00-design-system/index.html](pages/00-design-system/index.html) — la implementación viva de ese sistema. Los componentes nuevos se construyen copiando estos patrones (clases `ds-*`), no inventando otros.
+4. [docs/MAPA_DE_PANTALLAS.md](docs/MAPA_DE_PANTALLAS.md) — qué pantallas existen, cuáles faltan y qué quedó pendiente. Actualizarlo al terminar cada pantalla.
+
+Convenciones:
+
+- Cada pantalla vive en su propia carpeta `pages/NN-nombre/` con `index.html`, `styles.css` y `app.js` autocontenidos (sin dependencias externas ni CDNs).
+- Antes de armar un componente nuevo, buscar si ya existe en `00-design-system` o en `01-camera-flow` (dropdown propio `ds-select`, tabs `ds-tabs`, badges de estado, botones `ds-btn--*`, miniaturas con "Repetir").
+- Si varios agentes trabajan en paralelo: cada uno toca solo los archivos de su pantalla. No modificar, reescribir ni "ordenar" carpetas ajenas. `DESIGN.md` y `PRODUCT.md` se cambian solo con acuerdo explícito del dueño del proyecto.
+- Nombres de archivos, módulos, clases y textos de interfaz en español.
 
 Cada página es autocontenida y separa estructura, estilos y lógica:
 
