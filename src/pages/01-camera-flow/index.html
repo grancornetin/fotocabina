@@ -142,7 +142,7 @@
     <section class="review" id="review" hidden>
       <div class="review-inner">
         <h1 class="review-title">¿Usamos estas fotos?</h1>
-        <p class="review-hint">Tocá "Repetir" en una foto para volver a tomarla, o confirmá para continuar.</p>
+        <p class="review-hint">Tocá "Repetir" en la foto que quieras cambiar. Cuando confirmes se arma la tira y ya no se puede cambiar.</p>
         <div class="review-strip" id="reviewStrip"></div>
         <div class="review-actions">
           <button class="ds-btn ds-btn--secondary" id="retakeAllBtn">Repetir toda la sesión</button>
@@ -161,16 +161,13 @@
     </section>
 
     <!-- Resultado final -->
+    <!--
+      Dos zonas que siempre entran en la pantalla, sin scroll: la pieza (tira / fotos / GIF) ocupa el
+      escenario y el panel lateral concentra el título, las vistas, las salidas y el cierre.
+      En pantallas verticales o angostas el panel pasa abajo y el escenario ocupa el alto que sobra.
+    -->
     <section class="result" id="result" hidden>
-      <div class="result-inner">
-        <h1 class="review-title">¡Listo!</h1>
-
-        <div class="ds-tabs" role="tablist" aria-label="Vista del resultado" id="resultTabs">
-          <button class="ds-tab" role="tab" data-tab="strip" aria-selected="true">Tira</button>
-          <button class="ds-tab" role="tab" data-tab="photos" aria-selected="false">Fotos</button>
-          <button class="ds-tab" role="tab" data-tab="gif" aria-selected="false">GIF</button>
-        </div>
-
+      <div class="result-stage">
         <div class="result-view" id="resultViewStrip" data-view="strip">
           <img id="finalPrint" class="result-preview" alt="Diseño final de impresión" />
         </div>
@@ -183,28 +180,48 @@
           <img id="resultGif" class="result-preview result-preview--gif" alt="GIF animado de la sesión" hidden />
           <p class="gif-status" id="gifStatus">Generando GIF…</p>
         </div>
+      </div>
+
+      <aside class="result-panel">
+        <div class="result-head">
+          <p class="result-eyebrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
+            Sesión guardada
+          </p>
+          <h1 class="result-title">¡Listo!</h1>
+          <p class="result-sub">Tu tira ya está armada. Elegí cómo llevártela.</p>
+        </div>
+
+        <div class="ds-tabs ds-tabs--fill" role="tablist" aria-label="Vista del resultado" id="resultTabs">
+          <button class="ds-tab" role="tab" data-tab="strip" aria-selected="true">Tira</button>
+          <button class="ds-tab" role="tab" data-tab="photos" aria-selected="false">Fotos</button>
+          <button class="ds-tab" role="tab" data-tab="gif" aria-selected="false">GIF</button>
+        </div>
 
         <div class="result-actions">
-          <button class="ds-btn ds-btn--secondary" id="downloadBtn">Descargar</button>
-          <button class="ds-btn ds-btn--secondary" id="shareBtn" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg>
-            Compartir
-          </button>
-          <button class="ds-btn ds-btn--primary" id="printBtn">
+          <button class="ds-btn ds-btn--secondary result-action" id="printBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
-            Imprimir
+            <span>Imprimir</span>
+          </button>
+          <button class="ds-btn ds-btn--secondary result-action" id="downloadBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
+            <span id="downloadLabel">Descargar tira</span>
+          </button>
+          <button class="ds-btn ds-btn--secondary result-action" id="shareBtn" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg>
+            <span>Compartir</span>
           </button>
         </div>
 
         <div class="result-footer">
-          <button class="ds-btn ds-btn--ghost" id="retakeSessionBtn">Borrar y repetir sesión</button>
-          <button class="ds-btn ds-btn--primary ds-btn--compact" id="finishBtn">
+          <p class="idle-hint" id="idleHint" hidden></p>
+          <button class="ds-btn ds-btn--ghost ds-btn--compact" id="retakeSessionBtn">Borrar y repetir sesión</button>
+          <button class="ds-btn ds-btn--primary result-finish" id="finishBtn">
             Finalizar
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>
-        <p class="idle-hint" id="idleHint" hidden></p>
-      </div>
+      </aside>
     </section>
 
     <!-- Galería de sesiones guardadas (modo operador) -->

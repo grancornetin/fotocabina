@@ -59,6 +59,7 @@
   const gifStatus = q('#gifStatus');
   const resultPhotosGrid = q('#resultPhotosGrid');
   const downloadBtn = q('#downloadBtn');
+  const downloadLabel = q('#downloadLabel');
   const shareBtn = q('#shareBtn');
   const printBtn = q('#printBtn');
   const retakeSessionBtn = q('#retakeSessionBtn');
@@ -672,18 +673,6 @@
     if (await recaptureOne(index)) showReview();
   }
 
-  // Repetir una foto puntual desde el resultado ya compuesto: recaptura y vuelve a armar la tira.
-  async function retakePhotoFromResult(index) {
-    detenerTemporizadorInicio();
-    result.hidden = true;
-    if (!(await recaptureOne(index))) return;
-    composing.hidden = false;
-    await compose();
-    composing.hidden = true;
-    result.hidden = false;
-    iniciarTemporizadorInicio();
-  }
-
   function retakeAllPhotos() {
     photos = [];
     review.hidden = true;
@@ -759,12 +748,10 @@
     if (finalPrint.src) URL.revokeObjectURL(finalPrint.src);
     finalPrint.src = URL.createObjectURL(finalBlob);
 
+    // Una vez armada la tira no hay vuelta atrás: la única chance de repetir una foto es la revisión previa.
     resultPhotosGrid.innerHTML = '';
     photos.forEach((src, index) => {
-      resultPhotosGrid.appendChild(buildThumb(src, index, [
-        accionRepetir(retakePhotoFromResult),
-        accionDescargarFoto(() => photos),
-      ]));
+      resultPhotosGrid.appendChild(buildThumb(src, index, [accionDescargarFoto(() => photos)]));
     });
 
     await guardarSesionActual();
@@ -842,6 +829,8 @@
     qa('.result-view').forEach((view) => {
       view.hidden = view.dataset.view !== tabName;
     });
+    const etiquetas = { strip: 'Descargar tira', photos: 'Descargar fotos', gif: 'Descargar GIF' };
+    downloadLabel.textContent = etiquetas[tabName] || 'Descargar';
   }
 
   qa('#resultTabs .ds-tab').forEach((tab) => {

@@ -563,7 +563,7 @@ button { font-family: inherit; }
 
 /* ---------- Revisión ---------- */
 
-.review, .composing, .result {
+.review, .composing {
   position: absolute;
   inset: 0;
   z-index: 10;
@@ -575,7 +575,7 @@ button { font-family: inherit; }
   overflow-y: auto;
 }
 
-.review-inner, .result-inner {
+.review-inner {
   width: 100%;
   max-width: 560px;
   display: flex;
@@ -671,22 +671,12 @@ button { font-family: inherit; }
 .review-thumb-retake svg { width: 22px; height: 22px; }
 .review-thumb-retake span { font-size: 0.75rem; font-weight: 600; }
 
-.review-actions, .result-actions {
+.review-actions {
   display: flex;
   gap: var(--sp-2);
   width: 100%;
 }
-.review-actions .ds-btn, .result-actions .ds-btn { flex: 1; }
-
-.result-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  width: 100%;
-  padding-top: var(--sp-2);
-  border-top: 1px solid var(--color-border);
-}
+.review-actions .ds-btn { flex: 1; }
 
 /* ---------- Componiendo ---------- */
 
@@ -712,7 +702,99 @@ button { font-family: inherit; }
   margin: 0;
 }
 
-/* ---------- Resultado ---------- */
+/* ---------- Resultado ----------
+   Dos zonas que siempre entran en pantalla (nunca scroll): el escenario con la pieza y el panel con
+   las acciones. El panel fija su ancho; el escenario toma el resto y la pieza se escala al alto. */
+
+.result {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 30vw, 380px);
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.result-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-4) var(--sp-6);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 45%, rgba(var(--color-lime-rgb), 0.06), transparent 70%),
+    var(--color-bg);
+}
+
+.result-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 0;
+  padding: var(--sp-4) var(--sp-4);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  overflow-y: auto;
+}
+
+.result-head { display: flex; flex-direction: column; gap: 6px; }
+
+.result-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fog);
+}
+.result-eyebrow svg { width: 14px; height: 14px; }
+
+.result-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.result-sub {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--color-fog);
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.result-action {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--sp-2);
+  padding-left: var(--sp-3);
+}
+.result-action svg { width: 20px; height: 20px; flex: none; }
+
+.result-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--color-border);
+}
+.result-footer .idle-hint { text-align: center; }
+.result-finish { width: 100%; }
 
 .ds-tabs {
   display: inline-flex;
@@ -750,7 +832,16 @@ button { font-family: inherit; }
   background: var(--color-lime);
 }
 
-.result-view { width: 100%; display: flex; justify-content: center; }
+.ds-tabs--fill { display: flex; width: 100%; }
+.ds-tabs--fill .ds-tab { flex: 1; padding-left: 0; padding-right: 0; }
+
+.result-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .result-preview {
   width: 100%;
@@ -760,21 +851,35 @@ button { font-family: inherit; }
   box-shadow: 0 24px 64px rgba(0,0,0,0.5);
 }
 
+/* En el escenario la pieza se escala al alto disponible y nunca fuerza scroll */
+.result-stage .result-preview {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+}
+
+/* Fotos sueltas: se apilan y se escalan al alto del escenario, igual que la tira */
 .result-photos {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
   gap: var(--sp-2);
   width: 100%;
+  height: 100%;
+  justify-items: center;
 }
 
 .result-photos .review-thumb-wrap {
-  width: 100%;
-  height: auto;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
   aspect-ratio: 4 / 3;
 }
 
-.result-view--gif { flex-direction: column; align-items: center; gap: var(--sp-2); }
-.result-preview--gif { max-width: 360px; }
+.result-view--gif { flex-direction: column; gap: var(--sp-2); }
+.result-stage .result-preview--gif { max-height: calc(100% - 32px); }
 .gif-status {
   font-size: 0.875rem;
   font-weight: 600;
@@ -1246,6 +1351,31 @@ button { font-family: inherit; }
 
 /* ---------- Responsive ---------- */
 
+/* Resultado en vertical o angosto (tótem, tablet en vertical, celular): el panel pasa abajo y
+   el escenario toma el alto que sobra. Sigue sin haber scroll. */
+@media (max-width: 899px), (orientation: portrait) {
+  .result {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .result-stage { padding: var(--sp-3); }
+  .result-panel {
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    gap: var(--sp-2);
+    padding: var(--sp-3) max(var(--sp-3), calc((100% - 720px) / 2));
+    max-height: 62vh;
+  }
+  .result-head { flex-direction: row; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+  .result-eyebrow { order: 3; width: 100%; }
+  .result-title { font-size: 2rem; }
+  .result-sub { flex: 1; min-width: 160px; }
+  .result-actions { flex-direction: row; }
+  .result-action { justify-content: center; padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .result-action svg { display: none; }
+  .result-footer { padding-top: var(--sp-2); }
+}
+
 /* Por debajo de 1100 px la tarjeta de plantilla chocaría con el panel de conexión centrado */
 @media (max-width: 1100px) {
   .template-card { top: var(--sp-3); bottom: auto; }
@@ -1255,9 +1385,7 @@ button { font-family: inherit; }
   .op-header { gap: var(--sp-2); }
   .op-controls { gap: var(--sp-1); }
   .ds-select-trigger { min-width: 130px; }
-  .review-actions, .result-actions { flex-direction: column; }
-  .result-footer { flex-direction: column-reverse; }
-  .result-footer .ds-btn { width: 100%; }
+  .review-actions { flex-direction: column; }
   .op-rail { margin-left: 0; }
   .op-header > .ds-btn--primary { width: 100%; }
   /* En pantallas angostas la tarjeta sube para no pisar el panel de conexión del fondo */
