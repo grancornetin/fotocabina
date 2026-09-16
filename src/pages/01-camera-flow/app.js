@@ -27,6 +27,9 @@
   const soonText = q('#soonText');
   const soonCloseBtn = q('#soonCloseBtn');
   const interstitialText = q('#interstitialText');
+  const templateStats = q('#templateStats');
+  const mirrorToggle = q('#mirrorToggle');
+  const idleHint = q('#idleHint');
   const cameraStatusBadge = q('#cameraStatusBadge');
   const cameraStatusText = q('#cameraStatusText');
 
@@ -86,7 +89,7 @@
   // Ajustes de sesión del operador, persistidos en este equipo (localStorage). El PIN pasará a
   // configurarse por evento cuando exista la pantalla de configuración (C2 del mapa).
   const AJUSTES_CLAVE = 'fotocabina-ajustes';
-  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234' };
+  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234', volver: 30, espejo: true };
   const ajustes = cargarAjustes();
 
   function cargarAjustes() {
@@ -223,7 +226,8 @@
           if (tipo === 'countdown') { ajustes.cuenta = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
           if (tipo === 'photos') { ajustes.fotos = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
           if (tipo === 'pause') { ajustes.pausa = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
-          if (tipo === 'event') { eventoActual = { id: opt.dataset.value, nombre: opt.textContent }; }
+          if (tipo === 'return') { ajustes.volver = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
+          if (tipo === 'event') { eventoActual = { id: opt.dataset.value, nombre: opt.textContent }; actualizarContadorEvento(); }
         });
       });
 
@@ -248,9 +252,66 @@
     seleccionarOpcion('photos', ajustes.fotos);
     seleccionarOpcion('countdown', ajustes.cuenta);
     seleccionarOpcion('pause', ajustes.pausa);
+    seleccionarOpcion('return', ajustes.volver);
     pauseMessageInput.value = ajustes.mensajePausa;
     pinInput.value = ajustes.pin;
     actualizarResumenPlantilla();
+    aplicarEspejo();
+  }
+
+  function aplicarEspejo() {
+    video.classList.toggle('is-unmirrored', !ajustes.espejo);
+    mirrorToggle.setAttribute('aria-checked', String(ajustes.espejo));
+  }
+
+  // ---------- Contador del evento (tarjeta de plantilla) ----------
+
+  async function actualizarContadorEvento() {
+    try {
+      const sesiones = await AlmacenSesiones.listar(eventoActual.id);
+      if (!sesiones.length) {
+        templateStats.textContent = 'Sin sesiones todavía';
+        return;
+      }
+      const ultima = new Date(sesiones[0].fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      templateStats.textContent = `${sesiones.length} ${sesiones.length === 1 ? 'sesión' : 'sesiones'} · última ${ultima}`;
+    } catch (e) {
+      templateStats.textContent = '';
+    }
+  }
+
+  // ---------- Volver al inicio por inactividad (pantalla de resultado) ----------
+
+  let temporizadorInicio = null;
+  let restanteInicio = 0;
+
+  function iniciarTemporizadorInicio() {
+    detenerTemporizadorInicio();
+    if (!ajustes.volver) return;
+    restanteInicio = ajustes.volver;
+    temporizadorInicio = setInterval(() => {
+      restanteInicio -= 1;
+      if (restanteInicio > 0 && restanteInicio <= 10) {
+        idleHint.textContent = `Vuelve al inicio en ${restanteInicio} s`;
+        idleHint.hidden = false;
+      }
+      if (restanteInicio <= 0) {
+        detenerTemporizadorInicio();
+        enterIdle();
+      }
+    }, 1000);
+  }
+
+  function reiniciarTemporizadorInicio() {
+    if (!temporizadorInicio) return;
+    restanteInicio = ajustes.volver;
+    idleHint.hidden = true;
+  }
+
+  function detenerTemporizadorInicio() {
+    if (temporizadorInicio) clearInterval(temporizadorInicio);
+    temporizadorInicio = null;
+    idleHint.hidden = true;
   }
 
   // ---------- Panel de ajustes y hojas "Próximamente" ----------
@@ -340,6 +401,7 @@
   }
 
   function exitEvent() {
+    detenerTemporizadorInicio();
     if (sessionActive) cancelRequested = true;
     cabin.classList.remove('is-guest-mode');
     sessionActive = false;
@@ -361,6 +423,7 @@
   }
 
   function enterIdle() {
+    detenerTemporizadorInicio();
     photos = [];
     finalBlob = null;
     gifBlob = null;
@@ -453,8 +516,10 @@
     c.width = 1280;
     c.height = 960;
     const ctx = c.getContext('2d');
-    ctx.translate(c.width, 0);
-    ctx.scale(-1, 1);
+    if (ajustes.espejo) {
+      ctx.translate(c.width, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(video, 0, 0, c.width, c.height);
 
     flash.classList.remove('on');
@@ -609,12 +674,14 @@
 
   // Repetir una foto puntual desde el resultado ya compuesto: recaptura y vuelve a armar la tira.
   async function retakePhotoFromResult(index) {
+    detenerTemporizadorInicio();
     result.hidden = true;
     if (!(await recaptureOne(index))) return;
     composing.hidden = false;
     await compose();
     composing.hidden = true;
     result.hidden = false;
+    iniciarTemporizadorInicio();
   }
 
   function retakeAllPhotos() {
@@ -632,6 +699,7 @@
     composing.hidden = true;
     setResultTab('strip');
     result.hidden = false;
+    iniciarTemporizadorInicio();
   }
 
   function loadImage(src) {
@@ -723,6 +791,7 @@
     } catch (e) {
       showNotice('No se pudo guardar la sesión en este equipo.');
     }
+    actualizarContadorEvento();
   }
 
   async function generarGif() {
@@ -928,6 +997,16 @@
   launchBtn.addEventListener('click', launchEvent);
   galleryBtn.addEventListener('click', abrirGaleria);
   aplicarAjustesAControles();
+  actualizarContadorEvento();
+
+  mirrorToggle.addEventListener('click', () => {
+    ajustes.espejo = !ajustes.espejo;
+    guardarAjustes();
+    aplicarEspejo();
+  });
+
+  // Cualquier toque sobre la pantalla de resultado reinicia la vuelta automática al inicio
+  result.addEventListener('pointerdown', reiniciarTemporizadorInicio);
 
   settingsBtn.addEventListener('click', () => abrirDrawer());
   printerStatusBadge.addEventListener('click', () => abrirDrawer('seccionImpresion'));
@@ -971,10 +1050,12 @@
   confirmBtn.addEventListener('click', confirmAndCompose);
 
   retakeSessionBtn.addEventListener('click', async () => {
+    detenerTemporizadorInicio();
     result.hidden = true;
     if (sesionActual) {
       try { await AlmacenSesiones.borrar(sesionActual.id); } catch (e) { /* si falla, quedará en la galería */ }
       sesionActual = null;
+      actualizarContadorEvento();
     }
     gifBlob = null;
     retakeAllPhotos();
@@ -1045,11 +1126,14 @@
       return;
     }
     await volverAGaleria();
+    actualizarContadorEvento();
   });
 
   // Teclado: dígitos/Backspace/Escape mientras el PIN está abierto; ESC cancela la sesión en
   // curso o, si no hay sesión, abre el acceso de operador; F11 alterna pantalla completa.
   document.addEventListener('keydown', (e) => {
+    if (!result.hidden) reiniciarTemporizadorInicio();
+
     if (proximamenteAbierto()) {
       if (e.key === 'Escape') cerrarProximamente();
       return;
