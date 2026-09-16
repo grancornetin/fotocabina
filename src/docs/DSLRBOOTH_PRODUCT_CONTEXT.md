@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-15.
+> Última revisión: 2026-09-16.
 
 ## 0. Norte del producto (léase primero)
 
@@ -156,7 +156,9 @@ Tipos iniciales de capa:
 - `shape`: rectángulo, línea, círculo y color.
 - `guide` / `safe-area`: sólo editor; jamás sale al raster de impresión.
 
-La plantilla debe incluir su tamaño de salida, sangrado/área segura, DPI objetivo y si requiere duplicación a otra media. Los recursos —incluidas fuentes cargadas— deben viajar con la plantilla o su paquete para que el resultado no cambie en otro equipo.
+La plantilla debe incluir su tamaño de salida, sangrado/área segura, DPI objetivo y si requiere duplicación a otra media.
+
+**Decisión (2026-09-16): la plantilla manda sobre la sesión.** La cantidad de fotos que toma la cabina, el orden y la proporción de cada una (que define el marco de encuadre en pantalla) salen de los `photo-slot` de la plantilla activa, no de un ajuste manual. Si el editor entrega una plantilla con 10 huecos, la sesión toma 10 fotos. El ajuste "Fotos por sesión" que hoy tiene `01-camera-flow` es provisorio hasta que la cabina lea plantillas reales del editor (`03-editor-plantillas`). Los recursos —incluidas fuentes cargadas— deben viajar con la plantilla o su paquete para que el resultado no cambie en otro equipo.
 
 ### 3.6 Entrega digital y conectividad local
 
@@ -168,6 +170,17 @@ FotoCabina debe separar dos canales:
 2. **Entrega digital local opcional:** red Wi‑Fi propia creada por la cabina, una URL temporal por sesión/QR y descarga desde el teléfono. Airdrop y Bluetooth se evaluarán por sistema operativo, permisos y experiencia; no serán el único canal.
 
 No se debe depender del Wi‑Fi del recinto. Una red propia o router de viaje evita aislamiento de clientes y caídas típicas de redes de eventos; es el mismo principio operativo que documenta LumaBooth para su asistente de impresión. [LumaBooth Assistant](https://support.dslrbooth.com/hc/en-us/articles/228611008-LumaBooth-Assistant)
+
+### 3.7 Operación distribuida en el evento (ideas registradas 2026-09-16)
+
+Hoy se prueba y desarrolla solo en desktop; nada de esto se construye todavía. Se registra para que el motor y la arquitectura no cierren la puerta:
+
+- **Control remoto desde el celular del operador.** El teléfono se vincula a la cabina activa por la red local del evento y permite disparar, pausar, cancelar o repetir una sesión a distancia, ver el preview y el estado de cámara/impresora. Es la pantalla G del mapa (`docs/MAPA_DE_PANTALLAS.md`).
+- **Punto de retiro digital en tablet (Android/iOS).** Un servidor local levantado para el evento almacena las sesiones; una tablet en otro sector del salón actúa como estación donde cada invitado busca y se lleva sus fotos (por código de sesión, QR o galería del evento). Es una variante del compartir por QR, pensada para eventos donde no conviene que la gente se quede frente a la cabina.
+- **Impresión a distancia.** Cuando la impresora soporte trabajos por Wi‑Fi, la cabina puede estar en un punto y la estación de retiro/impresión en otro, con la cola de impresión viajando por la red local.
+- **Todo configurable por evento.** Cada evento decide si usa punto de retiro externo, impresión remota, QR en la cabina, o solo impresión local. La cabina debe funcionar completa sin ninguno de estos extras (offline primero, principio 1).
+
+Consecuencia de arquitectura: las sesiones deben persistirse con un identificador estable y un formato que pueda servirse por HTTP local (hoy `01-camera-flow` ya las guarda con id, fotos, tira y GIF en IndexedDB — es el embrión de ese almacén).
 
 ## 4. Requisitos del editor de layouts
 
