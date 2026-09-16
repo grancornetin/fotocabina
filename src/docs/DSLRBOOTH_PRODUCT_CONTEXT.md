@@ -2,7 +2,15 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-16.
+> Última revisión: 2026-09-16 (tarde: estado del repo, decisiones del flujo de cabina §3.8).
+>
+> **Qué documento manda sobre qué** (para no duplicar):
+> - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
+> - `DESIGN.md` — sistema de diseño obligatorio. Referencia viva: `pages/00-design-system`.
+> - **Este documento** — decisiones de producto, hardware y arquitectura, y el plan por fases (§6). Cuando se toma una decisión que cambia el rumbo, se anota acá.
+> - `docs/MAPA_DE_PANTALLAS.md` — inventario de pantallas y su estado (hecha / en curso / falta / futuro).
+> - `docs/PLAN_EDITOR_PLANTILLAS.md` — plan detallado del editor (lo mantiene quien trabaja el editor).
+> - `pages/*/README.md` — detalle de cómo funciona cada pantalla hoy.
 
 ## 0. Norte del producto (léase primero)
 
@@ -52,21 +60,31 @@ Cada plataforma que controla hardware (desktop, iPad+DSLR, cabina liviana) tiene
 ## 2. Estado del repositorio
 
 ```text
+PRODUCT.md                    # Verdad del producto para diseño
+DESIGN.md                     # Sistema de diseño (obligatorio)
 pages/
-├── 01-camera-flow/      # MVP recuperado de captura, sesión y composición 4 × 6
-└── 02-layout-editor/    # Editor visual de plantillas
+├── 00-design-system/        # Showcase del sistema de diseño (dark / light / sistema)
+├── 01-camera-flow/          # Cabina: modo operador + modo invitado (ver su README)
+├── 02-layout-editor/        # Editor visual original (se reemplaza por 03)
+└── 03-editor-plantillas/    # Editor de plantillas nuevo, en construcción (docs/PLAN_EDITOR_PLANTILLAS.md)
 docs/
-└── DSLRBOOTH_PRODUCT_CONTEXT.md
+├── DSLRBOOTH_PRODUCT_CONTEXT.md
+├── MAPA_DE_PANTALLAS.md
+└── PLAN_EDITOR_PLANTILLAS.md
 ```
 
 Cada página conserva estructura, estilos y lógica en archivos separados (`index.html`, `styles.css`, `app.js`). Los módulos comunes que aparezcan más adelante irán en `shared/`; no se debe volver a concentrar toda la aplicación en un único HTML.
 
-### Qué hay hoy
+### Qué hay hoy (2026-09-16)
 
 | Módulo | Estado | Alcance real |
 | --- | --- | --- |
-| `01-camera-flow` | MVP recuperado | Usa la cámara disponible del navegador, realiza una sesión de 2 o 3 fotos, compone un 4 × 6 y abre descarga/impresión. No controla todavía una DSLR, flash o impresora profesional. |
-| `02-layout-editor` | Prototipo funcional | Crea layouts 2 × 6 / 4 × 6, capas, fotos, textos, formas e imágenes; prepara una vista de dos tiras en un 4 × 6. |
+| `00-design-system` | Aprobado | Tokens, componentes y modo claro/oscuro. Todo lo nuevo se construye con esto. |
+| `01-camera-flow` | MVP de cabina cerrado (navegador) | Operador: evento, semáforos, galería, ajustes (fotos, cuenta hasta 30 s, pausa, mensaje, PIN, vuelta al inicio, cámara, espejo), "Lanzar evento". Invitado: pantalla completa, countdown, interstitial, marco de encuadre, revisión con repetir foto, tira 4 × 6, GIF real, descargar/compartir/imprimir, sesiones guardadas en IndexedDB, vuelta automática al inicio, PIN para volver al operador. No controla todavía DSLR, flash ni impresora profesional; la cantidad de fotos todavía es un ajuste manual (ver §3.5). |
+| `02-layout-editor` | Prototipo, congelado | Editor original; queda como referencia hasta que `03` lo reemplace. |
+| `03-editor-plantillas` | En construcción | Editor nuevo sobre el sistema de diseño. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. |
+
+Lo que falta del mapa (A2, A8 QR, A9, A10, panel de operador C1–C7, B2–B4 y todo lo de Etapa 2) está listado con su estado en `docs/MAPA_DE_PANTALLAS.md`.
 
 ## 3. Qué se puede aprender de DSLRBooth/LumaBooth
 
@@ -181,6 +199,18 @@ Hoy se prueba y desarrolla solo en desktop; nada de esto se construye todavía. 
 - **Todo configurable por evento.** Cada evento decide si usa punto de retiro externo, impresión remota, QR en la cabina, o solo impresión local. La cabina debe funcionar completa sin ninguno de estos extras (offline primero, principio 1).
 
 Consecuencia de arquitectura: las sesiones deben persistirse con un identificador estable y un formato que pueda servirse por HTTP local (hoy `01-camera-flow` ya las guarda con id, fotos, tira y GIF en IndexedDB — es el embrión de ese almacén).
+
+### 3.8 Decisiones del flujo del invitado (tomadas probando `01-camera-flow`, 2026-09-16)
+
+Valen para cualquier plataforma que corra la cabina, no solo para el prototipo web:
+
+- **Repetir una foto solo antes de armar la tira.** La pantalla de revisión ("¿Usamos estas fotos?") es el único punto donde se reemplaza una foto puntual. Una vez compuesta la tira no hay vuelta atrás foto por foto: el resultado es un cierre, no otra ronda de edición. Sí existe "Borrar y repetir sesión" (empezar de cero), equivalente al de DSLRBooth.
+- **La pantalla de resultado nunca hace scroll.** Dos zonas: la pieza (tira / fotos / GIF) escalada al alto, y un panel con las salidas y un único botón lima, "Finalizar", anclado abajo. En vertical el panel pasa abajo. Motivo: en un tótem táctil un botón fuera de vista es un botón que no existe.
+- **La sesión se guarda sola al componer.** Si el invitado se va sin tocar nada, el operador la encuentra en la galería. "Finalizar" solo la marca como finalizada.
+- **Vuelta automática al inicio** por inactividad en el resultado (configurable: nunca / 30 / 60 / 90 s), con aviso en los últimos 10 s. Cualquier toque reinicia el conteo.
+- **Controles de emergencia del operador durante la sesión:** ESC cancela, botón "Pausar" congela y ofrece reanudar o cancelar. Volver al modo operador desde el modo invitado pide PIN.
+- **Interstitial entre fotos** con duración configurable: además de dar tiempo a cambiar de pose, es la palanca para regular el ritmo de la fila.
+- **Nunca emojis** en la interfaz; solo íconos monocromáticos (regla del sistema de diseño).
 
 ## 4. Requisitos del editor de layouts
 
@@ -300,7 +330,7 @@ Las fases A–D construyen el motor de cabina y corren en **desktop primero**, p
 ### Fase B — aplicación local y flujo de sesión
 
 1. Crear shell de escritorio Windows.
-2. Llevar `01-camera-flow` a una pantalla de sesión real.
+2. Llevar `01-camera-flow` a una pantalla de sesión real. *(El flujo de invitado y los controles de operador ya están resueltos en el prototipo web — §3.8; falta conectarlo a plantillas reales del editor y a hardware.)*
 3. Añadir almacenamiento local, recuperación después de reinicio y cola persistente.
 4. Conectar una cámara de prueba concreta y validar captura de alta resolución.
 
