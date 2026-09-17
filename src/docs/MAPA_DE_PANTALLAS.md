@@ -33,7 +33,7 @@
 
 | # | Pantalla | Estado | Qué hace |
 | --- | --- | --- | --- |
-| B1 | **Editor de layout** | **Construido** (`03-editor-plantillas`, Fases 1–4 hechas) | Rehecho como producto propio: lienzo en milímetros con reglas, guías inteligentes (centro, bordes, espaciado igual, medición con Alt, guías propias), barra contextual flotante, inspector, capas, arrastrar imágenes, detección automática de espacios de foto en diseños de Canva, modo claro/oscuro. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. El viejo `02-layout-editor` queda intacto como referencia. |
+| B1 | **Editor de layout** | **Construido y aprobado para producción** (`03-editor-plantillas`, Fases 1–4 hechas) | Rehecho como producto propio: lienzo en milímetros con reglas, guías inteligentes (centro, bordes, espaciado igual, medición con Alt, guías propias), barra contextual flotante, inspector, capas, arrastrar imágenes, detección automática de espacios de foto en diseños de Canva, modo claro/oscuro. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. El dueño del proyecto confirmó este editor como el definitivo; `02-layout-editor` queda **descartado**, sin desarrollo nuevo, solo como referencia histórica. |
 | B2 | **Tipografía avanzada** (dentro del editor) | **Construido** (Fase 2) | Fuente, peso, cursiva, subrayado, tachado, mayúsculas, interlineado, espaciado, alineación H/V, ajuste a la caja (crecer/reducir/recortar), fuentes .ttf/.otf/.woff propias agrupadas por familia y guardadas dentro de la plantilla, edición directa sobre el lienzo. |
 | B3 | **Galería de plantillas propias** | **Construido** (Fase 3) | Pantalla de inicio del editor: mis plantillas con miniatura real, 15 plantillas base (tiras, postales, apaisadas), duplicar, renombrar, eliminar, importar/exportar archivo `.fotocabina.json`. |
 | B4 | **Vista de impresión / previsualización de hoja** | **Construido** (Fase 3) | Motor de render propio a 300 ppp, hoja 4×6 con dos tiras y línea de corte, exportar PNG, imprimir copia de prueba, guía PNG para diseñar en Canva. Datos de sesión (fecha, hora, n.º, evento) como elementos de la plantilla. El QR de entrega digital **no** es un elemento de plantilla: vive en la pantalla de resultado de la cabina (ver A8). |
@@ -99,14 +99,14 @@
 
 - **Etapa 1 — Migrado en `01-camera-flow`:** A1, A3, A4 (versión mínima), A5, A6, A7, A11 — 7 pantallas/pasos.
 - **Etapa 1 — Parcial:** A8 (maqueta visual del QR, sin servidor local real), A10 (falta error de impresora y diseño final).
-- **Etapa 1 — Falta construir:** A2, A9 (2 del flujo invitado) + B2-B3 (2 del editor) + C1-C7 (7 del panel de operador) + B1/B4 a migrar visualmente = 12 pantallas/piezas.
+- **Etapa 1 — Falta construir:** A2, A9 (2 del flujo invitado) + C1-C7 (7 del panel de operador) = 9 pantallas/piezas. El editor de plantillas (B1-B4) ya está completo.
 - **Etapa 2 — Futuro, solo mapeado:** 5 pantallas propias de cuenta/suscripción (D1-D5) + 4 flujos completos reusados y adaptados por plataforma (E, F, G, H).
 
 ## Próximo paso acordado
 
 1. ~~Migrar `01-camera-flow` (pantallas A1, A3-A7) al nuevo sistema visual~~ — **hecho**, con mejoras sobre DSLRBooth (repetir foto individual, footer de salida claro). Ver capturas de referencia en `pantallas dslrbooth/`.
-2. Migrar `02-layout-editor` (B1, B4) al nuevo sistema visual.
-3. Revisar juntos cómo quedaron esas dos migraciones antes de construir cualquier pantalla nueva de la lista "Falta" — incluyendo A11 (galería/historial), que quedó pendiente de esta ronda de feedback.
+2. ~~Rehacer el editor de plantillas (`02-layout-editor` → `03-editor-plantillas`)~~ — **hecho y aprobado para producción** el 2026-09-17 (Fases 1-4 completas).
+3. Seguir con el panel del operador (C1-C7), que es el bloque más grande que queda de la Etapa 1.
 
 ## Pendientes de `01-camera-flow` reportados tras prueba real (2026-09-16)
 
