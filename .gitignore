@@ -1,0 +1,10 @@
+# Material de referencia local, no se distribuye con el repo público
+pantallas dslrbooth/
+ui inspo/
+src/memoria_trabajo_para_ias.txt
+
+# Fuentes personales del dueño del proyecto (licencias propias, no redistribuibles)
+src/fonts/
+
+# Páginas de prueba, capturas y servidores locales (viven fuera del repo)
+*.local.html

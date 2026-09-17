@@ -33,10 +33,10 @@
 
 | # | Pantalla | Estado | Qué hace |
 | --- | --- | --- | --- |
-| B1 | **Editor de layout** | **Construido** (`03-editor-plantillas`, Fases 1–3 hechas; Fase 4 pulido pendiente) | Rehecho como producto propio: lienzo en milímetros con reglas, guías inteligentes (centro, bordes, espaciado igual, medición con Alt, guías propias), barra contextual flotante, inspector, capas, arrastrar imágenes, detección automática de espacios de foto en diseños de Canva. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. El viejo `02-layout-editor` queda intacto hasta cerrar la Fase 4. |
+| B1 | **Editor de layout** | **Construido** (`03-editor-plantillas`, Fases 1–4 hechas) | Rehecho como producto propio: lienzo en milímetros con reglas, guías inteligentes (centro, bordes, espaciado igual, medición con Alt, guías propias), barra contextual flotante, inspector, capas, arrastrar imágenes, detección automática de espacios de foto en diseños de Canva, modo claro/oscuro. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. El viejo `02-layout-editor` queda intacto como referencia. |
 | B2 | **Tipografía avanzada** (dentro del editor) | **Construido** (Fase 2) | Fuente, peso, cursiva, subrayado, tachado, mayúsculas, interlineado, espaciado, alineación H/V, ajuste a la caja (crecer/reducir/recortar), fuentes .ttf/.otf/.woff propias agrupadas por familia y guardadas dentro de la plantilla, edición directa sobre el lienzo. |
 | B3 | **Galería de plantillas propias** | **Construido** (Fase 3) | Pantalla de inicio del editor: mis plantillas con miniatura real, 15 plantillas base (tiras, postales, apaisadas), duplicar, renombrar, eliminar, importar/exportar archivo `.fotocabina.json`. |
-| B4 | **Vista de impresión / previsualización de hoja** | **Construido** (Fase 3) | Motor de render propio a 300 ppp, hoja 4×6 con dos tiras y línea de corte, exportar PNG, imprimir copia de prueba. También datos de sesión (fecha, hora, n.º, evento) y QR de muestra como elementos de la plantilla. |
+| B4 | **Vista de impresión / previsualización de hoja** | **Construido** (Fase 3) | Motor de render propio a 300 ppp, hoja 4×6 con dos tiras y línea de corte, exportar PNG, imprimir copia de prueba, guía PNG para diseñar en Canva. Datos de sesión (fecha, hora, n.º, evento) como elementos de la plantilla. El QR de entrega digital **no** es un elemento de plantilla: vive en la pantalla de resultado de la cabina (ver A8). |
 
 ### C. Panel del operador (configuración y monitoreo del evento)
 

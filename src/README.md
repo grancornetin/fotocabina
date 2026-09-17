@@ -8,7 +8,8 @@ Proyecto único de fotocabina, organizado como páginas independientes que luego
 | --- | --- | --- |
 | `pages/00-design-system` | Sistema de diseño: paleta, tipografía, botones, tabs, cards, inputs, iconos y estados vivos. | Referencia visual para todas las pantallas futuras. |
 | `pages/01-camera-flow` | Flujo de cabina: modo operador (lanzar evento) y modo invitado (countdown, captura, revisión, resultado). | Migrado al sistema de diseño. Pendientes listados en `docs/MAPA_DE_PANTALLAS.md`. |
-| `pages/02-layout-editor` | Editor de layouts: capas, selección múltiple, guías, alineación, espaciado y preparación para impresión. | En evolución, pendiente de aplicar el nuevo sistema visual. |
+| `pages/02-layout-editor` | Editor de layouts (prototipo original): capas, selección múltiple, guías, alineación, espaciado y preparación para impresión. | Congelado como referencia funcional. Lo reemplaza `03-editor-plantillas`. |
+| `pages/03-editor-plantillas` | Editor de plantillas nuevo, rehecho como producto: galería de plantillas, lienzo en mm con reglas y guías inteligentes, tipografía completa con fuentes propias, datos de sesión y QR, render a 300 ppp con vista de hoja e importar/exportar. | Fases 1–3 construidas; Fase 4 (pulido) pendiente. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. |
 
 ## Reglas para trabajar en este proyecto (personas y agentes de IA)
 

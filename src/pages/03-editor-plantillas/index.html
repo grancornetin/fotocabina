@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FotoCabina — Editor de plantillas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ed-app" id="ed-app">
+
+    <header class="ed-barra">
+      <div class="ed-marca">
+        <span class="ed-marca-icono" data-icono="marca"></span>
+        <span class="ed-marca-texto">FotoCabina</span>
+        <span class="ed-marca-sep"></span>
+        <button class="ed-boton-plantillas" id="ed-abrir-galeria" type="button" title="Mis plantillas y plantillas base"><span data-icono="capas"></span>Plantillas</button>
+      </div>
+
+      <div class="ed-barra-centro">
+        <button class="ed-nombre" id="ed-nombre" type="button" title="Renombrar plantilla">
+          <span class="ed-nombre-texto" id="ed-nombre-texto">Plantilla</span>
+          <span class="ed-icono-16" data-icono="editar"></span>
+        </button>
+        <span class="ed-guardado" id="ed-guardado" data-estado="guardado">Guardado</span>
+      </div>
+
+      <div class="ed-barra-acciones">
+        <div class="ed-grupo">
+          <button class="ed-boton-icono" id="ed-deshacer" type="button" title="Deshacer (Ctrl+Z)" disabled><span data-icono="deshacer"></span></button>
+          <button class="ed-boton-icono" id="ed-rehacer" type="button" title="Rehacer (Ctrl+Shift+Z)" disabled><span data-icono="rehacer"></span></button>
+        </div>
+        <div class="ed-grupo ed-zoom">
+          <button class="ed-boton-icono" id="ed-zoom-menos" type="button" title="Alejar (Ctrl+−)"><span data-icono="menos"></span></button>
+          <button class="ed-zoom-valor" id="ed-zoom-valor" type="button" title="Ajustar a pantalla (Ctrl+0)">100%</button>
+          <button class="ed-boton-icono" id="ed-zoom-mas" type="button" title="Acercar (Ctrl++)"><span data-icono="mas"></span></button>
+        </div>
+        <div class="ed-tema-switch" role="radiogroup" aria-label="Modo de color" id="ed-tema-switch">
+          <button class="ed-tema-btn" data-tema="dark" role="radio" title="Oscuro"><span data-icono="temaOscuro"></span></button>
+          <button class="ed-tema-btn" data-tema="light" role="radio" title="Claro"><span data-icono="temaClaro"></span></button>
+          <button class="ed-tema-btn" data-tema="system" role="radio" title="Sistema"><span data-icono="temaSistema"></span></button>
+        </div>
+        <button class="ed-boton-icono" id="ed-atajos" type="button" title="Atajos de teclado (?)"><span data-icono="atajos"></span></button>
+        <button class="ed-boton-icono" id="ed-inspector-toggle" type="button" title="Mostrar u ocultar el inspector" aria-pressed="true"><span data-icono="panelDerecho"></span></button>
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="ed-vista-hoja" type="button" title="Ver cómo sale en el papel">
+          <span data-icono="papel"></span>
+          Vista de hoja
+        </button>
+        <div class="ed-menu-cont">
+          <button class="ds-btn ds-btn--primary ds-btn--compact" id="ed-exportar" type="button" aria-haspopup="menu" aria-expanded="false">
+            <span data-icono="exportar"></span>
+            Exportar
+            <span class="ed-icono-16" data-icono="chevron"></span>
+          </button>
+          <div class="ed-menu" id="ed-menu-exportar" role="menu" hidden>
+            <button type="button" class="ed-menu-item" data-exportar="png" role="menuitem"><span data-icono="imagen"></span><span><b>Imagen PNG</b><small>La plantilla a 300 ppp, con las fotos de prueba</small></span></button>
+            <button type="button" class="ed-menu-item" data-exportar="hoja" role="menuitem"><span data-icono="papel"></span><span><b>Hoja para imprimir PNG</b><small>4 × 6 con las dos tiras, lista para el driver</small></span></button>
+            <button type="button" class="ed-menu-item" data-exportar="guia" role="menuitem"><span data-icono="cuadricula"></span><span><b>Guía para Canva PNG</b><small>Tamaño exacto con los espacios de foto marcados, para diseñar afuera</small></span></button>
+            <button type="button" class="ed-menu-item" data-exportar="archivo" role="menuitem"><span data-icono="capas"></span><span><b>Archivo de plantilla</b><small>.fotocabina.json para guardar o pasar a otra PC</small></span></button>
+            <span class="ed-menu-sep"></span>
+            <button type="button" class="ed-menu-item" data-exportar="importar" role="menuitem"><span data-icono="bajar"></span><span><b>Importar archivo de plantilla</b><small>Abre un .fotocabina.json</small></span></button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ed-rail" id="ed-rail" aria-label="Agregar al diseño">
+      <button class="ed-rail-boton" data-panel="fotos" type="button" title="Fotos (F)"><span data-icono="foto"></span><span class="ed-rail-etiqueta">Fotos</span></button>
+      <button class="ed-rail-boton" data-panel="texto" type="button" title="Texto (T)"><span data-icono="texto"></span><span class="ed-rail-etiqueta">Texto</span></button>
+      <button class="ed-rail-boton" data-panel="formas" type="button" title="Formas"><span data-icono="forma"></span><span class="ed-rail-etiqueta">Formas</span></button>
+      <button class="ed-rail-boton" data-panel="imagenes" type="button" title="Imágenes (I)"><span data-icono="imagen"></span><span class="ed-rail-etiqueta">Imágenes</span></button>
+      <button class="ed-rail-boton" data-panel="datos" type="button" title="Datos del evento"><span data-icono="dato"></span><span class="ed-rail-etiqueta">Datos</span></button>
+      <span class="ed-rail-sep"></span>
+      <button class="ed-rail-boton" data-panel="fondo" type="button" title="Fondo"><span data-icono="fondo"></span><span class="ed-rail-etiqueta">Fondo</span></button>
+      <button class="ed-rail-boton" data-panel="papel" type="button" title="Papel"><span data-icono="papel"></span><span class="ed-rail-etiqueta">Papel</span></button>
+    </nav>
+
+    <aside class="ed-panel" id="ed-panel" hidden>
+      <div class="ed-panel-cabecera">
+        <h2 class="ed-panel-titulo" id="ed-panel-titulo">Fotos</h2>
+        <button class="ed-boton-icono" id="ed-panel-cerrar" type="button" title="Cerrar panel"><span data-icono="cerrar"></span></button>
+      </div>
+      <div class="ed-panel-cuerpo" id="ed-panel-cuerpo"></div>
+    </aside>
+
+    <section class="ed-visor" id="ed-visor">
+      <div class="ed-regla-esquina" id="ed-regla-esquina" title="Unidad: milímetros">mm</div>
+      <canvas class="ed-regla ed-regla--x" id="ed-regla-x"></canvas>
+      <canvas class="ed-regla ed-regla--y" id="ed-regla-y"></canvas>
+      <div class="ed-mundo" id="ed-mundo">
+        <div class="ed-lienzo" id="ed-lienzo">
+          <div class="ed-capa-elementos" id="ed-capa-elementos"></div>
+          <div class="ed-capa-referencia" id="ed-capa-referencia"></div>
+          <div class="ed-capa-guias" id="ed-capa-guias"></div>
+          <div class="ed-capa-seleccion" id="ed-capa-seleccion"></div>
+        </div>
+      </div>
+      <div class="ed-contextual" id="ed-contextual" hidden></div>
+      <div class="ed-visor-vacio" id="ed-visor-vacio" hidden>
+        <p class="ed-visor-vacio-titulo">El lienzo está vacío</p>
+        <p class="ed-visor-vacio-texto">Agregá la primera foto desde el rail de la izquierda o presioná <kbd>F</kbd>.</p>
+      </div>
+      <div class="ed-pista" id="ed-pista" hidden></div>
+    </section>
+
+    <aside class="ed-inspector" id="ed-inspector">
+      <div class="ed-inspector-propiedades" id="ed-inspector-propiedades"></div>
+      <div class="ed-capas">
+        <div class="ed-capas-cabecera">
+          <h2 class="ed-seccion-titulo">Capas</h2>
+          <span class="ed-capas-contador" id="ed-capas-contador">0</span>
+        </div>
+        <div class="ed-capas-lista" id="ed-capas-lista"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <div class="ed-modal" id="ed-modal-atajos" hidden>
+    <div class="ed-modal-fondo" data-cerrar-modal></div>
+    <div class="ed-modal-tarjeta" role="dialog" aria-modal="true" aria-labelledby="ed-modal-atajos-titulo">
+      <div class="ed-modal-cabecera">
+        <h2 id="ed-modal-atajos-titulo">Atajos de teclado</h2>
+        <button class="ed-boton-icono" type="button" data-cerrar-modal title="Cerrar"><span data-icono="cerrar"></span></button>
+      </div>
+      <div class="ed-atajos-grid" id="ed-atajos-grid"></div>
+    </div>
+  </div>
+
+  <div class="ed-modal" id="ed-modal-hoja" hidden>
+    <div class="ed-modal-fondo" data-cerrar-hoja></div>
+    <div class="ed-modal-tarjeta ed-modal-tarjeta--hoja" role="dialog" aria-modal="true" aria-labelledby="ed-modal-hoja-titulo">
+      <div class="ed-modal-cabecera">
+        <div><h2 id="ed-modal-hoja-titulo">Vista de hoja</h2><p class="ed-hoja-detalle" id="ed-hoja-detalle"></p></div>
+        <button class="ed-boton-icono" type="button" data-cerrar-hoja title="Cerrar"><span data-icono="cerrar"></span></button>
+      </div>
+      <div class="ed-hoja-vista" id="ed-hoja-vista"></div>
+      <div class="ed-hoja-acciones">
+        <button type="button" class="ds-btn ds-btn--ghost ds-btn--compact" data-cerrar-hoja>Volver a editar</button>
+        <button type="button" class="ds-btn ds-btn--secondary ds-btn--compact" id="ed-hoja-descargar"><span data-icono="exportar"></span>Descargar hoja PNG</button>
+        <button type="button" class="ds-btn ds-btn--primary ds-btn--compact" id="ed-hoja-imprimir"><span data-icono="papel"></span>Imprimir copia de prueba</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="ed-galeria" id="ed-galeria" hidden>
+    <header class="ed-galeria-cabecera">
+      <div class="ed-marca">
+        <span class="ed-marca-icono" data-icono="marca"></span>
+        <span class="ed-marca-texto">FotoCabina</span>
+        <span class="ed-marca-sep"></span>
+        <span class="ed-marca-modulo">Plantillas</span>
+      </div>
+      <div class="ed-barra-acciones">
+        <button type="button" class="ds-btn ds-btn--secondary ds-btn--compact" id="ed-galeria-importar"><span data-icono="bajar"></span>Importar archivo</button>
+        <button type="button" class="ds-btn ds-btn--ghost ds-btn--compact" id="ed-galeria-cerrar"><span data-icono="cerrar"></span>Volver al editor</button>
+      </div>
+    </header>
+    <div class="ed-galeria-cuerpo">
+      <section class="ed-galeria-seccion">
+        <div class="ed-galeria-seccion-cabecera"><h2>Mis plantillas</h2><p>Se guardan en este equipo. Exportá el archivo para tener una copia o pasarla a otra PC.</p></div>
+        <div class="ed-galeria-grid" id="ed-galeria-mias"></div>
+      </section>
+      <section class="ed-galeria-seccion">
+        <div class="ed-galeria-seccion-cabecera"><h2>Empezar desde una base</h2><p>Cada base crea una plantilla nueva en "Mis plantillas".</p></div>
+        <div class="ed-galeria-base" id="ed-galeria-base"></div>
+      </section>
+    </div>
+  </section>
+
+  <div class="ed-toast" id="ed-toast" hidden></div>
+  <input id="ed-importar-archivo" type="file" accept=".json,application/json" multiple hidden />
+  <input id="ed-subir-imagen" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden />
+  <input id="ed-subir-fuente" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" multiple hidden />
+
+  <script src="iconos.js"></script>
+  <script src="estado.js"></script>
+  <script src="guias.js"></script>
+  <script src="render.js"></script>
+  <script src="lienzo.js"></script>
+  <script src="imagenes.js"></script>
+  <script src="tipografia.js"></script>
+  <script src="inspector.js"></script>
+  <script src="paneles.js"></script>
+  <script src="galeria.js"></script>
+  <script src="paquete.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
