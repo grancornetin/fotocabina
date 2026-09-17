@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-16 (tarde: estado del repo, decisiones del flujo de cabina §3.8).
+> Última revisión: 2026-09-17 (almacén compartido de eventos y conexión 04-lista-eventos ↔ 01-camera-flow, §3.9).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -215,6 +215,20 @@ Valen para cualquier plataforma que corra la cabina, no solo para el prototipo w
 - **Controles de emergencia del operador durante la sesión:** ESC cancela, botón "Pausar" congela y ofrece reanudar o cancelar. Volver al modo operador desde el modo invitado pide PIN.
 - **Interstitial entre fotos** con duración configurable: además de dar tiempo a cambiar de pose, es la palanca para regular el ritmo de la fila.
 - **Nunca emojis** en la interfaz; solo íconos monocromáticos (regla del sistema de diseño).
+
+### 3.9 Conectar las pantallas entre sí: almacén compartido de eventos (2026-09-17)
+
+Hasta ahora cada página (`01-camera-flow`, `04-lista-eventos`, `03-editor-plantillas`) vivía aislada: abrir "Lanzar" en la lista de eventos llevaba a la cabina sin pasarle ningún dato (ni nombre, ni plantilla, ni ajustes). Primer paso de conexión real entre pantallas, sin todavía tener backend:
+
+- **Decisión:** los datos compartidos entre páginas (por ahora, eventos) viven en `localStorage` a través de un módulo único, `pages/shared/almacen-eventos.js`. Cualquier página que necesite leer o escribir eventos lo hace por esa interfaz (`listar`, `obtener`, `guardar`, `eliminar`, `setActivo`/`obtenerActivo` para "cuál es el evento activo ahora"), nunca tocando `localStorage` directo. El día que exista una capa de datos real (Fase E, §5.1.1), este archivo es el único punto a reemplazar — el resto de las páginas no cambia.
+- **Se descartó** pasar datos solo por parámetros de URL (`?evento=id`): no alcanza para que una página "recuerde" el evento activo si se navega sin ese parámetro (por ejemplo, recargar la página).
+- **Hecho (2026-09-17):** `04-lista-eventos` (C1) ya lee/escribe del almacén — lanzar, duplicar, archivar y eliminar son reales y persisten. `01-camera-flow` ya lee el evento activo al abrir: carga su nombre en el dropdown de evento, sus ajustes de sesión (fotos/cuenta/pausa/mensaje/PIN/volver/espejo, antes guardados sueltos en el equipo) y muestra su plantilla asignada. Si no hay evento activo (la cabina se abre directo, sin pasar por la lista), sigue funcionando exactamente igual que antes de esta conexión, con los ajustes generales del equipo.
+- **En curso / próximo paso:** conectar `03-editor-plantillas`. Hoy el campo `plantilla` de un evento en el almacén es solo un **nombre de texto suelto** (ej. `"Fiesta Neón"`), no una referencia real a una plantilla guardada en el editor. El editor guarda sus propias plantillas en su propio `localStorage` (`fotocabina-editor-v1`, ver `pages/03-editor-plantillas/estado.js`), cada una con `id` y `nombre` reales. Falta:
+  1. Cambiar el campo del evento de `plantilla: "nombre"` a `plantillaId: "id-real-del-editor"` (manteniendo `plantilla` como nombre de respaldo para mostrar mientras no se haya elegido ninguna plantilla real todavía).
+  2. En `01-camera-flow`, el botón "Cambiar" de la tarjeta y el acceso "Plantillas" del riel (hoy abren la hoja "Próximamente") deberían llevar a `03-editor-plantillas` en un modo "elegir plantilla para este evento" — al volver, el editor guarda el `plantillaId` elegido en el evento activo del almacén.
+  3. Al abrir `03-editor-plantillas` **desde** un evento (no suelto desde su propia galería), debería abrir directo la plantilla asignada a ese evento en vez de su galería de inicio.
+  4. Ajustar el número de fotos por sesión de `01-camera-flow` para que salga de los `photo-slot` de la plantilla real asignada (esto ya estaba anotado como decisión pendiente en §3.5 — "la plantilla manda sobre la sesión" — y esta conexión es el paso que lo hace posible).
+  - **Riesgo a cuidar:** el editor no tiene hoy noción de "evento". Conectarlo no debe romper su uso actual como editor suelto (galería propia, plantillas base, importar/exportar `.fotocabina.json`) — la conexión se agrega encima, no reemplaza ese flujo.
 
 ## 4. Requisitos del editor de layouts
 

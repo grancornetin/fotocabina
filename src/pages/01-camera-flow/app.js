@@ -91,13 +91,21 @@
 
   const notice = q('#notice');
 
-  // Ajustes de sesión del operador, persistidos en este equipo (localStorage). El PIN pasará a
-  // configurarse por evento cuando exista la pantalla de configuración (C2 del mapa).
+  // Ajustes de sesión del operador. Si la cabina se abrió desde "Lanzar" en la lista de
+  // eventos (04-lista-eventos), el evento activo del almacén compartido (shared/almacen-
+  // eventos.js) trae sus propios ajustes y esos son los que mandan — así "Duplicar" en la
+  // lista tiene sentido: clona fotos/cuenta/pausa/PIN junto con el resto del evento. Si no
+  // hay evento activo (la cabina se abrió directo, como siempre se pudo hacer), se siguen
+  // usando los ajustes generales de este equipo, igual que antes.
   const AJUSTES_CLAVE = 'fotocabina-ajustes';
   const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234', volver: 30, espejo: true };
+  const eventoActivo = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtenerActivo() : null;
   const ajustes = cargarAjustes();
 
   function cargarAjustes() {
+    if (eventoActivo && eventoActivo.ajustes) {
+      return { ...AJUSTES_BASE, ...eventoActivo.ajustes };
+    }
     try {
       const guardado = JSON.parse(localStorage.getItem(AJUSTES_CLAVE) || '{}');
       return { ...AJUSTES_BASE, ...guardado };
@@ -107,10 +115,15 @@
   }
 
   function guardarAjustes() {
-    try {
-      localStorage.setItem(AJUSTES_CLAVE, JSON.stringify(ajustes));
-    } catch (e) {
-      // sin persistencia disponible, los ajustes igual valen durante esta sesión
+    if (eventoActivo) {
+      eventoActivo.ajustes = { ...ajustes };
+      try { AlmacenEventos.guardar(eventoActivo); } catch (e) { /* sin persistencia disponible */ }
+    } else {
+      try {
+        localStorage.setItem(AJUSTES_CLAVE, JSON.stringify(ajustes));
+      } catch (e) {
+        // sin persistencia disponible, los ajustes igual valen durante esta sesión
+      }
     }
     actualizarResumenPlantilla();
   }
@@ -118,6 +131,10 @@
   function actualizarResumenPlantilla() {
     const pausa = ajustes.pausa > 0 ? `pausa ${ajustes.pausa} s` : 'sin pausa';
     templateMeta.textContent = `${ajustes.fotos} fotos · 2×6 en 4×6 · cuenta ${ajustes.cuenta} s · ${pausa}`;
+    const nombrePlantilla = q('.template-name');
+    if (nombrePlantilla && eventoActivo && eventoActivo.plantilla) {
+      nombrePlantilla.textContent = eventoActivo.plantilla;
+    }
   }
 
   const PROXIMAMENTE = {
@@ -139,7 +156,7 @@
   let finalBlob = null;
   let gifBlob = null;
   let gifGeneracion = 0;
-  let eventoActual = { id: 'demo', nombre: 'Sesión de prueba' };
+  let eventoActual = eventoActivo ? { id: eventoActivo.id, nombre: eventoActivo.nombre } : { id: 'demo', nombre: 'Sesión de prueba' };
   let sesionActual = null;
 
   // Estado de pausa/cancelación cooperativo: las esperas consultan estos flags en cada tick
@@ -232,7 +249,7 @@
           if (tipo === 'photos') { ajustes.fotos = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
           if (tipo === 'pause') { ajustes.pausa = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
           if (tipo === 'return') { ajustes.volver = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
-          if (tipo === 'event') { eventoActual = { id: opt.dataset.value, nombre: opt.textContent }; actualizarContadorEvento(); }
+          if (tipo === 'event') { cambiarEvento(opt.dataset.value, opt.textContent); }
         });
       });
 
@@ -267,6 +284,55 @@
   function aplicarEspejo() {
     video.classList.toggle('is-unmirrored', !ajustes.espejo);
     mirrorToggle.setAttribute('aria-checked', String(ajustes.espejo));
+  }
+
+  // ---------- Selector de evento (alimentado por 04-lista-eventos vía almacén compartido) ----------
+
+  function poblarSelectorEventos() {
+    if (typeof AlmacenEventos === 'undefined') return;
+    const select = q('.ds-select[data-select="event"]');
+    if (!select) return;
+    const menu = select.querySelector('.ds-select-menu');
+    const value = select.querySelector('.ds-select-value');
+
+    const eventos = AlmacenEventos.listar().filter((e) => e.estado !== 'archivados');
+
+    // Sin evento activo (la cabina se abrió directo, sin pasar por "Lanzar" en la lista):
+    // el dropdown ofrece los eventos existentes para elegir, pero no fuerza ninguno — se
+    // queda en "Sesión de prueba" hasta que el operador elija uno.
+    const opcionesDisponibles = eventoActivo
+      ? eventos
+      : [{ id: 'demo', nombre: 'Sesión de prueba' }, ...eventos];
+
+    menu.innerHTML = '';
+    opcionesDisponibles.forEach((evento) => {
+      const opcion = document.createElement('li');
+      opcion.className = 'ds-select-option';
+      opcion.setAttribute('role', 'option');
+      opcion.dataset.value = evento.id;
+      opcion.textContent = evento.nombre;
+      if (evento.id === eventoActual.id) opcion.setAttribute('aria-selected', 'true');
+      menu.appendChild(opcion);
+    });
+
+    const activo = opcionesDisponibles.find((e) => e.id === eventoActual.id);
+    if (activo) value.textContent = activo.nombre;
+  }
+
+  // Cambiar de evento desde el dropdown de la barra: recarga los ajustes de ese evento
+  // (fotos, cuenta, pausa, PIN) y lo marca como el activo en el almacén compartido, igual
+  // que si se hubiera tocado "Lanzar" en la lista de eventos.
+  function cambiarEvento(id, nombre) {
+    eventoActual = { id, nombre };
+    if (typeof AlmacenEventos === 'undefined' || id === 'demo') { actualizarContadorEvento(); return; }
+
+    AlmacenEventos.setActivo(id);
+    const evento = AlmacenEventos.obtener(id);
+    if (evento && evento.ajustes) {
+      Object.assign(ajustes, evento.ajustes);
+      aplicarAjustesAControles();
+    }
+    actualizarContadorEvento();
   }
 
   // ---------- Contador del evento (tarjeta de plantilla) ----------
@@ -1016,6 +1082,7 @@
 
   // ---------- Wiring ----------
 
+  poblarSelectorEventos();
   initSelects();
 
   connectBtn.addEventListener('click', connectCamera);
