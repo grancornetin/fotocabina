@@ -180,6 +180,25 @@
           <img id="resultGif" class="result-preview result-preview--gif" alt="GIF animado de la sesión" hidden />
           <p class="gif-status" id="gifStatus">Generando GIF…</p>
         </div>
+
+        <!--
+          Entrega digital por QR (A8 del mapa de pantallas): maqueta visual, sin backend real
+          todavía. Requiere el servidor local de la Fase D (docs/DSLRBOOTH_PRODUCT_CONTEXT.md
+          §3.6/§3.7). El QR que se ve acá es real (librería qrcode vendorizada, sin red) pero
+          apunta a una URL de muestra; el cambio de "esperando" a "descargado" es simulado.
+        -->
+        <div class="qr-card" id="qrCard" data-state="waiting">
+          <div class="qr-card-canvas-wrap">
+            <canvas id="qrCanvas" width="120" height="120" aria-hidden="true"></canvas>
+            <div class="qr-card-done" id="qrCardDone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
+            </div>
+          </div>
+          <div class="qr-card-copy">
+            <p class="qr-card-title" id="qrCardTitle">Llevate tus fotos</p>
+            <p class="qr-card-sub" id="qrCardSub">Escaneá el código con tu celular</p>
+          </div>
+        </div>
       </div>
 
       <aside class="result-panel">
@@ -433,6 +452,7 @@
 
   <script src="almacen-sesiones.js"></script>
   <script src="codificador-gif.js"></script>
+  <script src="qrcode.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

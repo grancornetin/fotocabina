@@ -64,6 +64,10 @@
   const printBtn = q('#printBtn');
   const retakeSessionBtn = q('#retakeSessionBtn');
   const finishBtn = q('#finishBtn');
+  const qrCard = q('#qrCard');
+  const qrCanvas = q('#qrCanvas');
+  const qrCardTitle = q('#qrCardTitle');
+  const qrCardSub = q('#qrCardSub');
 
   const gallery = q('#gallery');
   const galleryList = q('#galleryList');
@@ -756,6 +760,38 @@
 
     await guardarSesionActual();
     generarGif();
+    mostrarQrEntrega();
+  }
+
+  // ---------- Entrega digital por QR (A8 del mapa de pantallas) ----------
+  // Maqueta visual: el QR se genera de verdad (librería qrcode vendorizada, sin red), pero
+  // apunta a una URL de muestra porque todavía no existe el servidor local de la Fase D
+  // (docs/DSLRBOOTH_PRODUCT_CONTEXT.md §3.6/§3.7). El paso a "descargado" está simulado.
+  let qrEntregaTimeout = null;
+
+  function mostrarQrEntrega() {
+    if (qrEntregaTimeout) clearTimeout(qrEntregaTimeout);
+    qrCard.dataset.state = 'waiting';
+    qrCardTitle.textContent = 'Llevate tus fotos';
+    qrCardSub.textContent = 'Escaneá el código con tu celular';
+
+    const idSesion = (sesionActual && sesionActual.id) || 'demo';
+    const urlMuestra = `https://fotocabina.app/s/${idSesion}`;
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(qrCanvas, urlMuestra, { width: 152, margin: 1, color: { dark: '#0A0A0B', light: '#FFFFFF' } }, (err) => {
+        if (err) qrCard.hidden = true;
+      });
+    } else {
+      qrCard.hidden = true;
+    }
+
+    // Simulación del escaneo real: en un evento de verdad este cambio lo dispara el servidor
+    // local cuando confirma la descarga, no un temporizador fijo en el navegador.
+    qrEntregaTimeout = setTimeout(() => {
+      qrCard.dataset.state = 'done';
+      qrCardTitle.textContent = 'Descargado';
+      qrCardSub.textContent = 'Ya lo tenés en tu celular';
+    }, 6000);
   }
 
   // La sesión se guarda sola apenas se arma la tira: si el invitado se va sin tocar "Finalizar",

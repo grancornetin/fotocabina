@@ -23,8 +23,8 @@
 | A4 | **Interstitial entre fotos** | **Migrado (versión mínima)** | Pausa breve entre cada foto — tiempo para cambiar pose/prop, y palanca de negocio para regular el ritmo de gente atendida (contadores/pausas más largas = menos sesiones por hora). Hoy es un mensaje fijo con temporizador; el editor visual de animaciones/GIF propios (equivalente al "Asistente virtual" de DSLRBooth) queda para C2/C3. |
 | A5 | **Revisión de la sesión** | **Migrado** | Muestra las fotos tomadas; el invitado (u operador) puede repetir una foto puntual tocándola, o confirmar y continuar. Mejora sobre DSLRBooth, que solo permite rehacer toda la sesión. |
 | A6 | **Componiendo** (estado de carga) | **Migrado** | Spinner + texto breve mientras se arma la composición final. |
-| A7 | **Resultado final** | **Migrado** | Vista con tabs (Tira / Fotos / GIF), acciones de Descargar/Imprimir, y un footer con "Borrar y repetir sesión" + "Finalizar" (vuelve al inicio del tótem). Desde la pestaña "Fotos" se puede repetir una foto puntual y la tira se vuelve a componer sola. El GIF animado real todavía no se ensambla (placeholder pendiente de librería de encoding). |
-| A8 | **Entrega digital (QR)** | Falta | Pantalla con el QR de descarga y estado (esperando escaneo / descargado). No implementada todavía en `01-camera-flow`. |
+| A7 | **Resultado final** | **Migrado** | Vista con tabs (Tira / Fotos / GIF), acciones de Descargar/Imprimir, y un footer con "Borrar y repetir sesión" + "Finalizar" (vuelve al inicio del tótem). Desde la pestaña "Fotos" se puede repetir una foto puntual y la tira se vuelve a componer sola; cada foto se descarga por separado y el GIF animado se genera con un codificador propio. Vuelve sola al inicio tras N segundos sin actividad (configurable), porque en un evento el invitado se va sin tocar "Finalizar". |
+| A8 | **Entrega digital (QR)** | Maqueta visual | No es una pantalla propia: es una tarjeta en la esquina del resultado (A7) con el QR de descarga y sus dos estados (esperando escaneo / descargado). El QR se genera de verdad (librería `qrcode` vendorizada, sin red) pero apunta a una URL de muestra y el paso a "descargado" está simulado con un temporizador — falta el servidor local que sirva la URL real (Fase D, `DSLRBOOTH_PRODUCT_CONTEXT.md` §3.6/§3.7). |
 | A9 | **Imprimiendo** (estado de carga) | Falta | Confirma que el trabajo se envió a la cola de impresión, sin bloquear al siguiente invitado. Hoy `01-camera-flow` abre el diálogo de impresión del navegador directamente, sin este paso intermedio. |
 | A10 | **Error de sesión** (cámara/impresora) | Parcial | Hay un aviso simple de error de cámara (`notice`) en `01-camera-flow`, pero falta el estado de error de impresora y el diseño final pensado para el Principio 5 de PRODUCT.md. |
 | A11 | **Galería / historial de sesiones** (acceso desde el inicio) | **Migrado** | Botón "Galería" en el header de operador de `01-camera-flow`: sesiones de este evento o de todos, con reimprimir, descargar tira/GIF/fotos y eliminar. Guardado local en IndexedDB. La gestión completa del evento (C6) sigue pendiente. |
@@ -33,17 +33,17 @@
 
 | # | Pantalla | Estado | Qué hace |
 | --- | --- | --- | --- |
-| B1 | **Editor de layout** | Existe (`02-layout-editor`, a migrar) | Ya prototipado: capas, alineación, guías, selección múltiple. Se migra al nuevo sistema visual respetando toda su funcionalidad actual. |
-| B2 | **Tipografía avanzada** (dentro del editor) | Falta | El bloque pendiente que ya identificamos en el documento de producto: mayúsculas/negrita/cursiva, fuentes locales, ajuste de caja. Se agrega sobre B1, no es una pantalla aparte. |
-| B3 | **Galería de plantillas propias** | Falta | Lista de plantillas guardadas por el operador, para elegir cuál editar o duplicar antes de un evento. |
-| B4 | **Vista de impresión / previsualización de hoja** | Existe (modal dentro de `02-layout-editor`, a migrar) | Ya existe como modal ("Hoja lista para el driver"); se migra visualmente junto con B1. |
+| B1 | **Editor de layout** | **Construido** (`03-editor-plantillas`, Fases 1–3 hechas; Fase 4 pulido pendiente) | Rehecho como producto propio: lienzo en milímetros con reglas, guías inteligentes (centro, bordes, espaciado igual, medición con Alt, guías propias), barra contextual flotante, inspector, capas, arrastrar imágenes, detección automática de espacios de foto en diseños de Canva. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. El viejo `02-layout-editor` queda intacto hasta cerrar la Fase 4. |
+| B2 | **Tipografía avanzada** (dentro del editor) | **Construido** (Fase 2) | Fuente, peso, cursiva, subrayado, tachado, mayúsculas, interlineado, espaciado, alineación H/V, ajuste a la caja (crecer/reducir/recortar), fuentes .ttf/.otf/.woff propias agrupadas por familia y guardadas dentro de la plantilla, edición directa sobre el lienzo. |
+| B3 | **Galería de plantillas propias** | **Construido** (Fase 3) | Pantalla de inicio del editor: mis plantillas con miniatura real, 15 plantillas base (tiras, postales, apaisadas), duplicar, renombrar, eliminar, importar/exportar archivo `.fotocabina.json`. |
+| B4 | **Vista de impresión / previsualización de hoja** | **Construido** (Fase 3) | Motor de render propio a 300 ppp, hoja 4×6 con dos tiras y línea de corte, exportar PNG, imprimir copia de prueba. También datos de sesión (fecha, hora, n.º, evento) y QR de muestra como elementos de la plantilla. |
 
 ### C. Panel del operador (configuración y monitoreo del evento)
 
 | # | Pantalla | Estado | Qué hace |
 | --- | --- | --- | --- |
 | C1 | **Lista de eventos** | Falta | Vista principal del operador: eventos creados, próximos, en curso, archivados. |
-| C2 | **Crear / configurar evento** | Falta | Nombre del evento, plantilla asignada, cantidad de fotos por sesión, copias, modo de entrega (impresión/digital/ambos). El MVP original (`01-camera-flow`) tenía estos campos visibles para el invitado — se migran acá, el invitado no configura nada. |
+| C2 | **Crear / configurar evento** | Falta | Nombre del evento, plantilla asignada, copias, modo de entrega (impresión/digital/ambos), y en el futuro punto de retiro externo / impresión remota. La cantidad de fotos por sesión **la define la plantilla asignada** (sus huecos de foto), no un campo manual — el ajuste "Fotos por sesión" de `01-camera-flow` es provisorio hasta conectar la cabina con el editor. El invitado no configura nada. |
 | C2b | **Modo operador previo al lanzamiento** | **Migrado (estructura)** | Header minimalista en `01-camera-flow`: evento, semáforos cámara/impresora, riel Galería · Plantillas · Editor · Ajustes · Ayuda, y "Lanzar evento". Panel de Ajustes con Sesión y Cámara funcionando (fotos, cuenta regresiva, pausa, mensaje, PIN, guardados en el equipo) e Impresión / Compartir / Efectos marcadas "Próximamente". Tarjeta de plantilla activa sobre la cámara. Plantillas y Ayuda abren una hoja "Próximamente" hasta que existan (B3, C3–C4, ayuda). |
 | C3 | **Configuración de cámara** | Falta | Selección y prueba de la cámara conectada (o cámara del dispositivo), estado de conexión, live view de prueba. |
 | C4 | **Configuración de impresora** | Falta | Selección de impresora, tamaño de papel/media, orientación, copias por defecto, prueba de impresión. |
@@ -90,14 +90,16 @@
 | --- | --- | --- | --- |
 | H1 | **Galería de eventos** (vista del operador, fuera del evento) | Futuro | Revisar eventos pasados y sus sesiones desde el celular. |
 | H2 | **Galería del invitado** (vía QR, posible PWA) | Futuro | Lo que ve un invitado al escanear el QR de entrega digital — puede ser la primera pieza en PWA. |
+| H3 | **Punto de retiro digital** (tablet Android/iOS en el evento) | Futuro | Tablet en otro sector del salón, conectada a un servidor local del evento, donde cada invitado busca y descarga sus fotos (código de sesión, QR o galería del evento). Variante del compartir por QR para no retener gente frente a la cabina. Configurable por evento; detalle en `DSLRBOOTH_PRODUCT_CONTEXT.md` §3.7. |
+| H4 | **Estación de impresión remota** | Futuro | Cuando la impresora acepte trabajos por Wi‑Fi: la cabina en un punto, el retiro de copias en otro, con la cola viajando por la red local. Configurable por evento; detalle en §3.7. |
 
 ---
 
 ## Resumen numérico
 
-- **Etapa 1 — Migrado en `01-camera-flow`:** A1, A3, A4 (versión mínima), A5, A6, A7 — 6 pantallas/pasos del flujo del invitado.
-- **Etapa 1 — Parcial:** A10 (falta error de impresora y diseño final).
-- **Etapa 1 — Falta construir:** A2, A8, A9, A11 (4 del flujo invitado) + B2-B3 (2 del editor) + C1-C7 (7 del panel de operador) + B1/B4 a migrar visualmente = 14 pantallas/piezas.
+- **Etapa 1 — Migrado en `01-camera-flow`:** A1, A3, A4 (versión mínima), A5, A6, A7, A11 — 7 pantallas/pasos.
+- **Etapa 1 — Parcial:** A8 (maqueta visual del QR, sin servidor local real), A10 (falta error de impresora y diseño final).
+- **Etapa 1 — Falta construir:** A2, A9 (2 del flujo invitado) + B2-B3 (2 del editor) + C1-C7 (7 del panel de operador) + B1/B4 a migrar visualmente = 12 pantallas/piezas.
 - **Etapa 2 — Futuro, solo mapeado:** 5 pantallas propias de cuenta/suscripción (D1-D5) + 4 flujos completos reusados y adaptados por plataforma (E, F, G, H).
 
 ## Próximo paso acordado
