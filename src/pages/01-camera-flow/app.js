@@ -12,6 +12,7 @@
   const launchBtn = q('#launchBtn');
   const galleryBtn = q('#galleryBtn');
   const templatesBtn = q('#templatesBtn');
+  const editorLink = q('#editorLink');
   const settingsBtn = q('#settingsBtn');
   const helpBtn = q('#helpBtn');
   const printerStatusBadge = q('#printerStatusBadge');
@@ -1115,6 +1116,10 @@
   }
   templatesBtn.addEventListener('click', irAEditorDePlantilla);
   templateChangeBtn.addEventListener('click', irAEditorDePlantilla);
+  // El riel "Editor" siempre abrió el editor de verdad (sin la hoja "Próximamente" de
+  // respaldo); si hay un evento activo, se le agrega el mismo ?evento=id para que la
+  // plantilla que se elija ahí quede asociada a ese evento.
+  if (eventoActivo) editorLink.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActivo.id)}`;
   helpBtn.addEventListener('click', () => abrirProximamente('ayuda'));
   soonCloseBtn.addEventListener('click', cerrarProximamente);
   soonOverlay.addEventListener('click', (e) => { if (e.target === soonOverlay) cerrarProximamente(); });
