@@ -19,6 +19,10 @@ Un archivo por responsabilidad (ver el detalle y el porqué de esta convención 
 
 Guarda su estado en `localStorage` (clave `fotocabina-editor-v1`). Sin dependencias externas ni CDNs.
 
+## Conectado a un evento (2026-09-21)
+
+Si la URL trae `?evento=<id>` (llegando desde "Editar plantilla" en `04-lista-eventos`, o "Cambiar"/"Plantillas" en `01-camera-flow`), el editor asocia la plantilla que el operador termine abriendo o creando en esa visita al evento del almacén compartido (`../shared/almacen-eventos.js`): si el evento ya tenía una plantilla real asignada, la abre directo en el lienzo (salta la galería); si no, deja elegir/crear una normalmente y la guarda sola. Toda la lógica vive en `iniciarConexionEvento()` dentro de `app.js`, suscrita al evento `plantilla-abierta` de `estado.js` — no se tocó `galeria.js` ni ningún otro flujo. Usado sin ese parámetro (como siempre), el editor no se ve afectado en nada.
+
 ## Pendiente
 
-Todo lo planificado (Fases 1–4) está construido. Lo que sigue depende de uso real: conectar con la cabina, y decidir cuándo retirar `02-layout-editor`.
+Todo lo planificado (Fases 1–4) está construido. Falta que `01-camera-flow` lea el número de fotos por sesión de la plantilla real conectada (hoy sigue siendo un ajuste manual — ver README de `01-camera-flow`), y decidir cuándo retirar `02-layout-editor`.

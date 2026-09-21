@@ -53,6 +53,9 @@
           '<span>' + evento.sesiones + (evento.sesiones === 1 ? ' sesión' : ' sesiones') + '</span>' +
         '</p>' +
         '<div class="event-card-actions">' +
+          '<button class="event-action-btn" data-action="editar-plantilla" title="Editar plantilla del evento" aria-label="Editar plantilla del evento">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg>' +
+          '</button>' +
           '<button class="event-action-btn" data-action="duplicar" title="Duplicar evento" aria-label="Duplicar evento">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>' +
           '</button>' +
@@ -71,6 +74,10 @@
     card.querySelector('[data-action="lanzar"]').addEventListener('click', function () {
       AlmacenEventos.setActivo(evento.id);
       window.location.href = '../01-camera-flow/index.html';
+    });
+
+    card.querySelector('[data-action="editar-plantilla"]').addEventListener('click', function () {
+      window.location.href = '../03-editor-plantillas/index.html?evento=' + encodeURIComponent(evento.id);
     });
 
     card.querySelector('[data-action="duplicar"]').addEventListener('click', function () {
@@ -92,6 +99,7 @@
       fecha: evento.fecha,
       estado: 'proximos',
       plantilla: evento.plantilla,
+      plantillaId: evento.plantillaId || null,
       sesiones: 0,
       ajustes: Object.assign({}, evento.ajustes || AlmacenEventos.ajustesPorDefecto()),
     };

@@ -1105,8 +1105,16 @@
   drawerCloseBtn.addEventListener('click', cerrarDrawer);
   drawerBackdrop.addEventListener('click', cerrarDrawer);
 
-  templatesBtn.addEventListener('click', () => abrirProximamente('plantillas'));
-  templateChangeBtn.addEventListener('click', () => abrirProximamente('plantillas'));
+  // "Plantillas" y "Cambiar" abren el editor con este evento asociado (docs/DSLRBOOTH_
+  // PRODUCT_CONTEXT.md §3.9) solo si la cabina se abrió desde un evento real de la lista;
+  // si se abrió directo (sin evento), no hay a qué evento asociar la plantilla elegida y
+  // se mantiene la hoja "Próximamente" de siempre.
+  function irAEditorDePlantilla() {
+    if (eventoActivo) window.location.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActivo.id)}`;
+    else abrirProximamente('plantillas');
+  }
+  templatesBtn.addEventListener('click', irAEditorDePlantilla);
+  templateChangeBtn.addEventListener('click', irAEditorDePlantilla);
   helpBtn.addEventListener('click', () => abrirProximamente('ayuda'));
   soonCloseBtn.addEventListener('click', cerrarProximamente);
   soonOverlay.addEventListener('click', (e) => { if (e.target === soonOverlay) cerrarProximamente(); });

@@ -40,6 +40,35 @@ const EditorApp = (() => {
 
   const CLAVE_TEMA = 'fotocabina-theme';
 
+  // ---------- Conexión con un evento de 04-lista-eventos (docs/DSLRBOOTH_PRODUCT_CONTEXT.md §3.9) ----------
+  // Si el editor se abrió con ?evento=id (desde "Editar plantilla" en la lista de eventos, o
+  // desde "Cambiar"/"Plantillas" en la cabina), la plantilla que el operador termine abriendo
+  // o creando en esta visita queda asociada a ese evento en el almacén compartido. El editor
+  // usado suelto (sin ese parámetro) no se ve afectado en nada.
+  let eventoConectado = null;
+
+  function leerEventoDeUrl() {
+    const id = new URLSearchParams(window.location.search).get('evento');
+    if (!id || typeof AlmacenEventos === 'undefined') return null;
+    return AlmacenEventos.obtener(id);
+  }
+
+  function iniciarConexionEvento() {
+    eventoConectado = leerEventoDeUrl();
+    if (!eventoConectado) return;
+
+    if (eventoConectado.plantillaId && E.listarPlantillas().some((p) => p.id === eventoConectado.plantillaId)) {
+      E.abrirPlantilla(eventoConectado.plantillaId);
+    }
+
+    E.suscribir('plantilla-abierta', (p) => {
+      if (!eventoConectado) return;
+      eventoConectado.plantillaId = p.id;
+      eventoConectado.plantilla = p.nombre;
+      AlmacenEventos.guardar(eventoConectado);
+    });
+  }
+
   function aplicarTema(eleccion) {
     const root = document.documentElement;
     if (eleccion === 'system') root.removeAttribute('data-theme');
@@ -75,11 +104,14 @@ const EditorApp = (() => {
     E.suscribir('vista', actualizarZoom);
     E.suscribir('doble-clic', (e) => { if (e.tipo === 'texto') EditorTipografia.editarEnLienzo(e); });
     E.cargar();
+    iniciarConexionEvento();
     enlazarBarra();
     enlazarTeclado();
     requestAnimationFrame(() => EditorLienzo.ajustarAPantalla());
     window.addEventListener('beforeunload', () => { if (E.estaSucio()) E.guardarAhora(); });
-    EditorGaleria.abrir();
+    // Si venía de un evento con plantilla ya asignada, iniciarConexionEvento() ya la abrió:
+    // se entra directo al lienzo en vez de mostrar la galería.
+    if (!(eventoConectado && eventoConectado.plantillaId)) EditorGaleria.abrir();
   }
 
   /* ---------- Barra superior ---------- */

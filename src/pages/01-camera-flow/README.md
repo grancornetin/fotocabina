@@ -35,6 +35,8 @@ Funcionalidad conservada del MVP original:
 
 Pendiente para una fase posterior (no bloquea esta migración): editor visual de las animaciones del interstitial (hoy es un mensaje fijo con temporizador simple; en DSLRBooth esto se configura en "Asistente virtual" con GIFs/imágenes propias del operador) — se construye en el panel de operador (pantallas C2/C3 del mapa de pantallas).
 
-**En curso (2026-09-17): conectar la plantilla real del editor.** Hoy el campo `plantilla` de un evento es solo un nombre de texto suelto (ej. "Fiesta Neón"), no una referencia real a una plantilla guardada en `03-editor-plantillas`. El botón "Cambiar" de la tarjeta y el acceso "Plantillas" del riel siguen abriendo la hoja "Próximamente" hasta que se resuelva esa conexión. Ver la nota de arquitectura en `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9 para el plan concreto.
+**Conectada a `03-editor-plantillas` (2026-09-21).** El botón "Cambiar" de la tarjeta y el acceso "Plantillas" del riel ya abren el editor asociado al evento activo (`03-editor-plantillas?evento=<id>`) en vez de la hoja "Próximamente" — solo cuando hay un evento activo real; si la cabina se abrió directo (sin pasar por la lista), se mantiene la hoja "Próximamente" porque no hay a qué evento asociar la plantilla elegida. Ver `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9.
+
+**Pendiente:** el número de fotos por sesión sigue siendo el ajuste manual del drawer, no el que definen los `photo-slot` de la plantilla real ya asignada (decisión de producto §3.5 — "la plantilla manda sobre la sesión" — todavía no aplicada).
 
 Esta página es un prototipo de navegador. La integración profesional con Canon/Nikon, flash y una impresora térmica pertenece a la futura aplicación de escritorio offline (ver `docs/DSLRBOOTH_PRODUCT_CONTEXT.md`).

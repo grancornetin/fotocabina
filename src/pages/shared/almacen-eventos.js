@@ -22,6 +22,11 @@
     espejo: true,
   };
 
+  // "plantillaId" es la referencia real a una plantilla guardada en 03-editor-plantillas
+  // (localStorage propio del editor, clave "fotocabina-editor-v1"). Empieza en null porque
+  // los eventos de ejemplo no conocen ninguna plantilla real todavía; "plantilla" queda como
+  // nombre de respaldo para mostrar mientras no se haya elegido una de verdad (ver
+  // docs/DSLRBOOTH_PRODUCT_CONTEXT.md §3.9).
   const EVENTOS_DEMO = [
     {
       id: 'ev-1',
@@ -29,6 +34,7 @@
       fecha: '2026-10-03',
       estado: 'proximos',
       plantilla: 'Tira clásica 2×6',
+      plantillaId: null,
       sesiones: 0,
       ajustes: { ...AJUSTES_BASE },
     },
@@ -38,6 +44,7 @@
       fecha: '2026-09-17',
       estado: 'en-curso',
       plantilla: 'Fiesta Neón',
+      plantillaId: null,
       sesiones: 48,
       ajustes: { ...AJUSTES_BASE, fotos: 4, cuenta: 5 },
     },
@@ -47,6 +54,7 @@
       fecha: '2026-08-22',
       estado: 'archivados',
       plantilla: 'Tira clásica 2×6',
+      plantillaId: null,
       sesiones: 132,
       ajustes: { ...AJUSTES_BASE },
     },
@@ -56,6 +64,7 @@
       fecha: '2026-11-14',
       estado: 'proximos',
       plantilla: 'Fiesta Neón',
+      plantillaId: null,
       sesiones: 0,
       ajustes: { ...AJUSTES_BASE },
     },

@@ -2,7 +2,7 @@
 
 > Lista completa de pantallas del producto, organizadas por quién las usa y en qué etapa del negocio aparecen. Sirve como plan de construcción: primero migramos lo que ya existe al nuevo sistema visual, después completamos lo que falta de la Etapa 1, y dejamos la Etapa 2 mapeada para cuando llegue el momento.
 >
-> Última revisión: 2026-09-17.
+> Última revisión: 2026-09-21.
 
 ## Cómo leer esta lista
 
@@ -42,9 +42,9 @@
 
 | # | Pantalla | Estado | Qué hace |
 | --- | --- | --- | --- |
-| C1 | **Lista de eventos** | **Construida** (`04-lista-eventos`) | Vista principal del operador: eventos creados, próximos, en curso, archivados. Tabs por estado, card con miniatura/plantilla/sesiones, lanzar/duplicar/archivar/eliminar. Conectada de verdad con `01-camera-flow` vía almacén compartido (`pages/shared/almacen-eventos.js`, ver `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9): "Lanzar" pasa nombre, plantilla y ajustes de sesión del evento a la cabina. Falta conectar la plantilla real del editor (hoy es solo un nombre de texto) y C2 (crear evento). |
+| C1 | **Lista de eventos** | **Construida** (`04-lista-eventos`) | Vista principal del operador: eventos creados, próximos, en curso, archivados. Tabs por estado, card con miniatura/plantilla/sesiones, editar plantilla/lanzar/duplicar/archivar/eliminar. Conectada de verdad con `01-camera-flow` y `03-editor-plantillas` vía almacén compartido (`pages/shared/almacen-eventos.js`, ver `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9): "Lanzar" pasa nombre, plantilla real y ajustes de sesión del evento a la cabina; "Editar plantilla" abre el editor asociado al evento. Falta C2 (crear evento). |
 | C2 | **Crear / configurar evento** | Falta | Nombre del evento, plantilla asignada, copias, modo de entrega (impresión/digital/ambos), y en el futuro punto de retiro externo / impresión remota. La cantidad de fotos por sesión **la define la plantilla asignada** (sus huecos de foto), no un campo manual — el ajuste "Fotos por sesión" de `01-camera-flow` es provisorio hasta conectar la cabina con el editor. El invitado no configura nada. |
-| C2b | **Modo operador previo al lanzamiento** | **Migrado (estructura)** | Header minimalista en `01-camera-flow`: evento, semáforos cámara/impresora, riel Galería · Plantillas · Editor · Ajustes · Ayuda, y "Lanzar evento". Panel de Ajustes con Sesión y Cámara funcionando (fotos, cuenta regresiva, pausa, mensaje, PIN, guardados en el equipo) e Impresión / Compartir / Efectos marcadas "Próximamente". Tarjeta de plantilla activa sobre la cámara. Plantillas y Ayuda abren una hoja "Próximamente" hasta que existan (B3, C3–C4, ayuda). |
+| C2b | **Modo operador previo al lanzamiento** | **Migrado (estructura)** | Header minimalista en `01-camera-flow`: evento, semáforos cámara/impresora, riel Galería · Plantillas · Editor · Ajustes · Ayuda, y "Lanzar evento". Panel de Ajustes con Sesión y Cámara funcionando (fotos, cuenta regresiva, pausa, mensaje, PIN, guardados en el equipo) e Impresión / Compartir / Efectos marcadas "Próximamente". Tarjeta de plantilla activa sobre la cámara. Con un evento activo, "Plantillas" y "Cambiar" abren `03-editor-plantillas` asociado a ese evento; sin evento activo, y Ayuda, siguen abriendo una hoja "Próximamente" hasta que existan (C3–C4, ayuda). |
 | C3 | **Configuración de cámara** | Falta | Selección y prueba de la cámara conectada (o cámara del dispositivo), estado de conexión, live view de prueba. |
 | C4 | **Configuración de impresora** | Falta | Selección de impresora, tamaño de papel/media, orientación, copias por defecto, prueba de impresión. |
 | C5 | **Panel "en vivo" del evento** | Falta | La pantalla que se mira durante el evento: estado de cámara/impresora en tiempo real, cola de impresión, sesiones en curso, contador de invitados atendidos. Es la más crítica para "no frenar la fila" (Principio 5). |
@@ -107,7 +107,7 @@
 1. ~~Migrar `01-camera-flow` (pantallas A1, A3-A7) al nuevo sistema visual~~ — **hecho**, con mejoras sobre DSLRBooth (repetir foto individual, footer de salida claro). Ver capturas de referencia en `pantallas dslrbooth/`.
 2. ~~Rehacer el editor de plantillas (`02-layout-editor` → `03-editor-plantillas`)~~ — **hecho y aprobado para producción** el 2026-09-17 (Fases 1-4 completas).
 3. ~~Construir C1 (lista de eventos) y conectarla con la cabina~~ — **hecho** el 2026-09-17 (`04-lista-eventos`, ver su README y `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9).
-4. **En curso:** conectar la plantilla real del editor con el evento (hoy es solo un nombre de texto en el evento, no una referencia real a una plantilla de `03-editor-plantillas`) — plan detallado en `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9.
+4. ~~Conectar la plantilla real del editor con el evento~~ — **hecho** el 2026-09-21 (ver `docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9). Pendiente dentro de esto: que `01-camera-flow` lea el número de fotos por sesión de la plantilla real en vez del ajuste manual.
 5. Seguir con el resto del panel del operador (C2-C7).
 
 ## Pendientes de `01-camera-flow` reportados tras prueba real (2026-09-16)
