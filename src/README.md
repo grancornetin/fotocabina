@@ -10,7 +10,8 @@ Proyecto único de fotocabina, organizado como páginas independientes que luego
 | `pages/01-camera-flow` | Flujo de cabina: modo operador (lanzar evento) y modo invitado (countdown, captura, revisión, resultado). | Migrado al sistema de diseño. Pendientes listados en `docs/MAPA_DE_PANTALLAS.md`. |
 | `pages/02-layout-editor` | Editor de layouts (prototipo original): capas, selección múltiple, guías, alineación, espaciado y preparación para impresión. | **Descartado.** Reemplazado por `03-editor-plantillas`, aprobado para producción. Queda solo como referencia histórica, sin desarrollo nuevo. |
 | `pages/03-editor-plantillas` | Editor de plantillas **definitivo**, aprobado para producción: galería de plantillas, lienzo en mm con reglas y guías inteligentes, tipografía completa con fuentes propias, datos de sesión, render a 300 ppp con vista de hoja e importar/exportar. | Fases 1–4 completas. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. |
-| `pages/04-lista-eventos` | Puerta de entrada del panel de operador (C1 del mapa): eventos por estado (próximos/en curso/archivados), lanzar/duplicar/archivar/eliminar. | Construida y conectada de verdad con `01-camera-flow` (almacén compartido en `pages/shared/`). Falta C2 (crear evento) y la conexión con la plantilla real del editor. |
+| `pages/04-lista-eventos` | Puerta de entrada / dashboard del panel de operador (C1 del mapa): eventos por estado (próximos/en curso/archivados), editar plantilla/lanzar/duplicar/archivar/eliminar. | Construida y conectada de verdad con `01-camera-flow` y `03-editor-plantillas` (almacén compartido en `pages/shared/`). |
+| `pages/05-crear-evento` | Formulario para crear un evento nuevo (C2 del mapa): nombre, fecha, copias, plantilla asignada y modo de entrega. | Construida y conectada con `04-lista-eventos`. |
 
 ## Reglas para trabajar en este proyecto (personas y agentes de IA)
 

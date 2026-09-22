@@ -223,17 +223,17 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Dos operadores editando la lista a la vez desde dispositivos distintos (Etapa 2) → condición de carrera, relevante recién con backend real.
   - Dos eventos "En curso" el mismo día en cabinas distintas → **resuelto por decisión nueva:** el evento activo vive en el dispositivo, cada cabina física el suyo, sin conflicto.
 
-### C2 · Crear / configurar evento — *Falta*
-- **Llega:** desde C1, "Crear evento".
-- **Sale:** guardar → vuelve a C1 con el evento nuevo visible, mismo patrón que "Lanzar evento" del editor (guardar y volver son un solo paso) · cancelar → C1 sin guardar.
-- **Feliz:** nombra el evento, asigna plantilla, define copias y modo de entrega, guarda, lo ve en "Próximos".
+### C2 · Crear / configurar evento — *Construida (2026-09-22)*
+- **Llega:** desde C1, "Crear evento" (botón principal o el de la lista vacía).
+- **Sale:** guardar → vuelve a C1 con el evento nuevo visible, mismo patrón que "Lanzar evento" del editor (guardar y volver son un solo paso) · cancelar / botón "Mis eventos" del header → C1 sin guardar.
+- **Feliz:** nombra el evento, opcionalmente le asigna plantilla (selector con las reales del editor, o "Elegir después"), define copias y modo de entrega (Impresión/Digital/Ambos), guarda, lo ve primero en "Próximos".
+- **Decisión de producto (2026-09-22):** el PIN de operador **no** se configura acá — es universal para todos los eventos, sigue en Ajustes de `01-camera-flow`. El mapa original sugería PIN por evento; se descartó explícitamente.
 - **Errores/bordes:**
-  - Guardar sin nombre o datos incompletos → validación clara en el formulario.
-  - Asignar una plantilla que luego se borra en B3 → mismo hueco recurrente.
-  - Activar "punto de retiro externo" o "impresión remota" (futuro, H3/H4) sin esos servicios disponibles → no debería permitirlo, o degradar con aviso.
-  - Cierre accidental a mitad de carga → mismo hueco de autosave que B1.
-  - Storage lleno al crear → mismo patrón de aviso.
-  - Dónde vive el PIN del evento (hoy en Ajustes de C2b, el mapa sugiere que debería definirse acá) → falta resolver la migración.
+  - Guardar sin nombre → validación clara en el formulario (implementado), foco vuelve al campo.
+  - Asignar una plantilla que luego se borra en B3 → mismo hueco recurrente de A2/B3/C1 (todavía sin resolver en ningún lado).
+  - Activar "punto de retiro externo" o "impresión remota" (futuro, H3/H4) → **no se muestran todavía** esas opciones, en vez de mostrarlas deshabilitadas; se agregan cuando existan H3/H4.
+  - Cierre accidental a mitad de carga → *(hueco sin resolver, igual que B1: no hay autosave ni aviso de cambios sin guardar)*.
+  - Storage lleno al crear → *(hueco sin resolver: `AlmacenEventos.guardar()` no distingue este caso todavía)*.
 
 ### C2b · Modo operador previo al lanzamiento — *Migrado (estructura)*
 - **Llega:** desde C1 al "Lanzar" un evento · desde modo invitado, "Operador"/ESC + PIN correcto (vuelve, no llega de cero).

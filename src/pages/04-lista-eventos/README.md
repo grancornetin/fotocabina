@@ -12,7 +12,7 @@ Puerta de entrada del panel de operador (pantalla C1 del mapa de pantallas). Vis
   - **Lanzar** — marca el evento como activo (ver conexión abajo) y abre `01-camera-flow`.
   - **Duplicar** — clona el evento completo (nombre + " (copia)", plantilla asignada y todos sus ajustes de sesión) como uno nuevo en "Próximos".
   - **Archivar / Eliminar** — el ícono cambia según el estado: en Próximos/En curso archiva (con confirmación, reversible); en Archivados elimina (con confirmación, irreversible).
-- **Crear evento** — todavía no existe la pantalla de configuración (C2 del mapa); abre una hoja "Próximamente".
+- **Crear evento** (2026-09-22) — abre `05-crear-evento` (C2 del mapa): nombre, fecha, copias, plantilla asignada y modo de entrega. Guardar vuelve acá con el evento ya visible en "Próximos".
 - Modo oscuro/claro con el mismo criterio que `00-design-system` (elige el sistema operativo por defecto, o el switch de la barra lateral).
 
 ## Conectada a `01-camera-flow` y `03-editor-plantillas` (2026-09-17 / 2026-09-21 / 2026-09-22)
@@ -23,6 +23,5 @@ Los eventos ya no son datos de prueba en memoria: viven en el almacén compartid
 
 ## Pendiente
 
-- **C2 (crear/configurar evento):** hoy "Crear evento" no hace nada real.
 - **Miniatura real:** hoy todas las cards muestran el mismo ícono de cámara placeholder; falta traer la miniatura real de la plantilla o de una foto reciente del evento.
 - Los accesos de Cámara e Impresora de la navegación abren "Próximamente" hasta que existan esas pantallas (C3, C4 del mapa).

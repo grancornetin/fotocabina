@@ -188,7 +188,7 @@
   });
 
   function irACrearEvento() {
-    mostrarSoon('Crear evento', 'La pantalla para configurar nombre, plantilla, copias y entrega (C2 del mapa de pantallas) todavía no está construida.');
+    window.location.href = '../05-crear-evento/index.html';
   }
 
   document.getElementById('createEventBtn').addEventListener('click', irACrearEvento);
