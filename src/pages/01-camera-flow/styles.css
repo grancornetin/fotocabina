@@ -180,6 +180,16 @@ button { font-family: inherit; }
   gap: 10px;
   flex-shrink: 0;
 }
+.op-brand--link {
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background-color 160ms var(--ease-standard);
+}
+.op-brand--link:hover { background: var(--color-surface-high); }
+.op-brand--link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
 .op-mark {
   width: 32px;
   height: 32px;

@@ -12,7 +12,6 @@
   const launchBtn = q('#launchBtn');
   const galleryBtn = q('#galleryBtn');
   const templatesBtn = q('#templatesBtn');
-  const editorLink = q('#editorLink');
   const settingsBtn = q('#settingsBtn');
   const helpBtn = q('#helpBtn');
   const printerStatusBadge = q('#printerStatusBadge');
@@ -1106,20 +1105,17 @@
   drawerCloseBtn.addEventListener('click', cerrarDrawer);
   drawerBackdrop.addEventListener('click', cerrarDrawer);
 
-  // "Plantillas" y "Cambiar" abren el editor con este evento asociado (docs/DSLRBOOTH_
-  // PRODUCT_CONTEXT.md §3.9) solo si la cabina se abrió desde un evento real de la lista;
-  // si se abrió directo (sin evento), no hay a qué evento asociar la plantilla elegida y
-  // se mantiene la hoja "Próximamente" de siempre.
+  // "Plantilla" (riel) y "Cambiar" (tarjeta) abren el editor con este evento asociado
+  // (docs/FLUJO_NAVEGACION.md, decisión "Editor y Plantillas se fusionan en un solo acceso")
+  // solo si la cabina se abrió desde un evento real de la lista; si se abrió directo (sin
+  // evento), no hay a qué evento asociar la plantilla elegida y se mantiene la hoja
+  // "Próximamente" de siempre.
   function irAEditorDePlantilla() {
     if (eventoActivo) window.location.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActivo.id)}`;
     else abrirProximamente('plantillas');
   }
   templatesBtn.addEventListener('click', irAEditorDePlantilla);
   templateChangeBtn.addEventListener('click', irAEditorDePlantilla);
-  // El riel "Editor" siempre abrió el editor de verdad (sin la hoja "Próximamente" de
-  // respaldo); si hay un evento activo, se le agrega el mismo ?evento=id para que la
-  // plantilla que se elija ahí quede asociada a ese evento.
-  if (eventoActivo) editorLink.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActivo.id)}`;
   helpBtn.addEventListener('click', () => abrirProximamente('ayuda'));
   soonCloseBtn.addEventListener('click', cerrarProximamente);
   soonOverlay.addEventListener('click', (e) => { if (e.target === soonOverlay) cerrarProximamente(); });

@@ -8,7 +8,8 @@ Todo el proyecto vive en `src/`. Nada se crea fuera de esa carpeta (salvo este a
 2. `src/DESIGN.md` — sistema de diseño **obligatorio**. Referencia viva: `src/pages/00-design-system/index.html`.
 3. `src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md` — decisiones de producto, hardware y arquitectura, y el plan por fases. Su encabezado dice qué documento manda sobre qué.
 4. `src/docs/MAPA_DE_PANTALLAS.md` — inventario de pantallas y estado de cada una.
-5. El `README.md` de la pantalla que vas a tocar (`src/pages/NN-nombre/README.md`).
+5. `src/docs/FLUJO_NAVEGACION.md` — cómo se conectan las pantallas entre sí (de dónde vienen, hacia dónde van, qué pasa al volver). **Leerlo siempre que una pantalla vaya a abrir o ser abierta por otra** — no se construye ni se conecta una pantalla nueva sin decidir antes su fila en este documento.
+6. El `README.md` de la pantalla que vas a tocar (`src/pages/NN-nombre/README.md`).
 
 ## 2. Qué documento se actualiza, y cuándo
 
@@ -16,6 +17,7 @@ Todo el proyecto vive en `src/`. Nada se crea fuera de esa carpeta (salvo este a
 | --- | --- |
 | Cambiaste cómo funciona una pantalla | `src/pages/NN-nombre/README.md` |
 | Una pantalla pasó de "falta" a "en curso" o "hecha", o apareció una pendiente | `src/docs/MAPA_DE_PANTALLAS.md` (la fila de esa pantalla) |
+| Una pantalla nueva abre o es abierta por otra (navegación entre pantallas) | `src/docs/FLUJO_NAVEGACION.md` (fila de esa conexión: de dónde viene, hacia dónde va, qué pasa al volver) |
 | Se tomó una decisión de producto, hardware o arquitectura, o cambió el rumbo de una fase | `src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md` (sección que corresponda + "Última revisión") |
 | Agregaste una pantalla nueva | fila en `src/README.md` y en el mapa |
 | Cambio al sistema de diseño o al producto | **Solo con acuerdo explícito del dueño del proyecto.** No se toca `DESIGN.md` ni `PRODUCT.md` por iniciativa propia. |

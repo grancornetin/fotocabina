@@ -9,6 +9,7 @@
 > - `DESIGN.md` — sistema de diseño obligatorio. Referencia viva: `pages/00-design-system`.
 > - **Este documento** — decisiones de producto, hardware y arquitectura, y el plan por fases (§6). Cuando se toma una decisión que cambia el rumbo, se anota acá.
 > - `docs/MAPA_DE_PANTALLAS.md` — inventario de pantallas y su estado (hecha / en curso / falta / futuro).
+> - `docs/FLUJO_NAVEGACION.md` — cómo se conectan las pantallas entre sí: de dónde viene cada una, hacia dónde va, y qué pasa al volver. Se lee y actualiza junto con el mapa de pantallas cada vez que una pantalla se conecta con otra.
 > - `docs/PLAN_EDITOR_PLANTILLAS.md` — plan detallado del editor (lo mantiene quien trabaja el editor).
 > - `pages/*/README.md` — detalle de cómo funciona cada pantalla hoy.
 
