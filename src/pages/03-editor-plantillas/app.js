@@ -78,19 +78,19 @@ const EditorApp = (() => {
     const iconoLanzar = document.getElementById('ed-exportar-icono-lanzar');
     const iconoExportar = document.getElementById('ed-exportar-icono-exportar');
     const itemLanzar = document.getElementById('ed-menu-lanzar');
-    const sepLanzar = document.getElementById('ed-menu-sep-lanzar');
+    const rotuloExportar = document.getElementById('ed-menu-rotulo-exportar');
     if (eventoConectado) {
       textoEl.textContent = 'Lanzar evento';
       iconoLanzar.hidden = false;
       iconoExportar.hidden = true;
       itemLanzar.hidden = false;
-      sepLanzar.hidden = false;
+      rotuloExportar.hidden = false;
     } else {
       textoEl.textContent = 'Exportar';
       iconoLanzar.hidden = true;
       iconoExportar.hidden = false;
       itemLanzar.hidden = true;
-      sepLanzar.hidden = true;
+      rotuloExportar.hidden = true;
     }
   }
 

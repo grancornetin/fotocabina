@@ -1055,6 +1055,16 @@ input[type="number"].ed-input::-webkit-outer-spin-button, input[type="number"].e
 .ed-menu-item b { display: block; font-size: 0.875rem; font-weight: 600; }
 .ed-menu-item small { display: block; font-size: 0.75rem; color: var(--color-fog); margin-top: 1px; }
 .ed-menu-sep { height: 1px; background: var(--color-border); margin: 4px 8px; }
+.ed-menu-rotulo {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-fog);
+  padding: 10px 10px 4px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+}
 
 /* ---------- Vista de hoja ---------- */
 
