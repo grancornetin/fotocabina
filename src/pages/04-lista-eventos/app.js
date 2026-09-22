@@ -197,7 +197,6 @@
   /* ---------- Hoja "Próximamente" para accesos aún no construidos ---------- */
 
   var soonTextos = {
-    plantillas: 'La galería de plantillas propias (B3) todavía no está construida.',
     camara: 'La configuración de cámara (C3) todavía no está construida.',
     impresora: 'La configuración de impresora (C4) todavía no está construida.',
     ayuda: 'La ayuda todavía no está construida.',
@@ -222,11 +221,11 @@
     });
   }
 
-  conectarAccesoSoon('navPlantillas', 'Plantillas', 'plantillas');
+  // "Plantillas"/"Editor" ya conecta de verdad a 03-editor-plantillas (href real en el
+  // HTML), sin pasar por acá. Cámara, Impresora y Ayuda siguen sin pantalla propia todavía.
   conectarAccesoSoon('navCamara', 'Cámara', 'camara');
   conectarAccesoSoon('navImpresora', 'Impresora', 'impresora');
   conectarAccesoSoon('navAyuda', 'Ayuda', 'ayuda');
-  conectarAccesoSoon('tabPlantillas', 'Plantillas', 'plantillas');
   conectarAccesoSoon('tabCamara', 'Cámara', 'camara');
   conectarAccesoSoon('tabImpresora', 'Impresora', 'impresora');
 
