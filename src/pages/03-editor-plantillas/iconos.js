@@ -21,6 +21,7 @@ const EditorIconos = (() => {
     cerrar: trazo('<path d="M6 6l12 12M18 6L6 18"/>'),
     editar: trazo('<path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/>'),
     exportar: trazo('<path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 21h16"/>'),
+    lanzar: trazo('<path d="M5 3l14 9-14 9V3z" stroke-width="2.6"/>'),
     atajos: trazo('<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>'),
     panelDerecho: trazo('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/>'),
     ojo: trazo('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),

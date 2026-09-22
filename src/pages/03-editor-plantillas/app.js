@@ -69,6 +69,44 @@ const EditorApp = (() => {
     });
   }
 
+  // El botón principal de la barra es contextual: con un evento conectado dice y hace
+  // "Lanzar evento" (guarda la plantilla activa en el evento y vuelve a la cabina); sin
+  // evento, sigue siendo "Exportar" de siempre. La flechita abre el mismo menú en ambos
+  // casos — el ítem "Lanzar evento" del menú es un acceso alternativo al mismo botón.
+  function aplicarBotonPrincipalContextual() {
+    const textoEl = document.getElementById('ed-exportar-texto');
+    const iconoLanzar = document.getElementById('ed-exportar-icono-lanzar');
+    const iconoExportar = document.getElementById('ed-exportar-icono-exportar');
+    const itemLanzar = document.getElementById('ed-menu-lanzar');
+    const sepLanzar = document.getElementById('ed-menu-sep-lanzar');
+    if (eventoConectado) {
+      textoEl.textContent = 'Lanzar evento';
+      iconoLanzar.hidden = false;
+      iconoExportar.hidden = true;
+      itemLanzar.hidden = false;
+      sepLanzar.hidden = false;
+    } else {
+      textoEl.textContent = 'Exportar';
+      iconoLanzar.hidden = true;
+      iconoExportar.hidden = false;
+      itemLanzar.hidden = true;
+      sepLanzar.hidden = true;
+    }
+  }
+
+  // Guarda la plantilla activa en el evento conectado y vuelve a la cabina con ese
+  // evento ya activo — mismo gesto, no "guardar" y "volver" por separado.
+  function lanzarEvento() {
+    if (!eventoConectado) return;
+    const p = E.obtener();
+    eventoConectado.plantillaId = p.id;
+    eventoConectado.plantilla = p.nombre;
+    AlmacenEventos.guardar(eventoConectado);
+    E.guardarAhora();
+    AlmacenEventos.setActivo(eventoConectado.id);
+    window.location.href = '../01-camera-flow/index.html';
+  }
+
   function aplicarTema(eleccion) {
     const root = document.documentElement;
     if (eleccion === 'system') root.removeAttribute('data-theme');
@@ -105,6 +143,7 @@ const EditorApp = (() => {
     E.suscribir('doble-clic', (e) => { if (e.tipo === 'texto') EditorTipografia.editarEnLienzo(e); });
     E.cargar();
     iniciarConexionEvento();
+    aplicarBotonPrincipalContextual();
     enlazarBarra();
     enlazarTeclado();
     requestAnimationFrame(() => EditorLienzo.ajustarAPantalla());
@@ -127,15 +166,21 @@ const EditorApp = (() => {
     document.getElementById('ed-abrir-galeria').addEventListener('click', () => EditorGaleria.abrir());
     document.getElementById('ed-vista-hoja').addEventListener('click', () => EditorPaquete.abrirHoja());
     const botonExportar = document.getElementById('ed-exportar');
+    const botonFlecha = document.getElementById('ed-exportar-flecha');
     const menu = document.getElementById('ed-menu-exportar');
-    const cerrarMenu = () => { menu.hidden = true; botonExportar.setAttribute('aria-expanded', 'false'); };
-    botonExportar.addEventListener('click', (ev) => { ev.stopPropagation(); menu.hidden = !menu.hidden; botonExportar.setAttribute('aria-expanded', String(!menu.hidden)); });
+    const cerrarMenu = () => { menu.hidden = true; botonFlecha.setAttribute('aria-expanded', 'false'); };
+    botonExportar.addEventListener('click', () => {
+      if (eventoConectado) lanzarEvento();
+      else { menu.hidden = !menu.hidden; botonFlecha.setAttribute('aria-expanded', String(!menu.hidden)); }
+    });
+    botonFlecha.addEventListener('click', (ev) => { ev.stopPropagation(); menu.hidden = !menu.hidden; botonFlecha.setAttribute('aria-expanded', String(!menu.hidden)); });
     menu.addEventListener('click', (ev) => {
       const item = ev.target.closest('[data-exportar]');
       if (!item) return;
       cerrarMenu();
       const que = item.dataset.exportar;
-      if (que === 'png') EditorPaquete.exportarPNG();
+      if (que === 'lanzar') lanzarEvento();
+      else if (que === 'png') EditorPaquete.exportarPNG();
       else if (que === 'hoja') EditorPaquete.exportarHoja();
       else if (que === 'guia') EditorPaquete.exportarGuia();
       else if (que === 'archivo') EditorPaquete.exportarPlantilla();

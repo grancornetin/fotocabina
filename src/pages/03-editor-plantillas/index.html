@@ -47,12 +47,25 @@
           Vista de hoja
         </button>
         <div class="ed-menu-cont">
-          <button class="ds-btn ds-btn--primary ds-btn--compact" id="ed-exportar" type="button" aria-haspopup="menu" aria-expanded="false">
-            <span data-icono="exportar"></span>
-            Exportar
+          <!--
+            Botón principal contextual (docs/FLUJO_NAVEGACION.md, decisión "Editor de
+            plantillas → Lanzar evento"): si el editor se abrió desde un evento
+            (?evento=id), este botón dice "Lanzar evento" y su clic guarda la plantilla en
+            el evento y vuelve a la cabina — la flechita despliega las mismas opciones de
+            exportar de siempre. Si se abrió suelto (sin evento), el botón sigue diciendo
+            "Exportar" y hace lo de siempre; ver app.js, iniciarConexionEvento().
+          -->
+          <button class="ds-btn ds-btn--primary ds-btn--compact ed-boton-principal" id="ed-exportar" type="button">
+            <span class="ed-icono-16" data-icono="lanzar" id="ed-exportar-icono-lanzar" hidden></span>
+            <span data-icono="exportar" id="ed-exportar-icono-exportar"></span>
+            <span id="ed-exportar-texto">Exportar</span>
+          </button>
+          <button class="ds-btn ds-btn--primary ds-btn--compact ed-boton-flecha" id="ed-exportar-flecha" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Más opciones">
             <span class="ed-icono-16" data-icono="chevron"></span>
           </button>
           <div class="ed-menu" id="ed-menu-exportar" role="menu" hidden>
+            <button type="button" class="ed-menu-item" id="ed-menu-lanzar" data-exportar="lanzar" role="menuitem" hidden><span data-icono="lanzar"></span><span><b>Lanzar evento</b><small>Guarda esta plantilla en el evento y vuelve a la cabina</small></span></button>
+            <span class="ed-menu-sep" id="ed-menu-sep-lanzar" hidden></span>
             <button type="button" class="ed-menu-item" data-exportar="png" role="menuitem"><span data-icono="imagen"></span><span><b>Imagen PNG</b><small>La plantilla a 300 ppp, con las fotos de prueba</small></span></button>
             <button type="button" class="ed-menu-item" data-exportar="hoja" role="menuitem"><span data-icono="papel"></span><span><b>Hoja para imprimir PNG</b><small>4 × 6 con las dos tiras, lista para el driver</small></span></button>
             <button type="button" class="ed-menu-item" data-exportar="guia" role="menuitem"><span data-icono="cuadricula"></span><span><b>Guía para Canva PNG</b><small>Tamaño exacto con los espacios de foto marcados, para diseñar afuera</small></span></button>
