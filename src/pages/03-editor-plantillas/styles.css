@@ -213,6 +213,19 @@ kbd {
 }
 
 .ed-marca { display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-width: 200px; }
+.ed-marca-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background-color 160ms var(--ease-standard);
+}
+.ed-marca-link:hover { background: var(--color-surface-high); }
+.ed-marca-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
 .ed-marca-icono { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--color-lime); color: var(--color-lime-ink); display: flex; align-items: center; justify-content: center; }
 .ed-marca-icono svg { width: 20px; height: 20px; }
 .ed-marca-texto { font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.01em; }
