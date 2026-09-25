@@ -374,6 +374,8 @@ button { font-family: inherit; }
   text-shadow: 0 2px 12px rgba(0,0,0,0.6);
 }
 
+.stage-hint--error { color: var(--color-red); }
+
 .cabin.is-guest-mode .stage-panel,
 .cabin.is-connected .stage-panel {
   display: none;

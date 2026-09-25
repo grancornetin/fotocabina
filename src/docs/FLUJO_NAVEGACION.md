@@ -246,16 +246,18 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - PIN de operador olvidado o adivinado por fuerza bruta (hoy fijo `1234` en código) → falta política de bloqueo tras intentos fallidos.
   - Sin internet / licencia vencida (Etapa 2) → no bloquea "Lanzar evento"; a lo sumo aviso discreto, nunca frena el evento en curso.
 
-### C3 · Configuración de cámara — *Falta*
-- **Llega:** desde C2b o desde C1 (navegación lateral "Cámara").
-- **Sale:** guardar/probar → vuelve a la pantalla de origen.
-- **Feliz:** selecciona la cámara conectada, ve live view de prueba, confirma.
+### C3 · Configuración de cámara — *Construida (2026-09-24), como panel dentro de la cabina*
+- **Decisión (2026-09-24):** no es pantalla aparte — vive en Ajustes › Cámara de `01-camera-flow`. Al ser un panel sobre la cabina, no necesita "volver": se abre y se cierra en el lugar, como el resto de Ajustes.
+- **Llega:** desde la cabina (C2b), ícono de Ajustes. Desde C1, el ítem "Cámara" del menú lateral no lleva a ninguna pantalla: abre una hoja que explica dónde se configura (lanzar el evento → Ajustes › Cámara).
+- **Sale:** cerrar el panel de Ajustes → sigue en la cabina, con la cámara elegida ya conectada.
+- **Feliz:** conecta la cámara, abre Ajustes, elige el dispositivo en la lista, la vista en vivo cambia al instante, cierra.
 - **Errores/bordes:**
-  - Cámara no detectada → diagnóstico claro (revisar cable, reconectar), con más detalle técnico del que ve el invitado en A10.
-  - Detectada pero live view no arranca (conflicto con otra app, §3.2) → sugiere cerrar otras apps de cámara.
-  - Se desconecta durante la prueba → semáforo pasa a rojo en tiempo real, no queda mostrando el último frame como si siguiera viva.
-  - Varias cámaras conectadas a la vez → debe permitir elegir cuál usar sin ambigüedad.
-  - Bluetooth desconectado (si el trigger depende de eso) → mismo patrón de diagnóstico detallado.
+  - Cámara no detectada / sin permiso / ocupada por otro programa (§3.2) → **resuelto:** un mensaje distinto para cada causa, debajo del botón de conectar, con la acción concreta a tomar.
+  - Se desconecta con la cabina abierta → **resuelto:** semáforo rojo en el momento, imagen borrada (no queda el último cuadro), "Lanzar evento" bloqueado, botón "Reconectar cámara".
+  - Varias cámaras conectadas → **resuelto:** el selector las lista por nombre.
+  - Cámara guardada en el evento que ya no responde (otro equipo, desenchufada, identificador rotado por el navegador) → **resuelto:** cae sola a la cámara del equipo.
+  - Se desconecta **en plena sesión del invitado** → *pendiente*, es A10 (error de sesión).
+  - Bluetooth desconectado (trigger/flash) → *pendiente*, no aplica hasta que exista control de DSLR/flash (app de escritorio).
 
 ### C4 · Configuración de impresora — *Falta*
 - **Llega:** desde C2b (semáforo de impresora) o C1 (navegación lateral "Impresora").

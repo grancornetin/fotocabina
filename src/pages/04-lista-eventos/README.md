@@ -4,7 +4,7 @@ Puerta de entrada del panel de operador (pantalla C1 del mapa de pantallas). Vis
 
 ## Qué hace
 
-- **Navegación lateral** tipo torre de control (Eventos, Editor de plantillas, Cámara, Impresora, Ayuda), fija en desktop y colapsada a tabs inferiores en mobile/tablet (regla de Navigation de `DESIGN.md`). "Eventos" y "Editor de plantillas" están construidos; Cámara/Impresora/Ayuda abren una hoja "Próximamente" hasta que existan (C3, C4).
+- **Navegación lateral** tipo torre de control (Eventos, Editor de plantillas, Cámara, Impresora, Ayuda), fija en desktop y colapsada a tabs inferiores en mobile/tablet (regla de Navigation de `DESIGN.md`). "Eventos" y "Editor de plantillas" están construidos. "Cámara" abre una hoja que explica dónde se configura (Ajustes › Cámara dentro de la cabina, por evento — C3 no es una pantalla aparte), sin el sello "Próximamente". Impresora y Ayuda sí abren "Próximamente" hasta que existan (C4, ayuda).
 - **Tabs por estado:** Próximos / En curso / Archivados.
 - **Card de evento:** miniatura, nombre, fecha, plantilla asignada, cantidad de sesiones y badge de estado (con glow lima si está "En curso").
 - **Acciones por card:**
@@ -24,4 +24,4 @@ Los eventos ya no son datos de prueba en memoria: viven en el almacén compartid
 ## Pendiente
 
 - **Miniatura real:** hoy todas las cards muestran el mismo ícono de cámara placeholder; falta traer la miniatura real de la plantilla o de una foto reciente del evento.
-- Los accesos de Cámara e Impresora de la navegación abren "Próximamente" hasta que existan esas pantallas (C3, C4 del mapa).
+- El acceso de Impresora de la navegación abre "Próximamente" hasta que exista C4 (o se decida que también vive dentro de la cabina, como cámara).

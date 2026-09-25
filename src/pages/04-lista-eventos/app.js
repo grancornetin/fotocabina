@@ -197,14 +197,19 @@
   /* ---------- Hoja "Próximamente" para accesos aún no construidos ---------- */
 
   var soonTextos = {
-    camara: 'La configuración de cámara (C3) todavía no está construida.',
+    camara: 'La cámara se elige por evento, desde la cabina: tocá "Lanzar" en el evento y abrí Ajustes › Cámara.',
     impresora: 'La configuración de impresora (C4) todavía no está construida.',
     ayuda: 'La ayuda todavía no está construida.',
   };
 
-  function mostrarSoon(titulo, texto) {
+  // "Cámara" ya existe (vive en Ajustes de la cabina, por evento): su hoja solo indica dónde
+  // está, así que no lleva el sello "Próximamente" que sí llevan Impresora y Ayuda.
+  var yaConstruidos = { camara: true };
+
+  function mostrarSoon(titulo, texto, textoKey) {
     document.getElementById('soonTitle').textContent = titulo;
     document.getElementById('soonText').textContent = texto;
+    document.querySelector('#soonOverlay .ds-badge').hidden = !!yaConstruidos[textoKey];
     document.getElementById('soonOverlay').setAttribute('data-visible', 'true');
   }
 
@@ -217,12 +222,13 @@
     if (!el) return;
     el.addEventListener('click', function (ev) {
       ev.preventDefault();
-      mostrarSoon(titulo, soonTextos[textoKey]);
+      mostrarSoon(titulo, soonTextos[textoKey], textoKey);
     });
   }
 
-  // "Plantillas"/"Editor" ya conecta de verdad a 03-editor-plantillas (href real en el
-  // HTML), sin pasar por acá. Cámara, Impresora y Ayuda siguen sin pantalla propia todavía.
+  // "Editor de plantillas" ya conecta de verdad a 03-editor-plantillas (href real en el
+  // HTML), sin pasar por acá. Cámara se configura dentro de la cabina (su hoja lo explica);
+  // Impresora y Ayuda siguen sin pantalla todavía.
   conectarAccesoSoon('navCamara', 'Cámara', 'camara');
   conectarAccesoSoon('navImpresora', 'Impresora', 'impresora');
   conectarAccesoSoon('navAyuda', 'Ayuda', 'ayuda');

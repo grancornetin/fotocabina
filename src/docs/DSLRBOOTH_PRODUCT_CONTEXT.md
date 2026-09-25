@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-21 (conexión de 03-editor-plantillas con el evento, §3.9).
+> Última revisión: 2026-09-24 (decisiones del panel de operador: PIN universal, cámara por evento dentro de la cabina, §3.10).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -230,6 +230,15 @@ Hasta ahora cada página (`01-camera-flow`, `04-lista-eventos`, `03-editor-plant
   3. `03-editor-plantillas` (`app.js`, función `iniciarConexionEvento`) lee `?evento=id` de la URL: si el evento ya tiene una `plantillaId` válida, abre esa plantilla directo en el lienzo (salta la galería); si no, deja que se abra la galería normal y, apenas el operador abre o crea una plantilla ahí (evento `plantilla-abierta` de `EditorEstado`, que ya existía), la asocia a ese evento en el almacén. El editor usado suelto (sin `?evento=`) no se tocó: sigue exactamente igual.
   - **Punto 4 pendiente:** ajustar el número de fotos por sesión de `01-camera-flow` para que salga de los `photo-slot` de la plantilla real asignada, en vez del ajuste manual "Fotos por sesión" (decisión pendiente desde §3.5 — "la plantilla manda sobre la sesión"). `EditorEstado.fotosPorSesion()` ya existe y calcula ese número; falta que la cabina lo lea del editor cuando el evento tiene `plantillaId`.
   - Riesgo cuidado: el editor no tenía noción de "evento" y se conectó sin tocar `galeria.js` ni el flujo de duplicar/exportar/importar/renombrar — la conexión vive entera en un módulo aparte dentro de `app.js` (`iniciarConexionEvento`), suscrito a un evento que ya existía.
+
+### 3.10 Decisiones del panel de operador (2026-09-22 / 2026-09-24)
+
+Tomadas por el dueño del proyecto al construir C2 y C3:
+
+- **El PIN de operador es universal**, no por evento. `docs/MAPA_DE_PANTALLAS.md` sugería configurarlo en C2 (crear evento); se descartó. Sigue en Ajustes de la cabina, igual para todos los eventos del equipo.
+- **La configuración de cámara (C3) vive dentro de la cabina**, en Ajustes › Cámara, no como pantalla aparte. Es un panel que se abre y cierra en el lugar; no necesita un "volver".
+- **La cámara elegida se guarda por evento** (campo `camaraId` en los ajustes del evento, junto con fotos/cuenta/pausa). Con dos cabinas en equipos distintos, cada evento recuerda la suya.
+- **El identificador de cámara del navegador no es estable** (`deviceId` de MediaDevices): puede cambiar entre sesiones por privacidad, y cambia si se mueve el evento a otro equipo. Por eso, si la cámara guardada no responde, la cabina cae sola a la cámara del equipo en vez de bloquearse. Cuando llegue la app de escritorio con control directo de DSLR (§3.2, `CameraAdapter`), el perfil de cámara debería guardarse por modelo/número de serie, no por este identificador.
 
 ## 4. Requisitos del editor de layouts
 

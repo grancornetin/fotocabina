@@ -98,7 +98,7 @@
   // hay evento activo (la cabina se abrió directo, como siempre se pudo hacer), se siguen
   // usando los ajustes generales de este equipo, igual que antes.
   const AJUSTES_CLAVE = 'fotocabina-ajustes';
-  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234', volver: 30, espejo: true };
+  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234', volver: 30, espejo: true, camaraId: null };
   const eventoActivo = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtenerActivo() : null;
   const ajustes = cargarAjustes();
 
@@ -212,12 +212,16 @@
 
   // ---------- Dropdowns propios ----------
 
+  // Delegación de eventos en el <ul> (no un listener por <li>): algunos selects se rellenan
+  // dinámicamente después de este arranque (eventos reales en poblarSelectorEventos(),
+  // cámaras reales en poblarSelectorCamaras() recién tras conectar) — con un listener por
+  // opción, las opciones nuevas quedaban sin click funcionando. Con delegación en el menú
+  // contenedor, cualquier <li> agregado más tarde ya responde sin volver a engancharlo.
   function initSelects() {
     qa('.ds-select').forEach((select) => {
       const trigger = select.querySelector('.ds-select-trigger');
       const value = select.querySelector('.ds-select-value');
       const menu = select.querySelector('.ds-select-menu');
-      const options = Array.from(menu.querySelectorAll('.ds-select-option'));
 
       function close() {
         select.classList.remove('is-open');
@@ -237,20 +241,21 @@
         else open();
       });
 
-      options.forEach((opt) => {
-        opt.addEventListener('click', () => {
-          options.forEach((o) => o.setAttribute('aria-selected', 'false'));
-          opt.setAttribute('aria-selected', 'true');
-          value.textContent = opt.textContent;
-          close();
+      menu.addEventListener('click', (e) => {
+        const opt = e.target.closest('.ds-select-option');
+        if (!opt) return;
+        menu.querySelectorAll('.ds-select-option').forEach((o) => o.setAttribute('aria-selected', 'false'));
+        opt.setAttribute('aria-selected', 'true');
+        value.textContent = opt.textContent;
+        close();
 
-          const tipo = select.dataset.select;
-          if (tipo === 'countdown') { ajustes.cuenta = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
-          if (tipo === 'photos') { ajustes.fotos = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
-          if (tipo === 'pause') { ajustes.pausa = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
-          if (tipo === 'return') { ajustes.volver = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
-          if (tipo === 'event') { cambiarEvento(opt.dataset.value, opt.textContent); }
-        });
+        const tipo = select.dataset.select;
+        if (tipo === 'countdown') { ajustes.cuenta = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
+        if (tipo === 'photos') { ajustes.fotos = parseInt(opt.dataset.value, 10) || 3; guardarAjustes(); }
+        if (tipo === 'pause') { ajustes.pausa = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
+        if (tipo === 'return') { ajustes.volver = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
+        if (tipo === 'event') { cambiarEvento(opt.dataset.value, opt.textContent); }
+        if (tipo === 'camera') { ajustes.camaraId = opt.dataset.value || null; guardarAjustes(); connectCamera(); }
       });
 
       select._close = close;
@@ -422,32 +427,121 @@
     cameraStatusText.textContent = text;
   }
 
-  async function connectCamera() {
+  // "camaraId" es el deviceId elegido en Ajustes › Cámara (C3), guardado por evento como el
+  // resto de los ajustes de sesión. Sin elección (null), se pide la cámara "ideal" del
+  // sistema, igual que siempre — así una cabina que nunca tocó ese selector sigue andando
+  // sin cambios. El deviceId de MediaDevices no es un identificador físico estable: el
+  // navegador puede rotarlo entre sesiones (política de privacidad/fingerprinting) o la
+  // cámara puede haberse desenchufado — si el guardado ya no sirve, cae sola a la cámara
+  // genérica del equipo en vez de dejar la cabina bloqueada hasta que el operador entre a
+  // Ajustes a mano.
+  async function connectCamera(forzarGenerica) {
     hideNotice();
     connectBtn.disabled = true;
     connectBtn.textContent = 'Conectando…';
     setCameraStatus('warn', 'Cámara conectando');
 
+    const usarIdGuardado = ajustes.camaraId && !forzarGenerica;
     try {
       if (stream) stream.getTracks().forEach((t) => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'user' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
+      const videoConstraints = usarIdGuardado
+        ? { deviceId: { exact: ajustes.camaraId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        : { facingMode: { ideal: 'user' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+      stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
       video.srcObject = stream;
       await video.play();
+      vigilarDesconexion(stream);
 
       cabin.classList.add('is-connected');
+      connectHint.classList.remove('stage-hint--error');
       setCameraStatus('ready', 'Cámara lista');
       connectHint.textContent = `Todo listo. Lanzá el evento cuando quieras. Durante el evento, tocá "Operador" e ingresá el PIN ${ajustes.pin} para volver acá.`;
       connectBtn.textContent = 'Cámara conectada';
       launchBtn.disabled = false;
+      poblarSelectorCamaras();
     } catch (e) {
+      if (usarIdGuardado) {
+        // La cámara elegida ya no responde: se prueba una vez más con la genérica del
+        // equipo antes de rendirse, para no dejar la cabina sin cámara por un deviceId
+        // vencido que el operador ni sabe que cambió.
+        connectCamera(true);
+        return;
+      }
       setCameraStatus('error', 'Cámara sin conectar');
       connectBtn.disabled = false;
       connectBtn.textContent = 'Reintentar cámara';
-      showNotice('No pudimos abrir la cámara. Da permiso de acceso cuando el navegador lo pida.');
+      mostrarErrorEnPanelCamara(mensajeErrorCamara(e));
     }
+  }
+
+  // Los errores de cámara se muestran debajo del propio botón "Conectar/Reconectar", en el
+  // lugar donde el operador ya está mirando — no como aviso flotante, que quedaba encimado
+  // sobre este mismo panel (los dos se anclan abajo al centro).
+  function mostrarErrorEnPanelCamara(texto) {
+    connectHint.textContent = texto;
+    connectHint.classList.add('stage-hint--error');
+  }
+
+  // Cada causa pide una acción distinta del operador, así que cada una tiene su mensaje.
+  function mensajeErrorCamara(e) {
+    const nombre = e && e.name;
+    if (nombre === 'NotAllowedError' || nombre === 'SecurityError') return 'El navegador no tiene permiso para usar la cámara. Tocá el candado de la barra de direcciones y permití la cámara.';
+    if (nombre === 'NotFoundError' || nombre === 'OverconstrainedError') return 'No encontramos ninguna cámara conectada. Revisá el cable USB y volvé a intentar.';
+    if (nombre === 'NotReadableError' || nombre === 'AbortError') return 'La cámara está siendo usada por otro programa. Cerrá las otras apps de cámara (Zoom, Teams, la app de Cámara) y reintentá.';
+    return 'No pudimos abrir la cámara. Revisá que esté conectada y reintentá.';
+  }
+
+  // Si la cámara se desconecta después de conectar (cable flojo, batería de la DSLR), el
+  // navegador corta el track: el semáforo pasa a rojo y "Lanzar evento" se bloquea, en vez
+  // de quedar mostrando el último cuadro congelado como si siguiera viva.
+  function vigilarDesconexion(s) {
+    s.getVideoTracks().forEach((track) => {
+      track.addEventListener('ended', () => {
+        if (stream !== s) return;
+        video.srcObject = null;
+        cabin.classList.remove('is-connected');
+        setCameraStatus('error', 'Cámara desconectada');
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Reconectar cámara';
+        launchBtn.disabled = true;
+        mostrarErrorEnPanelCamara('Se perdió la conexión con la cámara. Revisá el cable y tocá "Reconectar cámara".');
+      });
+    });
+  }
+
+  // Lista las cámaras reales del equipo en el selector de Ajustes › Cámara. El navegador
+  // solo entrega nombres (label) de dispositivo después de que el operador ya dio permiso
+  // de cámara al menos una vez — por eso se llama recién tras un connectCamera() exitoso,
+  // no al cargar la página.
+  async function poblarSelectorCamaras() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    let dispositivos = [];
+    try {
+      dispositivos = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+    } catch (e) {
+      return;
+    }
+    if (!dispositivos.length) return;
+
+    const select = q('.ds-select[data-select="camera"]');
+    if (!select) return;
+    const menu = select.querySelector('.ds-select-menu');
+    const value = select.querySelector('.ds-select-value');
+
+    menu.innerHTML = '';
+    dispositivos.forEach((d, i) => {
+      const opcion = document.createElement('li');
+      opcion.className = 'ds-select-option';
+      opcion.setAttribute('role', 'option');
+      opcion.dataset.value = d.deviceId;
+      opcion.textContent = d.label || `Cámara ${i + 1}`;
+      if (d.deviceId === ajustes.camaraId) opcion.setAttribute('aria-selected', 'true');
+      menu.appendChild(opcion);
+    });
+
+    const activa = dispositivos.find((d) => d.deviceId === ajustes.camaraId);
+    value.textContent = activa ? (activa.label || 'Cámara elegida') : dispositivos[0].label || 'Cámara del dispositivo';
+    if (!activa) menu.querySelector('.ds-select-option').setAttribute('aria-selected', 'true');
   }
 
   // ---------- Marco de encuadre (guía proporcional al tamaño de foto en la plantilla) ----------
