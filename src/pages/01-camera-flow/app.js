@@ -146,22 +146,109 @@
     actualizarResumenPlantilla();
   }
 
+  // Cuántas fotos tiene la sesión: las que define la plantilla del evento; sin plantilla (demostración), el ajuste de siempre.
+  function numeroDeFotos() {
+    return plantillaActiva ? MotorPlantillas.contarFotos(plantillaActiva) : ajustes.fotos;
+  }
+
+  const enPulgadas = (mm) => String(Math.round((mm / 25.4) * 10) / 10).replace('.', ',');
+  const textoPapel = (p) => `${enPulgadas(p.papel.anchoMm)} × ${enPulgadas(p.papel.altoMm)} in`;
+
   function actualizarResumenPlantilla() {
     const pausa = ajustes.pausa > 0 ? `pausa ${ajustes.pausa} s` : 'sin pausa';
-    templateMeta.textContent = `${ajustes.fotos} fotos · 2×6 en 4×6 · cuenta ${ajustes.cuenta} s · ${pausa}`;
     const nombrePlantilla = q('.template-name');
-    if (nombrePlantilla && eventoActivo && eventoActivo.plantilla) {
-      nombrePlantilla.textContent = eventoActivo.plantilla;
+    const miniatura = q('#templateThumbImg');
+    const dibujoBase = q('svg.template-thumb');
+    const aviso = q('#templateAviso');
+    const selectorFotos = q('.ds-select[data-select="photos"]');
+
+    if (plantillaActiva) {
+      const n = numeroDeFotos();
+      templateMeta.textContent = `${n} ${n === 1 ? 'foto' : 'fotos'} · ${textoPapel(plantillaActiva)} · cuenta ${ajustes.cuenta} s · ${pausa}`;
+      if (nombrePlantilla) nombrePlantilla.textContent = plantillaActiva.nombre;
+    } else if (estadoPlantilla.modo === 'invalida') {
+      templateMeta.textContent = `Falta una plantilla válida · cuenta ${ajustes.cuenta} s · ${pausa}`;
+      if (nombrePlantilla) nombrePlantilla.textContent = 'Sin plantilla válida';
+    } else {
+      templateMeta.textContent = `${ajustes.fotos} fotos · 2×6 en 4×6 · cuenta ${ajustes.cuenta} s · ${pausa}`;
+      if (nombrePlantilla && eventoActivo && eventoActivo.plantilla) nombrePlantilla.textContent = eventoActivo.plantilla;
     }
+
+    // Con plantilla real, el número de fotos lo manda la plantilla: el selector manual no se ofrece.
+    if (selectorFotos) selectorFotos.hidden = estadoPlantilla.modo !== 'demo';
+
+    if (aviso) {
+      aviso.hidden = estadoPlantilla.modo !== 'invalida';
+      q('#templateAvisoTexto').textContent = estadoPlantilla.modo === 'invalida'
+        ? `Este evento no tiene una plantilla válida: ${estadoPlantilla.motivo}. Elige o crea una en el editor.` : '';
+    }
+    if (dibujoBase && miniatura) {
+      const conMiniatura = !!plantillaActiva && !!miniatura.getAttribute('src');
+      miniatura.hidden = !conMiniatura;
+      dibujoBase.style.display = conMiniatura ? 'none' : '';
+    }
+    actualizarLanzamiento();
+  }
+
+  // "Lanzar evento" solo se ofrece con la cámara lista y una plantilla que se pueda dibujar (o en demostración).
+  function actualizarLanzamiento() {
+    const plantillaLista = estadoPlantilla.modo === 'demo' || estadoPlantilla.modo === 'valida';
+    launchBtn.disabled = !cabin.classList.contains('is-connected') || !plantillaLista;
+  }
+
+  const sinPunto = (t) => String(t || '').replace(/\.+$/, '');
+  const enMinuscula = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+
+  // Lee la plantilla del evento desde el almacén del editor y la valida. Se llama al abrir la cabina,
+  // al cambiar de evento y al lanzar (así lo que se compone durante el evento queda fijo desde el lanzamiento).
+  async function cargarPlantilla(conMiniatura = true) {
+    const token = ++cargaPlantillaId;
+    const eventoId = eventoActual.id;
+    let nuevoEstado, nueva = null, miniaturaUrl = null; // null = no tocar la miniatura que ya se ve
+    if (eventoId === 'demo') {
+      nuevoEstado = { modo: 'demo', motivo: '' };
+    } else if (typeof AlmacenPlantillas === 'undefined' || typeof MotorPlantillas === 'undefined') {
+      nuevoEstado = { modo: 'invalida', motivo: 'faltan componentes de la aplicación' };
+    } else {
+      estadoPlantilla = { modo: 'cargando', motivo: '' };
+      plantillaActiva = null;
+      actualizarLanzamiento();
+      const evento = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoId) : null;
+      const plantillaId = evento && evento.plantillaId;
+      if (!plantillaId) {
+        nuevoEstado = { modo: 'invalida', motivo: 'todavía no se eligió ninguna' };
+      } else {
+        let hallada = null;
+        try { hallada = await AlmacenPlantillas.obtener(plantillaId); } catch (e) { hallada = null; }
+        if (!hallada) {
+          nuevoEstado = { modo: 'invalida', motivo: 'la que tenía ya no existe o no se pudo leer' };
+        } else {
+          const v = MotorPlantillas.validarPlantilla(hallada);
+          if (!v.valida) nuevoEstado = { modo: 'invalida', motivo: enMinuscula(v.motivos.map(sinPunto).join('; ')) };
+          else {
+            nuevoEstado = { modo: 'valida', motivo: '' };
+            nueva = hallada;
+            if (conMiniatura) { try { miniaturaUrl = await MotorPlantillas.miniatura(hallada, 108); } catch (e) { miniaturaUrl = ''; } }
+          }
+        }
+      }
+    }
+    if (token !== cargaPlantillaId) return; // llegó una carga más nueva
+    plantillaActiva = nueva;
+    estadoPlantilla = nuevoEstado;
+    const img = q('#templateThumbImg');
+    if (img && miniaturaUrl !== null) { if (miniaturaUrl) img.src = miniaturaUrl; else img.removeAttribute('src'); }
+    if (img && !nueva) img.removeAttribute('src');
+    actualizarResumenPlantilla();
+    if (cabin.classList.contains('is-guest-mode')) updateFrameWindow(1);
   }
 
   const PROXIMAMENTE = {
     plantillas: { titulo: 'Plantillas del evento', texto: 'Elegir qué diseños puede usar el invitado en este evento y ver cómo queda cada uno antes de lanzar.' },
     ayuda: { titulo: 'Ayuda', texto: 'Guía rápida de uso, atajos de teclado y contacto de soporte.' },
   };
-  // Proporción de cada foto dentro de la plantilla actual (2x6 duplicado en 4x6 → recorte
-  // casi cuadrado por foto). Cuando el editor de plantillas defina el tamaño real por diseño,
-  // este valor se lee de la plantilla activa en vez de quedar fijo acá.
+  // Proporción del marco de encuadre cuando no hay plantilla real (demostración). Con plantilla,
+  // sale del espacio de foto que se va a tomar (MotorPlantillas.proporcionDeFoto).
   const FRAME_RATIO = '4 / 3.2';
   const GIF_ANCHO = 480, GIF_ALTO = 360, GIF_RETARDO_MS = 600;
 
@@ -176,6 +263,14 @@
   let gifGeneracion = 0;
   let eventoActual = eventoActivo ? { id: eventoActivo.id, nombre: eventoActivo.nombre } : { id: 'demo', nombre: 'Sesión de prueba' };
   let sesionActual = null;
+  let hojaBlob = null;      // hoja física (2 tiras en 4x6) cuando la plantilla lo pide; null si se imprime la tira sola
+  let hojaMedidas = null;   // { anchoMm, altoMm } de lo que se imprime
+  let ultimoNumeroAsignado = 0; // respaldo del número de sesión si no se puede leer el almacén
+  // Plantilla real del evento (hito 1.1). modo: 'demo' (sin evento, comportamiento antiguo), 'cargando',
+  // 'valida' (plantillaActiva lista) o 'invalida' (el evento no se puede lanzar; motivo en palabras simples).
+  let plantillaActiva = null;
+  let estadoPlantilla = { modo: 'demo', motivo: '' };
+  let cargaPlantillaId = 0;
 
   // Cola de guardado: cada escritura a disco espera a la anterior, así dos fotos seguidas nunca
   // se pisan al actualizar el registro de la misma sesión y el orden en disco es el real.
@@ -360,7 +455,7 @@
   // que si se hubiera tocado "Lanzar" en la lista de eventos.
   function cambiarEvento(id, nombre) {
     eventoActual = { id, nombre };
-    if (typeof AlmacenEventos === 'undefined' || id === 'demo') { actualizarContadorEvento(); return; }
+    if (typeof AlmacenEventos === 'undefined' || id === 'demo') { actualizarContadorEvento(); cargarPlantilla(); return; }
 
     AlmacenEventos.setActivo(id);
     const evento = AlmacenEventos.obtener(id);
@@ -369,6 +464,7 @@
       aplicarAjustesAControles();
     }
     actualizarContadorEvento();
+    cargarPlantilla();
   }
 
   // ---------- Contador del evento (tarjeta de plantilla) ----------
@@ -496,7 +592,7 @@
       setCameraStatus('ready', 'Cámara lista');
       connectHint.textContent = `Todo listo. Lanza el evento cuando quieras. Durante el evento, toca "Operador" e ingresa tu PIN para volver aquí.`;
       connectBtn.textContent = 'Cámara conectada';
-      launchBtn.disabled = false;
+      actualizarLanzamiento();
       poblarSelectorCamaras();
     } catch (e) {
       if (usarIdGuardado) {
@@ -585,16 +681,34 @@
 
   // ---------- Marco de encuadre (guía proporcional al tamaño de foto en la plantilla) ----------
 
-  function updateFrameWindow() {
-    frameWindow.style.setProperty('--frame-ratio', FRAME_RATIO);
+  function updateFrameWindow(numeroFoto) {
+    let ratio = FRAME_RATIO;
+    if (plantillaActiva) {
+      const r = MotorPlantillas.proporcionDeFoto(plantillaActiva, numeroFoto || 1);
+      if (r) ratio = String(Math.round(r * 1000) / 1000);
+    }
+    frameWindow.style.setProperty('--frame-ratio', ratio);
   }
 
   // ---------- Modo invitado: entrar / salir ----------
 
   // Primera vez en este equipo: antes de lanzar hay que crear el PIN de operador, porque sin
   // él nadie podría volver a los controles (ni existe un PIN de fábrica que adivinar).
-  function pedirLanzamiento() {
+  async function pedirLanzamiento() {
     cerrarDrawer();
+    try {
+      await cargarPlantilla(false); // la plantilla se relee y queda fija para este lanzamiento
+    } catch (e) {
+      estadoPlantilla = { modo: 'invalida', motivo: 'no se pudo leer' };
+      plantillaActiva = null;
+      actualizarResumenPlantilla();
+    }
+    if (estadoPlantilla.modo === 'cargando') { showNotice('Un momento: estamos revisando la plantilla. Vuelve a tocar "Lanzar evento".'); return; }
+    if (estadoPlantilla.modo !== 'valida' && estadoPlantilla.modo !== 'demo') {
+      showNotice('Primero elige una plantilla válida para este evento.');
+      return;
+    }
+    if (!cabin.classList.contains('is-connected')) { showNotice('La cámara no está conectada.'); return; }
     if (AjustesEquipo.estadoPin().definido) launchEvent();
     else abrirPin('crear', launchEvent);
   }
@@ -603,7 +717,7 @@
     cerrarDrawer();
     cerrarProximamente();
     cabin.classList.add('is-guest-mode');
-    updateFrameWindow();
+    updateFrameWindow(1);
 
     if (cabin.requestFullscreen) {
       cabin.requestFullscreen().catch(() => {});
@@ -640,6 +754,8 @@
     cerrarSesionAbierta();
     photos = [];
     finalBlob = null;
+    hojaBlob = null;
+    hojaMedidas = null;
     gifBlob = null;
     sesionActual = null;
     gifGeneracion++;
@@ -677,7 +793,8 @@
         fecha: ahora,
         iniciadaEn: ahora,
         estado: 'capturando',
-        fotosEsperadas: ajustes.fotos,
+        fotosEsperadas: numeroDeFotos(),
+        plantillaId: plantillaActiva ? plantillaActiva.id : null,
         esEnsayo: false,
         error: null,
         fotos: [],
@@ -737,8 +854,9 @@
     asegurarSesion();
     sesionActual.estado = 'capturando';
     try {
-      const total = ajustes.fotos;
+      const total = numeroDeFotos();
       for (let i = startIndex; i < total; i++) {
+        updateFrameWindow(i + 1);
         countdownLabel.textContent = `Foto ${i + 1} de ${total}`;
         await countdown(ajustes.cuenta);
         photos[i] = capture();
@@ -1058,7 +1176,8 @@
 
   async function recaptureOne(index) {
     beginCapture();
-    countdownLabel.textContent = `Repitiendo foto ${index + 1} de ${ajustes.fotos}`;
+    updateFrameWindow(index + 1);
+    countdownLabel.textContent = `Repitiendo foto ${index + 1} de ${numeroDeFotos()}`;
     try {
       await countdown(ajustes.cuenta);
       photos[index] = capture();
@@ -1125,7 +1244,47 @@
     ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
   }
 
-  async function compose() {
+  function aBlob(canvas) {
+    return new Promise((resolver, rechazar) => canvas.toBlob((b) => (b ? resolver(b) : rechazar(new Error('No se pudo crear la imagen'))), 'image/png'));
+  }
+
+  // Número de esta sesión dentro del evento: las ya armadas + 1 (se guarda en la sesión para no cambiar al reintentar).
+  async function numeroDeSesion(sesion) {
+    if (sesion.numero) return sesion.numero;
+    let base;
+    try {
+      const registros = await AlmacenSesiones.listarRegistros(eventoActual.id);
+      const armadas = registros.filter((r) => r.id !== sesion.id && (r.estado === 'compuesta' || r.estado === 'finalizada'));
+      // Las sesiones con número cuentan por su número; las antiguas (sin número) por conteo.
+      base = Math.max(armadas.length, ...armadas.map((r) => Number(r.numero) || 0));
+    } catch (e) {
+      // Sin lectura del almacén no se numera desde 1 en silencio: se sigue la cuenta de esta pantalla.
+      base = ultimoNumeroAsignado;
+    }
+    sesion.numero = base + 1;
+    ultimoNumeroAsignado = Math.max(ultimoNumeroAsignado, sesion.numero);
+    return sesion.numero;
+  }
+
+  // Con plantilla real: la tira es la plantilla tal cual; la hoja es lo que se imprime (dos tiras en 4x6 si la plantilla lo pide).
+  async function componerConPlantilla() {
+    const p = plantillaActiva;
+    const v = MotorPlantillas.validarPlantilla(p);
+    if (!v.valida) throw new Error(v.motivos.join(' '));
+    if (photos.filter(Boolean).length < MotorPlantillas.contarFotos(p)) throw new Error('Faltan fotos para la plantilla');
+    const sesion = asegurarSesion();
+    const opciones = { fotos: photos, datos: { fecha: new Date(), numeroSesion: await numeroDeSesion(sesion), nombreEvento: eventoActual.nombre } };
+    const hoja = await MotorPlantillas.renderizarHoja(p, opciones);
+    const tira = hoja.copias === 1 ? hoja.canvas : await MotorPlantillas.renderizar(p, opciones);
+    const nuevaTira = await aBlob(tira);
+    const nuevaHoja = hoja.copias === 1 ? null : await aBlob(hoja.canvas);
+    finalBlob = nuevaTira;
+    hojaBlob = nuevaHoja;
+    hojaMedidas = { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm };
+  }
+
+  // Sin evento (demostración): el diseño fijo de siempre.
+  async function componerDemo() {
     const c = document.createElement('canvas');
     c.width = 1200;
     c.height = 1800;
@@ -1159,8 +1318,14 @@
     ctx.fillStyle = '#8A8D91';
     ctx.font = '600 22px Inter, system-ui';
     ctx.fillText('Hecho con FotoCabina', 600, 1710);
+    finalBlob = await aBlob(c);
+    hojaBlob = null;
+    hojaMedidas = null;
+  }
 
-    finalBlob = await new Promise((r) => c.toBlob(r, 'image/png'));
+  async function compose() {
+    if (plantillaActiva) await componerConPlantilla();
+    else await componerDemo();
     if (finalPrint.src) URL.revokeObjectURL(finalPrint.src);
     finalPrint.src = URL.createObjectURL(finalBlob);
 
@@ -1212,6 +1377,8 @@
     const sesion = asegurarSesion();
     sesion.fotos = photos.slice();
     sesion.tira = finalBlob;
+    sesion.hoja = hojaBlob;
+    sesion.impresion = hojaMedidas || sesion.impresion || null;
     sesion.gif = gifBlob;
     sesion.estado = 'compuesta';
     sesion.error = null;
@@ -1305,17 +1472,22 @@
     }
   }
 
-  function imprimirUrl(url) {
+  // Medidas de la hoja en milímetros; sin dato (sesiones antiguas y demostración), 4x6 pulgadas como siempre.
+  const HOJA_4X6_MM = { anchoMm: 101.6, altoMm: 152.4 };
+
+  function imprimirUrl(url, medidas) {
+    const m = medidas && medidas.anchoMm > 0 && medidas.altoMm > 0 ? medidas : HOJA_4X6_MM;
+    const ancho = `${Math.round(m.anchoMm * 100) / 100}mm`, alto = `${Math.round(m.altoMm * 100) / 100}mm`;
     const w = window.open('', '_blank');
     if (!w) { showNotice('El navegador bloqueó la ventana de impresión.'); return; }
-    w.document.write(`<title>FotoCabina 4x6</title><style>@page{size:4in 6in;margin:0}html,body{margin:0;width:4in;height:6in}img{width:4in;height:6in;display:block}</style><img src="${url}" onload="print();setTimeout(close,400)">`);
+    w.document.write(`<title>FotoCabina</title><style>@page{size:${ancho} ${alto};margin:0}html,body{margin:0;width:${ancho};height:${alto}}img{width:${ancho};height:${alto};display:block}</style><img src="${url}" onload="print();setTimeout(close,400)">`);
     w.document.close();
   }
 
-  function imprimirBlob(blob) {
+  function imprimirBlob(blob, medidas) {
     const url = URL.createObjectURL(blob);
-    imprimirUrl(url);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    imprimirUrl(url, medidas);
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
   }
 
   function dataUrlAFile(dataUrl, nombre) {
@@ -1498,6 +1670,7 @@
   launchBtn.addEventListener('click', pedirLanzamiento);
   galleryBtn.addEventListener('click', abrirGaleria);
   aplicarAjustesAControles();
+  cargarPlantilla();
   actualizarContadorEvento();
 
   mirrorToggle.addEventListener('click', () => {
@@ -1520,11 +1693,12 @@
   // evento), no hay a qué evento asociar la plantilla elegida y se mantiene la hoja
   // "Próximamente" de siempre.
   function irAEditorDePlantilla() {
-    if (eventoActivo) window.location.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActivo.id)}`;
+    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') window.location.href = `../03-editor-plantillas/index.html?evento=${encodeURIComponent(eventoActual.id)}`;
     else abrirProximamente('plantillas');
   }
   templatesBtn.addEventListener('click', irAEditorDePlantilla);
   templateChangeBtn.addEventListener('click', irAEditorDePlantilla);
+  q('#templateAvisoBtn').addEventListener('click', irAEditorDePlantilla);
   helpBtn.addEventListener('click', () => abrirProximamente('ayuda'));
   soonCloseBtn.addEventListener('click', cerrarProximamente);
   soonOverlay.addEventListener('click', (e) => { if (e.target === soonOverlay) cerrarProximamente(); });
@@ -1599,7 +1773,8 @@
 
   printBtn.addEventListener('click', () => {
     if (!finalBlob) return;
-    imprimirUrl(finalPrint.src);
+    if (hojaBlob) imprimirBlob(hojaBlob, hojaMedidas);
+    else imprimirBlob(finalBlob, hojaMedidas);
   });
 
   galleryCloseBtn.addEventListener('click', cerrarGaleria);
@@ -1612,7 +1787,7 @@
     });
   });
 
-  detailPrintBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) imprimirBlob(sesionDetalle.tira); });
+  detailPrintBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) imprimirBlob(sesionDetalle.hoja || sesionDetalle.tira, sesionDetalle.impresion); });
   detailDownloadBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) descargarBlob(sesionDetalle.tira, 'fotocabina-tira.png'); });
   detailGifBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.gif) descargarBlob(sesionDetalle.gif, 'fotocabina.gif'); });
   detailDeleteBtn.addEventListener('click', async () => {

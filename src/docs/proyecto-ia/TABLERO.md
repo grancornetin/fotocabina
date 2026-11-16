@@ -18,7 +18,8 @@
 ## Agentes
 | Agente | Rol | Estado | Sesión/cuenta | Última actividad |
 |---|---|---|---|---|
-| orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura y el hito 0.1a | activo | | 2026-11-16 |
+| orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura, el hito 0.1a y los hitos 0.2 y 1.1 | activo | | 2026-11-16 |
+| frontend | Frontend Developer: construyó 0.2 y 1.1 | libre | | 2026-11-16 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
@@ -27,12 +28,19 @@
 | 3 | Hito 0.1a: guardar cada foto al tomarla + PIN al equipo | orquestador | hecha | `src/pages/01-camera-flow/*`, `src/pages/shared/equipo.js`, `src/pages/shared/almacen-eventos.js`, `src/pages/shared/README.md`, docs del hito | 2026-11-16 | Probado con Chrome headless y revisado; falta prueba del dueño con cámara real |
 | 2 | Esqueleto de arquitectura (documento maestro) | orquestador | hecha | `src/docs/ARQUITECTURA_FLUJO.md`, `src/docs/proyecto-ia/PUNTO-DE-RETOMA.md` | 2026-11-16 | Revisado por Reality Checker y Software Architect; espera decisiones del dueño |
 
+| 4 | Hito 0.2: motor de plantillas compartido (`shared/`) sin romper el editor | frontend | hecha | `src/pages/shared/motor-plantillas.js`, `src/pages/shared/almacen-plantillas.js`, `src/pages/03-editor-plantillas/render.js` (y `index.html`, `estado.js` solo para enganchar el motor) | 2026-11-16 | Certifican Evidence Collector (editor igual) y Code Reviewer |
+| 5 | Hito 1.1: la cabina compone con la plantilla real del evento | frontend | hecha | `src/pages/01-camera-flow/*` | 2026-11-16 | Certifican Evidence Collector y Reality Checker (agentes distintos de quien construye) |
+
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
 |---|---|---|---|---|
 | RETOMAR.md, src/docs/proyecto-ia/, cerebro-fotocabina/ | orquestador | 2026-11-16 | en curso | Ordenar espacio de trabajo |
 | src/docs/ARQUITECTURA_FLUJO.md, src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md, src/docs/MAPA_DE_PANTALLAS.md, src/docs/FLUJO_NAVEGACION.md, src/README.md, CLAUDE.md | orquestador | 2026-11-16 | liberada | Esqueleto de arquitectura (solo documentación) |
 | src/pages/01-camera-flow/, src/pages/shared/ (equipo.js, almacen-eventos.js, README.md) | orquestador | 2026-11-16 | liberada | Hito 0.1a terminado |
+
+| src/pages/shared/motor-plantillas.js, src/pages/shared/almacen-plantillas.js, src/pages/shared/README.md, src/pages/03-editor-plantillas/ (render.js, index.html, estado.js, README.md) | frontend (orquestador) | 2026-11-16 | liberada | Hito 0.2 hecho |
+| src/pages/01-camera-flow/ (index.html, app.js, styles.css, README.md) | frontend (orquestador) | 2026-11-16 | liberada | Hito 1.1 hecho |
+| src/docs/MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, ARQUITECTURA_FLUJO.md (solo §7 y hallazgos), src/README.md | writer (orquestador) | 2026-11-16 | liberada | Documentación hecha |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |

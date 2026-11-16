@@ -20,7 +20,7 @@
 
 ---
 
-**Actualizado:** 2026-11-16 (pausa por límite de uso)  ·  **Cuenta/sesión:** sesión de /actualizar-proyecto  ·  **Rama:** main
+**Actualizado:** 2026-11-16 (hitos 0.2 y 1.1 cerrados)  ·  **Cuenta/sesión:** sesión de /actualizar-proyecto  ·  **Rama:** main
 
 ## Estado en una frase
 Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más pantallas se diseña el esqueleto completo) de pantallas: cabina del invitado, editor de plantillas, lista de eventos, crear evento y cámara ya funcionan en el navegador; falta impresora, panel en vivo, servidor local de entrega y toda la parte de hardware real. Último commit de código: `57930dd` (C3 cámara, 2026-09-25). Sin cambios pendientes de código.
@@ -32,16 +32,17 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - Documentación al día hasta C3 (mapa, flujo de navegación, contexto de producto).
 - Esqueleto de arquitectura escrito y revisado (2026-11-16): `src/docs/ARQUITECTURA_FLUJO.md`. Hallazgo mayor: la cabina no dibuja la plantilla real del evento.
 - Hito 0.1a (2026-11-16): cada foto se guarda al tomarla (sesiones "incompleta"/"fallida") y PIN al equipo (`shared/equipo.js`, hash, creación obligatoria al primer lanzamiento, bloqueo 5 min tras 5 intentos). Probado con Chrome headless (arnés temporal fuera del repo), consola sin errores, revisado por Code Reviewer. Pendiente de prueba del dueño con cámara real. Detalle y hallazgos abiertos: `ARQUITECTURA_FLUJO.md` §7.3.
+- Hito 0.2 (motor de plantillas compartido, commit `ad14c88`) y hito 1.1 (la cabina dibuja la plantilla real del evento; n.º de fotos y marco salen de la plantilla; hoja 4×6 con dos tiras al imprimir; sin plantilla válida "Lanzar" queda bloqueado con aviso y botón al editor). Revisados por Code Reviewer; certificados por Evidence Collector (capturas, consola sin errores, editor igual: 140 comparaciones de píxeles) y Reality Checker (LISTO CON RESERVAS). Detalle y reservas: `ARQUITECTURA_FLUJO.md` §7.4 y §7.2.
 - Espacio de trabajo con agentes creado hoy (2026-11-16): este archivo, `src/docs/proyecto-ia/`, cerebro local `cerebro-fotocabina/`, orquestador en `.claude/agents/`.
 
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
-| Hito 1.1: la cabina dibuja la plantilla real del evento | orquestador | PAUSADO (límite de uso) | Código escrito y probado por quien lo construyó, SIN commit, en el árbol de trabajo: `src/pages/01-camera-flow/*` y docs. Falta: Code Reviewer, Evidence Collector, Reality Checker, docs finales, commit | Revisar y certificar, luego commit y push de 1.1. Detalle en `src/docs/proyecto-ia/PUNTO-DE-RETOMA.md` |
+| (nada en curso) | | | | |
 
 ## Siguiente paso exacto
-1. El dueño prueba a mano el hito 0.1a (pasos en el mensaje de cierre del 2026-11-16) y responde las decisiones nuevas.
-2. Construir según la sección 7 de `src/docs/ARQUITECTURA_FLUJO.md`: 0.2 (motor de plantillas compartido), 1.1 (la cabina usa la plantilla real), 0.1b (repositorio v2); en paralelo, prueba técnica de escritorio (3a).
+1. El dueño prueba a mano 0.1a y 1.1 con cámara real y responde las decisiones nuevas (en el chat).
+2. Construir según la sección 7 de `src/docs/ARQUITECTURA_FLUJO.md`: 0.1b (repositorio v2 con plantilla congelada al lanzar), 0.3 (validador), 1.2; en paralelo, prueba técnica de escritorio (3a). Antes de un evento real: corregir `capture()` para respetar la proporción real de la cámara.
 
 ## Decisiones pendientes del dueño
 1. Visto bueno a la prueba técnica de escritorio (D8), más adelante, al llegar a impresión.

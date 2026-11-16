@@ -31,7 +31,7 @@ Una pantalla **de destino** (lista de eventos, la cabina antes de lanzar) es don
 1. El operador abre la app y ve la **lista de eventos** — su punto de partida siempre.
 2. Si el evento no tiene plantilla, o quiere cambiarla, toca **"Editar plantilla"** y va al editor.
 3. Cuando termina, toca **"Lanzar evento"** (no "Exportar"/"Guardar"): guarda la plantilla en el evento y lo lleva directo a la **cabina**, lista para arrancar.
-4. Ya en la cabina, si algo de la plantilla no convence, el ícono **"Plantilla"** del riel repite el mismo círculo: vuelve al editor, "Lanzar evento" trae de vuelta a la cabina.
+4. Ya en la cabina, si algo de la plantilla no convence, el ícono **"Plantilla"** del riel repite el mismo círculo: vuelve al editor, "Lanzar evento" trae de vuelta a la cabina. Si el evento **no tiene una plantilla válida** (hito 1.1, 2026-11-16), la cabina no deja lanzar: la tarjeta de plantilla explica el motivo y su botón **"Abrir el editor"** hace ese mismo viaje de ida y vuelta.
 5. Si el operador quiere trabajar con **otro** evento, toca el **logo (Inicio)** y vuelve a la lista de eventos.
 6. Al lanzar el evento de verdad (pantalla completa, modo invitado), no hay navegación a otra pantalla — la cabina cambia de modo. Con el PIN vuelve a sus controles sin perder la sesión en curso.
 
@@ -169,9 +169,10 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 ## B — Editor de plantillas
 
 ### B1 · Editor de layout
-- **Llega:** desde C1 ("Editar plantilla" en una card, `?evento=<id>`) · desde la cabina, ícono "Plantilla" del riel (fusión de los dos accesos anteriores, con evento) · desde B3, abriendo/creando una plantilla suelta.
+- **Llega:** desde C1 ("Editar plantilla" en una card, `?evento=<id>`) · desde la cabina, ícono "Plantilla" del riel o botón "Cambiar" de la tarjeta (fusión de los dos accesos anteriores, con evento) · desde la cabina, botón **"Abrir el editor"** del aviso "sin plantilla válida" (hito 1.1, también `?evento=<id>`; sin evento, es decir en demostración, ninguno de estos accesos abre el editor) · desde B3, abriendo/creando una plantilla suelta.
 - **Sale:** **"Lanzar evento"** (con evento) → guarda la plantilla en el evento, va a la cabina, no vuelve a C1 · sin evento, el cierre depende de B3 o cerrar la página.
 - **Feliz:** arma capas, guías, tipografía; toca "Lanzar evento"; vuelve a la cabina con la plantilla puesta.
+- **Qué pasa al volver a la cabina (hito 1.1):** la cabina se abre de nuevo, lee otra vez el evento y la plantilla desde el almacén del editor y la valida. Si ahora es válida, "Lanzar evento" se habilita (con la cámara lista) y la tarjeta muestra el nombre, la miniatura, el n.º de fotos y el papel reales. Si sigue sin serlo (el operador salió sin elegir o crear una), el aviso y el bloqueo siguen, con el motivo actualizado. Al tocar "Lanzar evento" la plantilla se vuelve a leer y queda fija para ese lanzamiento; hoy la cabina lee la plantilla **viva** del editor, así que editarla en otra pestaña y relanzar cambia lo que se compone (se resuelve con plantillas congeladas, hito 0.1b).
 - **Errores/bordes:**
   - Se pierde el evento asociado (id inválido, evento eliminado desde otra pestaña) → degrada a modo suelto con aviso, sin perder el trabajo.
   - Fuente/imagen falla al importar → error claro en el momento de subir, no al exportar.
@@ -237,9 +238,10 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### C2b · Modo operador previo al lanzamiento — *Migrado (estructura)*
 - **Llega:** desde C1 al "Lanzar" un evento · desde modo invitado, "Operador"/ESC + PIN correcto (vuelve, no llega de cero).
-- **Sale:** "Lanzar evento" (lima) → A1, pantalla completa · riel: Galería→A11, **Plantilla**→B1 (con evento) o "Próximamente" (sin evento), Ajustes→panel lateral, Ayuda→"Próximamente" · **logo→C1** (nuevo) · semáforo de impresora→sección Impresión de Ajustes.
+- **Sale:** "Lanzar evento" (lima) → A1, pantalla completa, solo con cámara lista y plantilla válida · riel: Galería→A11, **Plantilla**→B1 (con evento) o "Próximamente" (sin evento), Ajustes→panel lateral, Ayuda→"Próximamente" · **"Abrir el editor"** (aviso sin plantilla válida)→B1 con `?evento=<id>`, vuelve por "Lanzar evento" del editor · **logo→C1** (nuevo) · semáforo de impresora→sección Impresión de Ajustes.
 - **Feliz:** semáforos en verde, tarjeta de plantilla activa OK, toca "Lanzar evento".
 - **Errores/bordes:**
+  - **Sin plantilla válida (hito 1.1, 2026-11-16, certificado):** evento sin plantilla elegida, plantilla borrada o dañada, o sin espacios de foto → "Lanzar evento" queda deshabilitado y la tarjeta de plantilla dice el motivo en palabras simples con el botón "Abrir el editor". Esto cierra en C2b el hueco recurrente de A2/B3/C1/C2 ("evento sin plantilla válida") para el momento de lanzar; sigue sin avisarse al borrar una plantilla en uso (B3) ni al crear el evento (C2). Si por esquivar el bloqueo se llegara a lanzar, el aviso "Primero elige una plantilla válida para este evento" lo frena. Cabina abierta sin evento (demostración): sin bloqueo y con el diseño antiguo. Si la plantilla falla al componer en plena sesión → vuelve a la revisión con las fotos guardadas, sesión "fallida" (camino de error de siempre).
   - **Resuelto por decisión nueva:** semáforo de cámara en rojo → "Lanzar evento" queda deshabilitado. Semáforo de impresora en rojo → puede lanzar igual, con advertencia visible (el evento puede ser solo digital).
   - Cambiar de evento desde el dropdown con ajustes sin guardar del anterior → debe confirmarse que no los pisa sin avisar (el README dice que "recarga al vuelo", falta verificar que no pierda cambios).
   - Evento activo eliminado/archivado desde otra pestaña mientras esta pantalla sigue abierta → debe detectar el estado inconsistente, no dejar lanzar un evento fantasma.

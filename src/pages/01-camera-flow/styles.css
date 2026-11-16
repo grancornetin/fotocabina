@@ -1257,7 +1257,13 @@ button { font-family: inherit; }
 .cabin.is-guest-mode .template-card { display: none; }
 
 .template-thumb { width: 36px; height: 54px; flex-shrink: 0; border-radius: 4px; }
-.template-info { min-width: 0; }
+.template-info { flex: 1 1 0; min-width: 0; }
+.template-card { flex-wrap: wrap; }
+.template-thumb--real { object-fit: contain; background: #fff; }
+.template-thumb--real[hidden] { display: none; }
+.template-aviso { flex: 1 1 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 10px; border-top: 1px solid var(--color-border); }
+.template-aviso[hidden] { display: none; }
+.template-aviso-text { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--color-red); }
 .template-name { margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--color-bone); }
 .template-meta { margin: 2px 0 0; font-size: 0.75rem; color: var(--color-fog); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .template-card .thumb-chip { position: static; margin-left: 4px; }

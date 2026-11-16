@@ -85,3 +85,17 @@
 - **Por qué:** un corte de luz perdía las fotos de la sesión en curso, y el PIN 1234 era público y visible.
 - **Dónde verlo:** `src/pages/01-camera-flow/`, `src/pages/shared/equipo.js`, `src/docs/ARQUITECTURA_FLUJO.md` §7.3.
 - **Estado:** hecho y probado con Chrome headless; falta que el dueño lo pruebe a mano con cámara real.
+
+## [2026-11-16] hito | 0.2 construido: motor de plantillas compartido (pendiente de cierre)
+- **Quién:** frontend (dirigido por orquestador); revisó Code Reviewer; certificó Evidence Collector (editor igual a HEAD en 140 comparaciones de píxeles, consola sin errores).
+- **Qué:** el dibujo de plantillas pasó a `src/pages/shared/motor-plantillas.js`; el editor lo usa vía `render.js`. Nuevo lector `shared/almacen-plantillas.js` (solo lectura).
+- **Por qué:** la cabina debe dibujar la plantilla real sin duplicar el motor.
+- **Estado:** hecho (commit `ad14c88`).
+
+## [2026-11-16] hito | 1.1 construido: la cabina dibuja la plantilla real del evento
+- **Quién:** frontend (dirigido por orquestador); revisó Code Reviewer (6 observaciones corregidas); certificó Evidence Collector (sesiones completas 2/3/4 fotos, bloqueos, demo, consola limpia) y Reality Checker (LISTO CON RESERVAS).
+- **Qué:** nº de fotos, marco de encuadre y diseño de la tira salen de la plantilla del evento; Imprimir usa la hoja con dos tiras; sin plantilla válida "Lanzar" se bloquea con aviso y botón al editor; sin evento queda el diseño antiguo (demo).
+- **Por qué:** el trabajo del editor no llegaba a la foto del invitado (hallazgo 1 del esqueleto).
+- **Reservas abiertas:** `capture()` estira la imagen con cámaras 16:9; eventos antiguos sin `plantillaId` quedan bloqueados; plantilla congelada al lanzar pendiente (0.1b); excepción preexistente en el editor al renombrar desde la barra.
+- **Dónde verlo:** `src/pages/01-camera-flow/`, `src/docs/ARQUITECTURA_FLUJO.md` §7.4.
+- **Estado:** hecho; falta la prueba del dueño con cámara real.

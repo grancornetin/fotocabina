@@ -71,12 +71,17 @@
       <!-- Plantilla activa: un vistazo antes de lanzar (solo modo operador) -->
       <div class="template-card" id="templateCard">
         <svg class="template-thumb" viewBox="0 0 40 60" aria-hidden="true"><rect width="40" height="60" rx="4" fill="#0A0A0B"/><rect x="6" y="6" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/><rect x="6" y="23.5" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/><rect x="6" y="41" width="28" height="13" rx="2" fill="none" stroke="#C6FF3D" stroke-width="1.5"/></svg>
+        <img class="template-thumb template-thumb--real" id="templateThumbImg" alt="" hidden>
         <div class="template-info">
           <p class="template-name">Tira clásica 2×6</p>
           <p class="template-meta" id="templateMeta">3 fotos · 2×6 en 4×6 · cuenta 3 s · pausa 3 s</p>
           <p class="template-stats" id="templateStats">Sin sesiones todavía</p>
         </div>
         <button class="thumb-chip" id="templateChangeBtn" type="button">Cambiar</button>
+        <div class="template-aviso" id="templateAviso" role="alert" hidden>
+          <p class="template-aviso-text" id="templateAvisoTexto"></p>
+          <button class="ds-btn ds-btn--secondary ds-btn--compact" id="templateAvisoBtn" type="button">Abrir el editor</button>
+        </div>
       </div>
 
       <!-- Estado: cámara aún no conectada (previo a lanzar) -->
@@ -448,6 +453,8 @@
   </div>
 
   <script src="../shared/almacen-eventos.js"></script>
+  <script src="../shared/motor-plantillas.js"></script>
+  <script src="../shared/almacen-plantillas.js"></script>
   <script src="../shared/equipo.js"></script>
   <script src="almacen-sesiones.js"></script>
   <script src="codificador-gif.js"></script>

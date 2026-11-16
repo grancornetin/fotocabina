@@ -104,10 +104,11 @@
 
   // Registro liviano a partir de la sesión en memoria: sin imágenes, solo referencias.
   function aRegistro(sesion, fotosRef) {
-    const { fotos, tira, gif, intentosFotos, ...resto } = sesion;
+    const { fotos, tira, gif, hoja, intentosFotos, ...resto } = sesion;
     const salidas = { ...(resto.salidas || {}) };
     if (tira) salidas.tira = idArchivo(sesion.id, 'tira');
     if (gif) salidas.gif = idArchivo(sesion.id, 'gif');
+    if (hoja) salidas.hoja = idArchivo(sesion.id, 'hoja');
     return { ...resto, version: 2, fotos: fotosRef, salidas };
   }
 
@@ -138,7 +139,7 @@
       fotosRef.push({ n, archivo: idArchivo(sesion.id, `foto${n}`), intentos: previa ? previa.intentos + 1 : 1 });
       fotosRef.sort((a, b) => a.n - b.n);
       ponerArchivo(archivos, sesion.id, `foto${n}`, 'foto', blob);
-      const registro = aRegistro({ ...sesion, fotos: [], tira: null, gif: null }, fotosRef);
+      const registro = aRegistro({ ...sesion, fotos: [], tira: null, gif: null, hoja: null }, fotosRef);
       if (anterior && anterior.version === 2) registro.salidas = { ...anterior.salidas };
       almacen.put(registro);
       sesion.intentosFotos = [];
@@ -173,6 +174,7 @@
       fotosRef.sort((a, b) => a.n - b.n);
       if (sesion.tira) ponerArchivo(archivos, sesion.id, 'tira', 'tira', sesion.tira);
       if (sesion.gif) ponerArchivo(archivos, sesion.id, 'gif', 'gif', sesion.gif);
+      if (sesion.hoja) ponerArchivo(archivos, sesion.id, 'hoja', 'hoja', sesion.hoja);
       const registro = aRegistro(sesion, fotosRef);
       if (previo) registro.salidas = { ...previo.salidas, ...registro.salidas };
       almacen.put(registro);
@@ -203,7 +205,8 @@
     const salidas = registro.salidas || {};
     const tira = salidas.tira ? await esperar(archivos.get(salidas.tira)) : null;
     const gif = salidas.gif ? await esperar(archivos.get(salidas.gif)) : null;
-    return { registro, fotos, tira: tira ? tira.blob : null, gif: gif ? gif.blob : null };
+    const hoja = salidas.hoja ? await esperar(archivos.get(salidas.hoja)) : null;
+    return { registro, fotos, tira: tira ? tira.blob : null, gif: gif ? gif.blob : null, hoja: hoja ? hoja.blob : null };
   }
 
   // Devuelve la sesión en la forma que usa la app: fotos (data URL), tira y gif (Blob).
@@ -220,6 +223,7 @@
     }
     sesion.tira = partes.tira;
     sesion.gif = partes.gif;
+    sesion.hoja = partes.hoja;
     return sesion;
   }
 
