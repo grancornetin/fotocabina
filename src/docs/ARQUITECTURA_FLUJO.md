@@ -579,7 +579,12 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 
 - **D4 (abandono):** aprobada como se propuso (30 s de paciencia; en revisión se arma la tira y se guarda sin imprimir; si faltan fotos queda "incompleta").
 - **D2 (impresora y lanzamiento) — AJUSTADA:** "solo impresión" bloquea el lanzamiento si la impresora tiene un problema; **"impresión y digital" también bloquea** (no se parte un evento con la impresora mal); "solo digital" no la mira. Nada de "solo avisa".
-- **Tope de impresiones por evento (NUEVO):** un evento puede tener un límite de hojas (ejemplo: 100). Al llegar al límite no se imprime más aunque la impresora esté conectada y tenga papel; la cabina sigue solo con entrega digital. La lógica completa (qué ve el invitado, qué ve el operador, qué pasa en modo "solo impresión", si las copias adicionales cuentan) está pendiente de decidir: ver las decisiones nuevas en RETOMAR.md.
+- **Tope de impresiones por evento (NUEVO):** un evento puede tener un límite de hojas (ejemplo: 100). Al llegar al límite no se imprime más aunque la impresora esté conectada y tenga papel; la cabina sigue solo con entrega digital. Lógica decidida por el dueño:
+  - **Al llegar al límite** el invitado ve un mensaje amable, antes de tomar las fotos (ejemplo: "Las impresiones de este evento llegaron a su límite, pero aún puedes llevarte tus fotos de forma digital"), y la sesión sigue solo con entrega digital.
+  - **El tope solo se puede configurar si el evento incluye entrega digital.** En modo "solo impresión" no se ofrece (el dueño no prevé usar ese modo; siempre habrá una forma de llevarse las fotos).
+  - **Las copias adicionales cuentan** para el tope (cada hoja física cuenta). Si quedan menos hojas que las pedidas, se imprimen las que quedan y se avisa.
+  - **Copias adicionales: solo el operador** puede pedirlas (el invitado no).
+  - El operador ve en todo momento cuántas hojas lleva y cuántas quedan del tope.
 - **D3 (PIN):** aprobada (universal, se cambia la primera vez, bloqueo tras intentos fallidos).
 - **D5 (copias) — CAMBIADA:** la impresión automática de la tira al terminar la sesión es configurable (una hoja 4 × 6 con dos tiras 2 × 6). En la pantalla de resultado hay un botón para **imprimir copias adicionales**, porque las sesiones suelen pedir más de una. La cantidad de copias es un ajuste muy usado: debe estar **presente y accesible al operador, no escondido ni bloqueado** (también como valor por evento).
 - **Conteo de hojas 4 × 6 (NUEVO):** se cuenta cada hoja impresa por evento y por impresora, para saber el consumo de insumos, calcular costos y estadísticas, y avisar cuántas copias quedan antes de cambiar papel y cinta.

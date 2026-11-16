@@ -65,3 +65,10 @@
 - **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §8 (bloque "Respuestas del dueño").
 - **Estado:** hecho; quedan decisiones nuevas sobre el tope de impresiones y las pendientes D1, D9, D11.
 
+## [2026-11-16] decisión | Lógica del tope de impresiones
+- **Quién:** dueño, vía sesión principal
+- **Qué:** al llegar al tope el invitado ve un mensaje amable antes de las fotos y sigue solo digital; el tope solo existe si el evento incluye entrega digital; las copias adicionales cuentan para el tope; solo el operador pide copias adicionales.
+- **Por qué:** el límite protege el costo de papel y siempre debe haber una forma de llevarse las fotos.
+- **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §8.
+- **Estado:** hecho
+

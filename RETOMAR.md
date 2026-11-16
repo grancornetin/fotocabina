@@ -43,11 +43,9 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 2. Construir según la sección 7: hito 0.1a (guardar cada foto al tomarla y PIN al equipo), 0.2 (motor de plantillas compartido), 1.1 (la cabina usa la plantilla real); en paralelo, prueba técnica de escritorio (3a).
 
 ## Decisiones pendientes del dueño
-1. Tope de impresiones por evento: qué ve el invitado al llegar al límite, qué pasa en modo "solo impresión", si las copias adicionales cuentan (se presentan en el chat).
-2. Quién puede pedir copias adicionales (operador, invitado o ambos).
-3. Datos personales de invitados (D9), aprobación general del esqueleto (D1) y cambios a PRODUCT.md (D11).
-4. Visto bueno a la prueba técnica de escritorio (D8).
-Ya respondidas el 2026-11-16: D2, D3, D4, D5, D6, textos en "tú"; D7 baja de prioridad. Ver `src/docs/ARQUITECTURA_FLUJO.md` §8.
+1. Última tanda: aprobación general del esqueleto (D1), datos personales de invitados (D9) y cambios a PRODUCT.md (D11); se presentan en el chat.
+2. Visto bueno a la prueba técnica de escritorio (D8), más adelante, al llegar a impresión.
+Ya respondidas el 2026-11-16: D2, D3, D4, D5, D6, textos en "tú", tope de impresiones (mensaje amable, solo con digital, copias extra cuentan, solo operador las pide); D7 baja de prioridad. Ver `src/docs/ARQUITECTURA_FLUJO.md` §8.
 
 ## Cómo probar / publicar
 Páginas estáticas: abrir `src/pages/<pantalla>/index.html` en el navegador (doble clic). Entrada del operador: `src/pages/04-lista-eventos/index.html`. Sin build ni servidor. Al cerrar una tarea, el checklist está en `CLAUDE.md` §3 (incluye commit y push a `main`).
