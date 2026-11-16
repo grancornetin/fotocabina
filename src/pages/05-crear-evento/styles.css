@@ -179,6 +179,38 @@ img, svg { display: block; }
   margin: 0;
 }
 
+/* ---------- Impresión automática (interruptor, idéntico a ds-toggle de 01-camera-flow) ---------- */
+
+.crear-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.crear-toggle-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.crear-toggle-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-bone); }
+.ds-toggle {
+  --w: 48px; --h: 28px;
+  appearance: none;
+  flex-shrink: 0;
+  width: var(--w);
+  height: var(--h);
+  border-radius: var(--h);
+  background: var(--color-surface-high);
+  border: 1px solid var(--color-border);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 200ms var(--ease-standard), border-color 200ms var(--ease-standard);
+}
+.ds-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--color-fog);
+  transition: transform 200ms var(--ease-standard), background-color 200ms var(--ease-standard);
+}
+.ds-toggle[aria-checked="true"] { background: rgba(var(--color-lime-rgb), 0.18); border-color: var(--color-lime); }
+.ds-toggle[aria-checked="true"]::after { transform: translateX(20px); background: var(--color-lime); }
+.ds-toggle:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+
 /* ---------- Fields (idéntico a 00-design-system) ---------- */
 
 .ds-field { display: flex; flex-direction: column; gap: 8px; }

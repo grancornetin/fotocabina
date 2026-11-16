@@ -22,7 +22,9 @@
   var campoNombre = document.getElementById('campoNombre');
   var fNombre = document.getElementById('fNombre');
   var fFecha = document.getElementById('fFecha');
-  var fCopias = document.getElementById('fCopias');
+  var tImpresionAuto = document.getElementById('tImpresionAuto');
+  var selectCopias = document.getElementById('selectCopias');
+  var copiasAuto = 1;
   var entregaOptions = document.getElementById('entregaOptions');
   var plantillaHint = document.getElementById('plantillaHint');
 
@@ -49,7 +51,7 @@
     });
 
     if (!plantillas.length) {
-      plantillaHint.textContent = 'Todavía no tenés plantillas guardadas en el editor. Podés crear el evento igual y asignarle una plantilla después.';
+      plantillaHint.textContent = 'Todavía no tienes plantillas guardadas en el editor. Puedes crear el evento igual y asignarle una plantilla después.';
     }
 
     function cerrar() {
@@ -81,6 +83,42 @@
     document.addEventListener('click', cerrar);
   }
 
+  // ---------- Impresión automática y copias ----------
+
+  function initImpresion() {
+    var trigger = selectCopias.querySelector('.ds-select-trigger');
+    var value = selectCopias.querySelector('.ds-select-value');
+    var menu = selectCopias.querySelector('.ds-select-menu');
+    function cerrar() {
+      selectCopias.classList.remove('is-open');
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+    tImpresionAuto.addEventListener('click', function () {
+      var on = tImpresionAuto.getAttribute('aria-checked') !== 'true';
+      tImpresionAuto.setAttribute('aria-checked', on ? 'true' : 'false');
+      selectCopias.hidden = !on;
+      if (!on) cerrar();
+    });
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (selectCopias.classList.contains('is-open')) { cerrar(); return; }
+      selectCopias.classList.add('is-open');
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+    });
+    menu.addEventListener('click', function (e) {
+      var opt = e.target.closest('.ds-select-option');
+      if (!opt) return;
+      menu.querySelectorAll('.ds-select-option').forEach(function (o) { o.setAttribute('aria-selected', 'false'); });
+      opt.setAttribute('aria-selected', 'true');
+      value.textContent = opt.textContent;
+      copiasAuto = parseInt(opt.dataset.value, 10) || 1;
+      cerrar();
+    });
+    document.addEventListener('click', cerrar);
+  }
+
   // ---------- Modo de entrega ----------
 
   entregaOptions.addEventListener('click', function (e) {
@@ -101,7 +139,7 @@
 
   function limpiarErrorNombre() {
     campoNombre.classList.remove('ds-field--error');
-    campoNombre.querySelector('.ds-field-help').textContent = 'Ponele un nombre que lo distinga del resto en la lista.';
+    campoNombre.querySelector('.ds-field-help').textContent = 'Ponle un nombre que lo distinga del resto en la lista.';
   }
 
   fNombre.addEventListener('input', limpiarErrorNombre);
@@ -111,7 +149,7 @@
 
     var nombre = fNombre.value.trim();
     if (!nombre) {
-      mostrarErrorNombre('Escribí un nombre para el evento.');
+      mostrarErrorNombre('Escribe un nombre para el evento.');
       fNombre.focus();
       return;
     }
@@ -125,7 +163,8 @@
       plantillaId: plantillaElegida ? plantillaElegida.id : null,
       sesiones: 0,
       entrega: entregaActual,
-      copias: Math.max(1, parseInt(fCopias.value, 10) || 1),
+      impresionAuto: tImpresionAuto.getAttribute('aria-checked') === 'true',
+      copias: copiasAuto,
       ajustes: AlmacenEventos.ajustesPorDefecto(),
     };
 
@@ -134,4 +173,5 @@
   });
 
   initSelectPlantilla();
+  initImpresion();
 })();

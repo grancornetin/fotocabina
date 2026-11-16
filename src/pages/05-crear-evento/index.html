@@ -28,7 +28,7 @@
           <div class="ds-field" id="campoNombre">
             <label for="fNombre">Nombre del evento</label>
             <input class="ds-input" id="fNombre" type="text" placeholder="Casamiento de Juli y Fran" maxlength="80" autocomplete="off" />
-            <span class="ds-field-help">Ponele un nombre que lo distinga del resto en la lista.</span>
+            <span class="ds-field-help">Ponle un nombre que lo distinga del resto en la lista.</span>
           </div>
 
           <div class="crear-row">
@@ -36,10 +36,31 @@
               <label for="fFecha">Fecha del evento</label>
               <input class="ds-input" id="fFecha" type="date" />
             </div>
-            <div class="ds-field">
-              <label for="fCopias">Copias por sesión</label>
-              <input class="ds-input" id="fCopias" type="number" min="1" max="10" value="1" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="crear-section">
+          <p class="crear-section-title">Impresión</p>
+          <div class="crear-toggle-row">
+            <div class="crear-toggle-text">
+              <span class="crear-toggle-title">Imprimir automáticamente al terminar la sesión</span>
+              <span class="ds-field-help">Cada hoja 4×6 trae dos tiras. Desde el resultado de la cabina podrás pedir copias adicionales.</span>
             </div>
+            <button class="ds-toggle" id="tImpresionAuto" type="button" role="switch" aria-checked="false" aria-label="Imprimir automáticamente al terminar la sesión"></button>
+          </div>
+          <div class="ds-select" id="selectCopias" hidden>
+            <span class="ds-select-label">Copias automáticas por sesión (hojas 4×6)</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">1 hoja</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="1" aria-selected="true">1 hoja</li>
+              <li class="ds-select-option" role="option" data-value="2" aria-selected="false">2 hojas</li>
+              <li class="ds-select-option" role="option" data-value="3" aria-selected="false">3 hojas</li>
+              <li class="ds-select-option" role="option" data-value="4" aria-selected="false">4 hojas</li>
+              <li class="ds-select-option" role="option" data-value="5" aria-selected="false">5 hojas</li>
+            </ul>
           </div>
         </div>
 
@@ -55,7 +76,7 @@
               <li class="ds-select-option" role="option" data-value="" aria-selected="true">Elegir después</li>
             </ul>
           </div>
-          <p class="crear-hint" id="plantillaHint">Podés crear el evento sin plantilla y asignarla más tarde tocando "Editar plantilla" en su tarjeta.</p>
+          <p class="crear-hint" id="plantillaHint">Puedes crear el evento sin plantilla y asignarla más tarde tocando "Editar plantilla" en su tarjeta.</p>
         </div>
 
         <div class="crear-section">

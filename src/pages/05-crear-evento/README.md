@@ -5,7 +5,7 @@ Pantalla C2 del mapa de pantallas. Formulario corto para crear un evento nuevo d
 ## Qué hace
 
 - **Nombre del evento** (obligatorio, con validación) y **fecha**.
-- **Copias por sesión** (número, mínimo 1).
+- **Imprimir automáticamente al terminar la sesión** (interruptor, apagado por defecto). Al encenderlo aparece un selector de **copias automáticas por sesión** (1 a 5 hojas 4×6; cada hoja trae dos tiras). Se guardan como `impresionAuto` (booleano) y `copias` (hojas). La cabina todavía no los lee: se conectan al construir la impresión (`docs/ARQUITECTURA_FLUJO.md`). Las copias adicionales las pide solo el operador desde el resultado y cuentan para el tope de impresiones del evento.
 - **Plantilla asignada**: selector con las plantillas ya guardadas en `03-editor-plantillas` (lee directo su almacén, `fotocabina-editor-v1`, sin cargar el editor completo), más la opción "Elegir después" si todavía no hay ninguna lista o el operador prefiere asignarla más tarde desde la card en la lista.
 - **Modo de entrega**: Impresión / Digital / Ambos, selección única con feedback visual claro. No incluye todavía punto de retiro externo ni impresión remota (Etapa 2, H3/H4) — esas opciones no se muestran hasta que existan esas pantallas.
 - **Guardar y volver son un solo paso** (mismo patrón que "Lanzar evento" en el editor, ver `docs/FLUJO_NAVEGACION.md`): "Crear evento" guarda el evento en el almacén compartido y navega directo a `04-lista-eventos`, donde aparece primero en la pestaña "Próximos". "Cancelar" y el botón "Mis eventos" del header vuelven sin guardar nada.
