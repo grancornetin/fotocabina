@@ -20,7 +20,7 @@
 
 ---
 
-**Actualizado:** 2026-11-16  ·  **Cuenta/sesión:** sesión de /actualizar-proyecto  ·  **Rama:** main
+**Actualizado:** 2026-11-16 (pausa por límite de uso)  ·  **Cuenta/sesión:** sesión de /actualizar-proyecto  ·  **Rama:** main
 
 ## Estado en una frase
 Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más pantallas se diseña el esqueleto completo) de pantallas: cabina del invitado, editor de plantillas, lista de eventos, crear evento y cámara ya funcionan en el navegador; falta impresora, panel en vivo, servidor local de entrega y toda la parte de hardware real. Último commit de código: `57930dd` (C3 cámara, 2026-09-25). Sin cambios pendientes de código.
@@ -37,7 +37,7 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
-| (nada en curso) | | | | |
+| Hito 1.1: la cabina dibuja la plantilla real del evento | orquestador | PAUSADO (límite de uso) | Código escrito y probado por quien lo construyó, SIN commit, en el árbol de trabajo: `src/pages/01-camera-flow/*` y docs. Falta: Code Reviewer, Evidence Collector, Reality Checker, docs finales, commit | Revisar y certificar, luego commit y push de 1.1. Detalle en `src/docs/proyecto-ia/PUNTO-DE-RETOMA.md` |
 
 ## Siguiente paso exacto
 1. El dueño prueba a mano el hito 0.1a (pasos en el mensaje de cierre del 2026-11-16) y responde las decisiones nuevas.
@@ -59,3 +59,5 @@ Páginas estáticas: abrir `src/pages/<pantalla>/index.html` en el navegador (do
 - Las reglas del repo piden commit y push a `main` al cerrar cada tarea; las reglas globales del dueño piden no commitear "para guardar" por límite de uso. Manda: commit solo al cerrar una tarea terminada y verificada.
 - Las cámaras del navegador cambian de identificador entre sesiones; si la guardada no responde, la cabina cae a la del equipo.
 - Pendiente de prueba del dueño con cámara real: lo resuelto el 2026-09-16 en `01-camera-flow` y C3.
+
+- Hito 0.2 (motor de plantillas compartido) ya está en `main` (`ad14c88`). Hito 1.1 está escrito pero sin certificar ni commitear: no lo subas sin revisión ni pruebas con evidencia.
