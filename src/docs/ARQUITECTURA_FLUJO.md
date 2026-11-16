@@ -593,6 +593,10 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 - **Respaldo (D7):** hoy los datos son de prueba, así que baja de prioridad; se hace antes del primer evento real, no antes.
 - **Prueba técnica de escritorio (D8):** se explicó al dueño en el chat; queda pendiente su visto bueno.
 
+- **D1 (esqueleto):** aprobado por el dueño (2026-11-16).
+- **D9 (datos personales) — AJUSTADA:** no se pide ningún dato personal. La pantalla de bienvenida muestra un aviso claro, antes de que el invitado empiece: sus fotos pueden usarse para publicaciones en redes sociales o anuncios de los negocios del operador, y usar la cabina implica aceptarlo (si no está de acuerdo, no la usa). El texto exacto del aviso lo fija el operador. Como las fotos son material del negocio, el borrado automático a los 30 días no es la regla por defecto: el plazo de conservación es un ajuste del evento (por defecto, sin borrado automático). Pendiente: revisión legal antes de cobrar a terceros (Etapa 2).
+- **D11 (PRODUCT.md):** aprobada y aplicada (referencia a `02-layout-editor` corregida; mínimo de accesibilidad y aviso de uso de las fotos agregados a `src/PRODUCT.md`).
+
 **Lo que NO necesito que decidas ahora:** nombres de planes y precios (Etapa 2), marca blanca de clientes, tablet de retiro y control remoto (quedan reservados en los datos, no se construyen).
 
 ---

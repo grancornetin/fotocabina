@@ -48,7 +48,7 @@ A diferencia del software de cabina fotográfica tradicional (instalado, con lic
 
 ## Evidence on Hand
 
-- Prototipo funcional existente: `pages/01-camera-flow` (flujo de captura MVP) y `pages/02-layout-editor` (editor de plantillas, el más maduro).
+- Prototipo funcional existente: `pages/01-camera-flow` (flujo de captura y cabina) y `pages/03-editor-plantillas` (editor de plantillas, aprobado para producción). `pages/02-layout-editor` quedó descartado y solo se conserva como referencia histórica.
 - Moodboard de referencia visual aportado por el usuario en `ui inspo/` (paneles minimalistas oscuros con mucho aire, tarjetas con acento vibrante único, jerarquía tipográfica clara con grid de 8px, iconografía lineal simple, componentes con estados default/hover/pressed bien diferenciados).
 - No hay pantallas finales, tests de usuario ni datos de eventos reales todavía: la app aún no se usó en un evento en producción.
 
@@ -63,4 +63,5 @@ A diferencia del software de cabina fotográfica tradicional (instalado, con lic
 ## Accessibility & Inclusion
 
 - Pantalla de invitado: debe funcionar para personas sin conocimiento técnico del producto, en condiciones de poca luz o distracción (evento social), con objetivos táctiles grandes.
-- Sin requisito de accesibilidad formal (WCAG específico) confirmado aún por el usuario — queda abierto para una futura revisión, no se debe asumir un estándar sin confirmarlo.
+- Mínimo acordado (2026-11-16): en el tótem, objetivos táctiles grandes y tolerantes a error; contraste de texto suficiente para leerse con poca luz y a distancia de brazo. No se exige un estándar formal (WCAG) todavía; queda abierto para una futura revisión.
+- Uso de la cabina y de las fotos (acordado 2026-11-16): la cabina no pide datos personales al invitado. Antes de empezar, el invitado ve un aviso claro: sus fotos pueden usarse para publicaciones en redes sociales o anuncios de los negocios del operador, y usar la cabina implica aceptarlo; si no está de acuerdo, no la usa.

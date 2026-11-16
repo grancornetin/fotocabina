@@ -72,3 +72,10 @@
 - **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §8.
 - **Estado:** hecho
 
+## [2026-11-16] decisión | Esqueleto aprobado; aviso de uso de fotos
+- **Quién:** dueño, vía sesión principal
+- **Qué:** aprobó el esqueleto de arquitectura. No se piden datos personales; la cabina muestra un aviso: las fotos pueden usarse en redes y anuncios del negocio y usar la cabina implica aceptarlo. Se actualizó `src/PRODUCT.md` (con permiso del dueño): evidencia corregida y mínimo de accesibilidad.
+- **Por qué:** la cabina es parte del negocio del operador y sus fotos son material de difusión.
+- **Dónde verlo:** `src/PRODUCT.md`, `src/docs/ARQUITECTURA_FLUJO.md` §8.
+- **Estado:** hecho
+
