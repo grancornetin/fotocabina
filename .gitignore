@@ -8,3 +8,9 @@ src/fonts/
 
 # Páginas de prueba, capturas y servidores locales (viven fuera del repo)
 *.local.html
+
+# Solo locales (nuevo-proyecto)
+cerebro-fotocabina/
+src/docs/proyecto-ia/TIEMPO.md
+src/docs/proyecto-ia/MEMORIA-PROYECTO.md
+.claude/settings.local.json

@@ -1,6 +1,6 @@
 # FotoCabina — reglas para cualquier agente de IA que trabaje en este repo
 
-Todo el proyecto vive en `src/`. Nada se crea fuera de esa carpeta (salvo este archivo y `AGENTS.md`).
+Todo el proyecto vive en `src/`. Nada se crea fuera de esa carpeta salvo este archivo, `AGENTS.md`, `RETOMAR.md` (cambio de turno entre cuentas, lo buscan los hooks) y `.claude/agents/` (equipo de agentes). El espacio de trabajo con agentes (Bitácora, Tablero, Ideas, Equipo) vive en `src/docs/proyecto-ia/`.
 
 ## 1. Leer antes de tocar código, en este orden
 
@@ -48,3 +48,31 @@ Antes de dar una tarea por terminada:
 - Textos de interfaz, nombres de archivos, clases y commits en español.
 - Páginas de prueba, capturas y servidores locales viven fuera del repo (carpeta temporal); nunca se commitean.
 - Carpetas de referencia local (`pantallas dslrbooth/`, `ui inspo/`) y el archivo de memoria personal están en `.gitignore`: el repo es público.
+
+<!-- NAVAJA-IA:INICIO (bloque administrado por la skill nuevo-proyecto; edítalo ahí o con cuidado) -->
+## Espacio de trabajo con agentes — instrucción permanente
+
+El dueño no es programador y solo lee el chat: lo que requiera su decisión se le presenta en el chat, en lenguaje simple, con la recomendación primero. Trabaja con varias sesiones en paralelo y con dos cuentas de Claude, así que **el estado vive en archivos**:
+
+| Archivo | Para qué |
+|---|---|
+| `RETOMAR.md` (raíz) | Cambio de turno entre cuentas: dónde quedó todo y qué sigue |
+| `src/docs/proyecto-ia/TABLERO.md` | Quién hace qué, reservas de archivos, hallazgos entre agentes |
+| `src/docs/proyecto-ia/BITACORA.md` | Historia: qué cambió, por qué, quién, dónde verlo |
+| `src/docs/proyecto-ia/IDEAS.md` | Ideas sueltas del dueño y su enriquecimiento |
+| `src/docs/proyecto-ia/EQUIPO.md` | Agentes contratados y por qué |
+| `src/docs/proyecto-ia/TIEMPO.md` | Horas por tarea (solo local) |
+| `src/docs/proyecto-ia/MEMORIA-PROYECTO.md` + `~/.claude/perfil-del-dueno.md` | Cómo trabajar con el dueño (solo local) |
+| `cerebro-fotocabina/` | Wiki Obsidian: lo que debe perdurar (ver `cerebro-fotocabina/CLAUDE.md`). **Siempre en `.gitignore`: nunca va a git** |
+| `PRODUCT.md`, `DESIGN.md` | Producto y sistema de diseño: toda pantalla se construye contra `DESIGN.md` |
+
+**Al empezar una sesión:** leer `RETOMAR.md`, `src/docs/proyecto-ia/TABLERO.md` y `cerebro-fotocabina/index.md`; registrarse en el Tablero; contar al dueño en 5 líneas dónde quedó el trabajo antes de hacer nada.
+**Al empezar una tarea:** reservar sus archivos en el Tablero, ponerla "en curso" en `RETOMAR.md` y anotar inicio en `TIEMPO.md`.
+**Al cerrar cada hito:** entrada en Bitácora, Tablero y `RETOMAR.md` al día; si algo perdura, al cerebro. Cada archivo trae sus propias instrucciones al inicio: léelas.
+**Agentes:** el trabajo con agentes lo dirige siempre el **Agents Orchestrator** (`.claude/agents/agents-orchestrator.md`): él busca al agente indicado en el repo agency-agents (`C:/Users/Nico Trabajo/Downloads/agency-agents-main/`) y envía a trabajar a los demás con las reglas de este espacio. Ante una tarea que necesita especialistas, lánzalo a él con el objetivo, los archivos que NO se deben tocar y la cláusula de checkpoints; no elijas agentes sueltos.
+**Hallazgos fuera de tu alcance:** no los arregles; anótalos en el Tablero mencionando al agente responsable (`@nombre`). **Ideas fuera de alcance:** a `IDEAS.md`.
+**Commits:** `git add` solo por nombre y solo lo de tu reserva (nunca `git add .` ni `-A`); el commit termina con `# agente: <tu nombre>`. En este repo el commit y push a `main` ocurren al cerrar una tarea terminada y verificada (sección 3); nunca se hacen "para guardar" por límite de uso.
+**Uso del plan:** ≥ 70 % trabajar por checkpoints; ≥ 90 % no iniciar tareas grandes y preparar el cambio de cuenta (pausar agentes, checkpoint, actualizar su sección del Tablero, Bitácora y `RETOMAR.md`).
+**Nunca subir a GitHub:** `cerebro-fotocabina/`, `TIEMPO.md`, `MEMORIA-PROYECTO.md`, claves, datos personales ni detalle explotable de fallas.
+**Mejora continua:** cuando una regla falle (se pisaron, se olvidó algo), corrígela en el archivo correspondiente y anótalo en "Lecciones del equipo" del Tablero.
+<!-- NAVAJA-IA:FIN -->
