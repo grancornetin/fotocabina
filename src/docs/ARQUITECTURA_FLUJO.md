@@ -575,6 +575,19 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 10. **Textos en "tú" chileno.** *Recomiendo: sí.* Hoy la interfaz dice "Tocá", "Lanzá", "Cambiá"; propongo "Toca", "Lanza", "Cambia". Es un cambio de textos, no de diseño.
 11. **Cambios que tocan `PRODUCT.md` y `DESIGN.md`** (no los toco sin tu acuerdo). *Recomiendo: sí;* yo preparo el texto exacto. Serían solo dos: (a) en `PRODUCT.md`, corregir la "evidencia" que aún cita `02-layout-editor` como el prototipo más maduro; (b) dejar escrito el estándar de accesibilidad mínimo (objetivos táctiles grandes en el tótem, contraste suficiente en poca luz). Los roles nuevos (ayudante, anfitrión, retiro) y la personalización de marca son Etapa 2: quedan reservados aquí y se llevan a `PRODUCT.md` y `DESIGN.md` cuando se construyan.
 
+### Respuestas del dueño (2026-11-16) — mandan sobre lo recomendado arriba
+
+- **D4 (abandono):** aprobada como se propuso (30 s de paciencia; en revisión se arma la tira y se guarda sin imprimir; si faltan fotos queda "incompleta").
+- **D2 (impresora y lanzamiento) — AJUSTADA:** "solo impresión" bloquea el lanzamiento si la impresora tiene un problema; **"impresión y digital" también bloquea** (no se parte un evento con la impresora mal); "solo digital" no la mira. Nada de "solo avisa".
+- **Tope de impresiones por evento (NUEVO):** un evento puede tener un límite de hojas (ejemplo: 100). Al llegar al límite no se imprime más aunque la impresora esté conectada y tenga papel; la cabina sigue solo con entrega digital. La lógica completa (qué ve el invitado, qué ve el operador, qué pasa en modo "solo impresión", si las copias adicionales cuentan) está pendiente de decidir: ver las decisiones nuevas en RETOMAR.md.
+- **D3 (PIN):** aprobada (universal, se cambia la primera vez, bloqueo tras intentos fallidos).
+- **D5 (copias) — CAMBIADA:** la impresión automática de la tira al terminar la sesión es configurable (una hoja 4 × 6 con dos tiras 2 × 6). En la pantalla de resultado hay un botón para **imprimir copias adicionales**, porque las sesiones suelen pedir más de una. La cantidad de copias es un ajuste muy usado: debe estar **presente y accesible al operador, no escondido ni bloqueado** (también como valor por evento).
+- **Conteo de hojas 4 × 6 (NUEVO):** se cuenta cada hoja impresa por evento y por impresora, para saber el consumo de insumos, calcular costos y estadísticas, y avisar cuántas copias quedan antes de cambiar papel y cinta.
+- **Textos en "tú" chileno:** aprobado.
+- **Ciclo del evento (D6):** aprobado, con las pantallas nuevas A12, C2c, C8, C9, C10 y C11.
+- **Respaldo (D7):** hoy los datos son de prueba, así que baja de prioridad; se hace antes del primer evento real, no antes.
+- **Prueba técnica de escritorio (D8):** se explicó al dueño en el chat; queda pendiente su visto bueno.
+
 **Lo que NO necesito que decidas ahora:** nombres de planes y precios (Etapa 2), marca blanca de clientes, tablet de retiro y control remoto (quedan reservados en los datos, no se construyen).
 
 ---

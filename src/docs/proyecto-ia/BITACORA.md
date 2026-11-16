@@ -57,3 +57,11 @@
 - **Hallazgo mayor:** la cabina no dibuja la plantilla real del evento al componer.
 - **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md`
 - **Estado:** hecho como propuesta; esperan las 11 decisiones del dueño. Sin código tocado.
+
+## [2026-11-16] decisión | Respuestas del dueño al esqueleto (primera tanda)
+- **Quién:** dueño, vía sesión principal
+- **Qué:** aprobó D3, D4, D6 y textos en "tú"; ajustó D2 (también bloquea en "impresión y digital"); cambió D5 (copias adicionales siempre accesibles al operador; impresión automática configurable); agregó tope de impresiones por evento y conteo de hojas para costos. Respaldo baja de prioridad (datos de prueba).
+- **Por qué:** la impresión es el costo real del evento y las sesiones suelen pedir más de una copia.
+- **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §8 (bloque "Respuestas del dueño").
+- **Estado:** hecho; quedan decisiones nuevas sobre el tope de impresiones y las pendientes D1, D9, D11.
+
