@@ -15,9 +15,11 @@ El QR de entrega digital **no** es un elemento de esta pantalla: vive en la pant
 
 ## Estructura
 
-Un archivo por responsabilidad (ver el detalle y el porqué de esta convención en `PLAN_EDITOR_PLANTILLAS.md` sección 3): `estado.js` (modelo de datos y persistencia), `lienzo.js` (dibujo y manipulación directa), `guias.js` (guías inteligentes), `imagenes.js`, `tipografia.js`, `inspector.js`, `paneles.js`, `galeria.js`, `render.js` (motor de impresión), `paquete.js` (exportar/importar), `iconos.js`, `app.js` (arranque y atajos).
+Un archivo por responsabilidad (ver el detalle y el porqué de esta convención en `PLAN_EDITOR_PLANTILLAS.md` sección 3): `estado.js` (modelo de datos y persistencia), `lienzo.js` (dibujo y manipulación directa), `guias.js` (guías inteligentes), `imagenes.js`, `tipografia.js`, `inspector.js`, `paneles.js`, `galeria.js`, `render.js` (puente al motor de impresión, que ahora es compartido), `paquete.js` (exportar/importar), `iconos.js`, `app.js` (arranque y atajos).
 
 Guarda su estado en `localStorage` (clave `fotocabina-editor-v1`). Sin dependencias externas ni CDNs.
+
+**El motor de dibujo es compartido (hito 0.2):** vive en `../shared/motor-plantillas.js` (`MotorPlantillas`) y recibe la plantilla como dato; el editor lo carga antes que `estado.js` en `index.html`. `render.js` quedó en dos líneas (`const EditorRender = MotorPlantillas;`) para no tocar `paquete.js` ni `galeria.js`. `EditorEstado.textoDeDato` y `PT_A_MM` delegan en el motor, y el registro de fuentes incrustadas (`tipografia.js` → `registrarFuentes`) usa `MotorPlantillas.cargarFuentes`. El editor se ve y se usa igual que antes. La cabina dibuja con el mismo motor, así editor y cabina producen exactamente la misma imagen. Cualquier cambio de cómo se dibuja una plantilla se hace en el motor, nunca aquí.
 
 ## Conectado a un evento (2026-09-21 / 2026-09-22)
 

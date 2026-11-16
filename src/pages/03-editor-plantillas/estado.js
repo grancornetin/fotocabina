@@ -1,7 +1,7 @@
 const EditorEstado = (() => {
   const CLAVE = 'fotocabina-editor-v1';
   const LIMITE_HISTORIAL = 100;
-  const PT_A_MM = 25.4 / 72;
+  const PT_A_MM = MotorPlantillas.PT_A_MM;
 
   const PRESETS_PAPEL = {
     'tira-2x6': { nombre: 'Tira 2 × 6 in', anchoMm: 50.8, altoMm: 152.4, duplicarEnHoja: true },
@@ -115,18 +115,9 @@ const EditorEstado = (() => {
     return base;
   }
 
-  // Texto de muestra que se ve en el editor para un dato de sesión. En el evento, la cabina lo reemplaza por el valor real.
+  // Texto de muestra que se ve en el editor para un dato de sesión (la lógica vive en el motor compartido).
   function textoDeDato(e) {
-    const hoy = new Date();
-    const dd = String(hoy.getDate()).padStart(2, '0'), mm = String(hoy.getMonth() + 1).padStart(2, '0'), aaaa = hoy.getFullYear();
-    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const hora = String(hoy.getHours()).padStart(2, '0') + ':' + String(hoy.getMinutes()).padStart(2, '0');
-    const fecha = e.formato === 'larga' ? hoy.getDate() + ' de ' + meses[hoy.getMonth()] + ' de ' + aaaa : e.formato === 'anio' ? String(aaaa) : dd + '/' + mm + '/' + aaaa;
-    if (e.campo === 'fecha') return fecha;
-    if (e.campo === 'fechaHora') return fecha + ' · ' + hora;
-    if (e.campo === 'numeroSesion') return (e.formato === 'simple' ? '' : e.formato === 'sesion' ? 'Sesión ' : '#') + '048';
-    if (e.campo === 'nombreEvento') return e.ejemplo || 'Mi evento';
-    return '';
+    return MotorPlantillas.textoDeDato(e);
   }
 
   function cargar() {

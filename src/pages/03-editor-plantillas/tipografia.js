@@ -3,8 +3,9 @@ const EditorTipografia = (() => {
   const FUENTES_SISTEMA = ['Inter', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Tahoma', 'Courier New', 'Impact', 'Segoe UI', 'Palatino Linotype', 'Comic Sans MS'];
   const PESOS = [[300, 'Fina'], [400, 'Normal'], [500, 'Media'], [600, 'Seminegrita'], [700, 'Negrita'], [800, 'Extra'], [900, 'Negra']];
   const LIMITE_FUENTE = 6 * 1024 * 1024;
-  const TAMANO_MIN_PT = 4;
-  const registradas = new Map();
+  const TAMANO_MIN_PT = MotorPlantillas.TAMANO_MIN_PT;
+  let fuentesListas = 0;
+  const fuentesAvisadas = new Set();
   let inputFuente;
   let editando = null;
 
@@ -59,14 +60,11 @@ const EditorTipografia = (() => {
     return { familia, peso, cursiva };
   }
 
+  // El registro de fuentes vive en el motor compartido (así una plantilla con fuentes incrustadas también se dibuja bien en la cabina).
   function registrarFuentes() {
-    fuentesCargadas().forEach((f) => {
-      const clave = f.familia + '|' + (f.peso || 400) + '|' + (f.cursiva ? 'i' : 'n');
-      if (registradas.has(clave)) return;
-      registradas.set(clave, 'cargando');
-      const cara = new FontFace(f.familia, 'url(' + f.dataURL + ')', { weight: String(f.peso || 400), style: f.cursiva ? 'italic' : 'normal' });
-      cara.load().then((c) => { document.fonts.add(c); registradas.set(clave, 'lista'); EditorLienzo.dibujar(); })
-        .catch(() => { registradas.set(clave, 'error'); EditorApp.aviso('No se pudo usar el archivo "' + f.archivo + '"'); });
+    MotorPlantillas.cargarFuentes(E.obtener()).then((r) => {
+      if (r.cargadas !== fuentesListas) { fuentesListas = r.cargadas; EditorLienzo.dibujar(); }
+      r.errores.forEach((f) => { if (!fuentesAvisadas.has(f.archivo)) { fuentesAvisadas.add(f.archivo); EditorApp.aviso('No se pudo usar el archivo "' + f.archivo + '"'); } });
     });
   }
 
