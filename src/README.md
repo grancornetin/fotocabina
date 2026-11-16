@@ -20,7 +20,8 @@ Antes de crear o modificar cualquier pantalla, leer en este orden:
 1. [PRODUCT.md](PRODUCT.md) — quién usa la app, para qué, y qué no se puede inventar (precios, planes, capacidades).
 2. [DESIGN.md](DESIGN.md) — **el sistema de diseño, de cumplimiento obligatorio**: paleta exacta (negro / grafito / verde lima solo como acento funcional), tipografía, radios, elevación, componentes y las reglas "Do / Don't". Nada de emojis, nada de glassmorphism, nada de degradés multicolor, un solo verde por pantalla.
 3. [pages/00-design-system/index.html](pages/00-design-system/index.html) — la implementación viva de ese sistema. Los componentes nuevos se construyen copiando estos patrones (clases `ds-*`), no inventando otros.
-4. [docs/MAPA_DE_PANTALLAS.md](docs/MAPA_DE_PANTALLAS.md) — qué pantallas existen, cuáles faltan y qué quedó pendiente. Actualizarlo al terminar cada pantalla.
+4. [docs/ARQUITECTURA_FLUJO.md](docs/ARQUITECTURA_FLUJO.md) — documento maestro del flujo: usuarios, modelo del evento, contrato de datos y orden de construcción.
+5. [docs/MAPA_DE_PANTALLAS.md](docs/MAPA_DE_PANTALLAS.md) — qué pantallas existen, cuáles faltan y qué quedó pendiente. Actualizarlo al terminar cada pantalla.
 
 Convenciones:
 
@@ -39,6 +40,10 @@ pages/NN-nombre/
 ```
 
 No requiere dependencias ni conexión a Internet para abrir estas páginas en un navegador. En el futuro, los componentes reutilizables irán en `shared/` y las páginas se enlazarán desde un flujo UI/UX común, sin perder su independencia.
+
+## Documento maestro del flujo
+
+[docs/ARQUITECTURA_FLUJO.md](docs/ARQUITECTURA_FLUJO.md): cómo encaja todo con todo (usuarios, ajustes del evento y sus dependencias, flujos, contrato de datos, huecos y orden de construcción).
 
 ## Documento de continuidad
 

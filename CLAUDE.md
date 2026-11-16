@@ -8,8 +8,9 @@ Todo el proyecto vive en `src/`. Nada se crea fuera de esa carpeta salvo este ar
 2. `src/DESIGN.md` — sistema de diseño **obligatorio**. Referencia viva: `src/pages/00-design-system/index.html`.
 3. `src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md` — decisiones de producto, hardware y arquitectura, y el plan por fases. Su encabezado dice qué documento manda sobre qué.
 4. `src/docs/MAPA_DE_PANTALLAS.md` — inventario de pantallas y estado de cada una.
-5. `src/docs/FLUJO_NAVEGACION.md` — cómo se conectan las pantallas entre sí (de dónde vienen, hacia dónde van, qué pasa al volver). **Leerlo siempre que una pantalla vaya a abrir o ser abierta por otra** — no se construye ni se conecta una pantalla nueva sin decidir antes su fila en este documento.
-6. El `README.md` de la pantalla que vas a tocar (`src/pages/NN-nombre/README.md`).
+5. `src/docs/ARQUITECTURA_FLUJO.md` — documento maestro del flujo: usuarios, qué define a un evento y cómo cada ajuste afecta al resto, contrato de datos, funciones por pantalla y orden de construcción. **Leerlo antes de construir o conectar cualquier pantalla.**
+6. `src/docs/FLUJO_NAVEGACION.md` — cómo se conectan las pantallas entre sí (de dónde vienen, hacia dónde van, qué pasa al volver). **Leerlo siempre que una pantalla vaya a abrir o ser abierta por otra** — no se construye ni se conecta una pantalla nueva sin decidir antes su fila en este documento.
+7. El `README.md` de la pantalla que vas a tocar (`src/pages/NN-nombre/README.md`).
 
 ## 2. Qué documento se actualiza, y cuándo
 

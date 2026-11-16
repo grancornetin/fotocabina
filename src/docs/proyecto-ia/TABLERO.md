@@ -18,17 +18,19 @@
 ## Agentes
 | Agente | Rol | Estado | Sesión/cuenta | Última actividad |
 |---|---|---|---|---|
-| orquestador | coordina, consolida RETOMAR | activo | | 2026-11-16 |
+| orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura | activo | | 2026-11-16 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
 |---|---|---|---|---|---|---|
 | 1 | Adoptar el proyecto y ordenar el espacio de trabajo | orquestador | en curso | `RETOMAR.md`, `src/docs/proyecto-ia/*`, `cerebro-fotocabina/*`, `CLAUDE.md`, `.gitignore` | 2026-11-16 | Falta aprobación del equipo y decisión de commit |
+| 2 | Esqueleto de arquitectura (documento maestro) | orquestador | hecha | `src/docs/ARQUITECTURA_FLUJO.md`, `src/docs/proyecto-ia/PUNTO-DE-RETOMA.md` | 2026-11-16 | Revisado por Reality Checker y Software Architect; espera decisiones del dueño |
 
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
 |---|---|---|---|---|
 | RETOMAR.md, src/docs/proyecto-ia/, cerebro-fotocabina/ | orquestador | 2026-11-16 | en curso | Ordenar espacio de trabajo |
+| src/docs/ARQUITECTURA_FLUJO.md, src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md, src/docs/MAPA_DE_PANTALLAS.md, src/docs/FLUJO_NAVEGACION.md, src/README.md, CLAUDE.md | orquestador | 2026-11-16 | liberada | Esqueleto de arquitectura (solo documentación) |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |

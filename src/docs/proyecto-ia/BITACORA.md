@@ -49,3 +49,11 @@
 - **Por qué:** el producto es un solo flujo interconectado (usuarios, evento, ajustes, pantallas); se diseña el esqueleto completo antes de seguir construyendo, para no rehacer después.
 - **Dónde verlo:** `src/docs/proyecto-ia/EQUIPO.md`
 - **Estado:** hecho
+
+## [2026-11-16] decision | Esqueleto de arquitectura producido
+- **Quién:** orquestador, con revisión de Reality Checker y Software Architect
+- **Qué:** nuevo documento maestro `src/docs/ARQUITECTURA_FLUJO.md` (usuarios, 4 capas de configuración, matriz de dependencias, validador, mapa de flujos con pantallas nuevas A12/C2c/C8-C11, contrato de datos, hallazgos, orden de construcción y 11 decisiones para el dueño). Correcciones de texto en MAPA, FLUJO y DSLRBOOTH §2; el documento se suma a CLAUDE.md §1 y src/README.md.
+- **Por qué:** el producto es un solo flujo interconectado; se diseña antes de construir más pantallas.
+- **Hallazgo mayor:** la cabina no dibuja la plantilla real del evento al componer.
+- **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md`
+- **Estado:** hecho como propuesta; esperan las 11 decisiones del dueño. Sin código tocado.

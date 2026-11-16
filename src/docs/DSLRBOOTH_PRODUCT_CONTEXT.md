@@ -2,12 +2,13 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-09-24 (decisiones del panel de operador: PIN universal, cámara por evento dentro de la cabina, §3.10).
+> Última revisión: 2026-11-16 (esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
 > - `DESIGN.md` — sistema de diseño obligatorio. Referencia viva: `pages/00-design-system`.
 > - **Este documento** — decisiones de producto, hardware y arquitectura, y el plan por fases (§6). Cuando se toma una decisión que cambia el rumbo, se anota acá.
+> - `docs/ARQUITECTURA_FLUJO.md` — **documento maestro del flujo**: tipos de usuario, qué define a un evento y cómo cada ajuste afecta al resto, mapa de flujos, funciones por pantalla, contrato de datos (qué se comparte y cómo escala), huecos y orden de construcción. Manda en **cómo se conectan** pantallas, datos y ajustes; se lee antes de construir cualquier pantalla.
 > - `docs/MAPA_DE_PANTALLAS.md` — inventario de pantallas y su estado (hecha / en curso / falta / futuro).
 > - `docs/FLUJO_NAVEGACION.md` — cómo se conectan las pantallas entre sí: de dónde viene cada una, hacia dónde va, y qué pasa al volver. Se lee y actualiza junto con el mapa de pantallas cada vez que una pantalla se conecta con otra.
 > - `docs/PLAN_EDITOR_PLANTILLAS.md` — plan detallado del editor (lo mantiene quien trabaja el editor).
@@ -66,9 +67,13 @@ DESIGN.md                     # Sistema de diseño (obligatorio)
 pages/
 ├── 00-design-system/        # Showcase del sistema de diseño (dark / light / sistema)
 ├── 01-camera-flow/          # Cabina: modo operador + modo invitado (ver su README)
-├── 02-layout-editor/        # Editor visual original (se reemplaza por 03)
-└── 03-editor-plantillas/    # Editor de plantillas nuevo, en construcción (docs/PLAN_EDITOR_PLANTILLAS.md)
+├── 02-layout-editor/        # Descartado, solo referencia histórica
+├── 03-editor-plantillas/    # Editor de plantillas definitivo (docs/PLAN_EDITOR_PLANTILLAS.md)
+├── 04-lista-eventos/        # C1, lista de eventos
+├── 05-crear-evento/         # C2, crear evento
+└── shared/                  # Módulos comunes (almacén de eventos)
 docs/
+├── ARQUITECTURA_FLUJO.md
 ├── DSLRBOOTH_PRODUCT_CONTEXT.md
 ├── MAPA_DE_PANTALLAS.md
 └── PLAN_EDITOR_PLANTILLAS.md
@@ -83,7 +88,8 @@ Cada página conserva estructura, estilos y lógica en archivos separados (`inde
 | `00-design-system` | Aprobado | Tokens, componentes y modo claro/oscuro. Todo lo nuevo se construye con esto. |
 | `01-camera-flow` | MVP de cabina cerrado (navegador) | Operador: evento, semáforos, galería, ajustes (fotos, cuenta hasta 30 s, pausa, mensaje, PIN, vuelta al inicio, cámara, espejo), "Lanzar evento". Invitado: pantalla completa, countdown, interstitial, marco de encuadre, revisión con repetir foto, tira 4 × 6, GIF real, descargar/compartir/imprimir, sesiones guardadas en IndexedDB, vuelta automática al inicio, PIN para volver al operador. No controla todavía DSLR, flash ni impresora profesional; la cantidad de fotos todavía es un ajuste manual (ver §3.5). |
 | `02-layout-editor` | Prototipo, congelado | Editor original; queda como referencia hasta que `03` lo reemplace. |
-| `03-editor-plantillas` | En construcción | Editor nuevo sobre el sistema de diseño. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. |
+| `03-editor-plantillas` | Aprobado para producción (2026-09-17) | Editor definitivo. Plan y estado en `docs/PLAN_EDITOR_PLANTILLAS.md`. |
+| `04-lista-eventos`, `05-crear-evento`, `shared/` | Construidos | C1 y C2, conectados por el almacén compartido (§3.9). |
 
 Lo que falta del mapa (A2, A8 QR, A9, A10, panel de operador C1–C7, B2–B4 y todo lo de Etapa 2) está listado con su estado en `docs/MAPA_DE_PANTALLAS.md`.
 
@@ -239,6 +245,17 @@ Tomadas por el dueño del proyecto al construir C2 y C3:
 - **La configuración de cámara (C3) vive dentro de la cabina**, en Ajustes › Cámara, no como pantalla aparte. Es un panel que se abre y cierra en el lugar; no necesita un "volver".
 - **La cámara elegida se guarda por evento** (campo `camaraId` en los ajustes del evento, junto con fotos/cuenta/pausa). Con dos cabinas en equipos distintos, cada evento recuerda la suya.
 - **El identificador de cámara del navegador no es estable** (`deviceId` de MediaDevices): puede cambiar entre sesiones por privacidad, y cambia si se mueve el evento a otro equipo. Por eso, si la cámara guardada no responde, la cabina cae sola a la cámara del equipo en vez de bloquearse. Cuando llegue la app de escritorio con control directo de DSLR (§3.2, `CameraAdapter`), el perfil de cámara debería guardarse por modelo/número de serie, no por este identificador.
+
+### 3.11 Esqueleto de arquitectura (2026-11-16)
+
+Todo el detalle está en `docs/ARQUITECTURA_FLUJO.md`; aquí solo las decisiones de rumbo que quedan **propuestas**, a la espera del dueño (sección 8 de ese documento):
+
+- La configuración se ordena en cuatro capas: **equipo, evento, plantilla y sesión**. La plantilla manda sobre la sesión (§3.5); la sesión congela la configuración con que se hizo; el evento congela sus plantillas al lanzarse.
+- Un **validador único** (bloqueos, avisos y configuración efectiva) es el punto donde cada ajuste afecta al resto.
+- Contrato de datos con versión, ids estables, registros separados de archivos y **adaptadores** (cámara, impresora, repositorio, entrega, licencia) para escalar a escritorio, Etapa 2 y otras plataformas sin reescribir pantallas.
+- Hallazgo mayor: la cabina todavía **no dibuja la plantilla real** del evento al componer (ver §6.1 del documento maestro).
+- Pantallas nuevas propuestas: A12 (cabina en pausa), C2c (revisión previa), C8 (ajustes del equipo), C9 (red y entrega digital), C10 (resumen y cierre), C11 (ayuda).
+- Orden de construcción recomendado y prueba técnica de escritorio antes de la impresión: sección 7 de ese documento.
 
 ## 4. Requisitos del editor de layouts
 

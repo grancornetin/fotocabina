@@ -214,7 +214,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### C1 · Lista de eventos — *Construida*
 - **Llega:** apertura de la app, o tocando el **logo/"Inicio"** desde la cabina (decisión nueva, resuelve el hueco de vuelta).
-- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 (falta) · Duplicar/Archivar/Eliminar actúan en la misma vista.
+- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · Duplicar/Archivar/Eliminar actúan en la misma vista.
 - **Feliz:** ve eventos por tabs (Próximos/En curso/Archivados), toca "Lanzar" en el de hoy.
 - **Errores/bordes:**
   - Almacén de eventos corrupto/vacío por fallo de localStorage → distinguir "no hay eventos" de "error leyendo el almacén".

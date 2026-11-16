@@ -30,20 +30,20 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - Editor de plantillas `03-editor-plantillas`: Fases 1–4 completas y aprobadas para producción (2026-09-17). `02-layout-editor` descartado (no se borra, no se toca).
 - C1 lista de eventos (`04-lista-eventos`), C2 crear evento (`05-crear-evento`), C3 cámara (dentro de Ajustes de la cabina), conectadas por el almacén compartido `pages/shared/almacen-eventos.js`.
 - Documentación al día hasta C3 (mapa, flujo de navegación, contexto de producto).
+- Esqueleto de arquitectura escrito y revisado (2026-11-16): `src/docs/ARQUITECTURA_FLUJO.md`. Hallazgo mayor: la cabina no dibuja la plantilla real del evento.
 - Espacio de trabajo con agentes creado hoy (2026-11-16): este archivo, `src/docs/proyecto-ia/`, cerebro local `cerebro-fotocabina/`, orquestador en `.claude/agents/`.
 
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
-| Esqueleto de arquitectura (flujo único: usuarios, eventos, ajustes, conexiones entre pantallas) | orquestador + equipo | por empezar | Equipo de 17 agentes instalado y commiteado; falta producir el esqueleto | Documento maestro en `src/docs/ARQUITECTURA_FLUJO.md` antes de construir C4 y siguientes |
+| (nada en curso) | | | | |
 
 ## Siguiente paso exacto
-1. El orquestador dirige al equipo para producir el esqueleto de arquitectura (`src/docs/ARQUITECTURA_FLUJO.md`): tipos de usuario, funciones por pantalla, modelo del evento y cómo cada ajuste afecta al resto, mapa de conexiones, huecos y orden de construcción.
-2. El dueño revisa el esqueleto en el chat.
-3. Con el esqueleto aprobado, seguir con las pantallas (C4 impresora u otra según el orden definido).
+1. El dueño responde las 11 decisiones de la sección 8 de `src/docs/ARQUITECTURA_FLUJO.md`.
+2. Construir según la sección 7: hito 0.1a (guardar cada foto al tomarla y PIN al equipo), 0.2 (motor de plantillas compartido), 1.1 (la cabina usa la plantilla real); en paralelo, prueba técnica de escritorio (3a).
 
 ## Decisiones pendientes del dueño
-1. Aprobar el esqueleto de arquitectura cuando esté listo.
+Las 11 de la sección 8 de `src/docs/ARQUITECTURA_FLUJO.md` (aprobar el esqueleto, impresora bloquea según modo, PIN al equipo, abandono del invitado, copias en hojas, ciclo de vida y pantallas nuevas, respaldo, prueba de escritorio, datos personales, textos en "tú", cambios a PRODUCT/DESIGN).
 
 ## Cómo probar / publicar
 Páginas estáticas: abrir `src/pages/<pantalla>/index.html` en el navegador (doble clic). Entrada del operador: `src/pages/04-lista-eventos/index.html`. Sin build ni servidor. Al cerrar una tarea, el checklist está en `CLAUDE.md` §3 (incluye commit y push a `main`).
