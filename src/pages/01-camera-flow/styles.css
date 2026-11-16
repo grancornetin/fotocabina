@@ -1037,6 +1037,16 @@ button { font-family: inherit; }
 }
 .gallery-card-time { font-size: 0.9375rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-bone); }
 .gallery-card-count { font-size: 0.75rem; color: var(--color-fog); }
+.gallery-card-badge {
+  align-self: flex-start;
+  margin: 0 4px 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-amber);
+  border-radius: var(--radius-sm);
+  color: var(--color-amber);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
 
 .gallery-empty {
   color: var(--color-fog);
@@ -1160,6 +1170,7 @@ button { font-family: inherit; }
 .pin-key:active { transform: scale(0.95); }
 .pin-key svg { width: 24px; height: 24px; }
 .pin-key--muted { color: var(--color-fog); background: transparent; }
+.pin-pad.is-locked .pin-key:not([data-key="cancel"]) { opacity: 0.35; pointer-events: none; }
 
 /* ---------- Header de operador: semáforos y riel de herramientas ---------- */
 

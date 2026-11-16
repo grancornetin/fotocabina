@@ -16,8 +16,7 @@
     fotos: 3,
     cuenta: 3,
     pausa: 3,
-    mensajePausa: '¡Cambiá de pose!',
-    pin: '1234',
+    mensajePausa: '¡Cambia de pose!',
     volver: 30,
     espejo: true,
   };

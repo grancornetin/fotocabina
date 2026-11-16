@@ -532,7 +532,7 @@ Tamaño: S (menos de un día de agente), M (varios días), L (una fase). "Navega
 
 | Hito | Pieza | Depende de | Desbloquea | Tam. | Navegador |
 | --- | --- | --- | --- | --- | --- |
-| **0.1a** | **Guardar cada foto al tomarla** (almacén `archivos`, estados incompleta/fallida) y **PIN al Equipo** con cambio obligatorio y bloqueo por intentos. Barato y protege fotos reales | Nada | Todo | S | Sí |
+| **0.1a (HECHO 2026-11-16, ver 7.3)** | **Guardar cada foto al tomarla** (almacén `archivos`, estados incompleta/fallida) y **PIN al Equipo** con cambio obligatorio y bloqueo por intentos. Barato y protege fotos reales | Nada | Todo | S | Sí |
 | **0.1b** | **Repositorio v2**: evento v2 con migración y respaldo de la clave vieja, interfaz asíncrona con caché en memoria, plantillas congeladas al lanzar, sesión v2 | 0.1a | Todo | M | Sí |
 | **0.2** | **Motor de plantillas compartido** en `shared/`, extraído del editor sin cambiar cómo se ve ni se usa el editor | Nada | 1.1, A2, hoja 4 × 6 real | M | Sí |
 | **0.3** | **Validador** (2.4): configuración efectiva, bloqueos, avisos, ritmo | 0.1b, 0.2 | 1.2, 1.4, A2, C5 | M | Sí |
@@ -605,3 +605,15 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 
 - Fuentes: `CLAUDE.md`, `RETOMAR.md`, `PRODUCT.md`, `DESIGN.md`, `DSLRBOOTH_PRODUCT_CONTEXT.md`, `MAPA_DE_PANTALLAS.md`, `FLUJO_NAVEGACION.md`, `PLAN_EDITOR_PLANTILLAS.md`, los README de cada pantalla y lectura directa del código de `01-camera-flow`, `03-editor-plantillas`, `04-lista-eventos`, `05-crear-evento` y `shared/`.
 - **Mantenimiento:** este documento se actualiza cuando cambie el modelo del evento (2.2 y 2.3), el contrato (sección 5) o el orden de construcción (7). Cada pantalla que se construya marca su fila en `MAPA_DE_PANTALLAS.md` como siempre; si su construcción cambia una regla de la matriz 2.3, se corrige aquí en el mismo commit.
+
+### 7.3 Hito 0.1a construido (2026-11-16): lo que quedó y lo que difiere del documento
+
+- **Hecho:** cada foto se escribe en el almacén `archivos` (IndexedDB v2) junto con el registro de su sesión, en una sola transacción, en el instante de tomarla; estados `capturando → revision → componiendo → compuesta → finalizada`, más `incompleta` y `fallida` (con `error.paso`). Al abrir la cabina, toda sesión que quedó abierta pasa a `incompleta`. Borrar una sesión borra sus archivos. El PIN pasó al Equipo (`shared/equipo.js`): hash PBKDF2 con sal, 5 intentos y bloqueo de 5 minutos persistente, cambio desde Ajustes.
+- **Difiere del texto del documento (hallazgo, para confirmar):** (1) **no hay PIN de fábrica**: en vez de "se pide cambiar el 1234", el primer "Lanzar evento" obliga a crear el PIN (el 1234 y los repetidos como 7777 se rechazan). Cumple la intención y evita dejar un valor público. (2) El PIN propio que ya existiera en un evento se migra al equipo; el de fábrica se descarta. (3) La sesión guarda `version: 2`, `fotos: [{n, archivo, intentos}]` y `salidas`, pero todavía **no** tiene `configCongelada`, `plantilla`, `equipoId` ni `eventoId` (usa `evento`, `eventoNombre`, `fecha`): eso es el hito 0.1b. Se agregó `fotosEsperadas` y `esEnsayo`. (4) Las sesiones del formato anterior se leen sin migrarlas.
+- **Hallazgos abiertos (no se resolvieron por no ser de este hito):**
+  1. Dos pestañas de la cabina a la vez: al abrir una, la otra puede perder su sesión en curso marcada como incompleta (hallazgo 12 de 6.1, ahora con efecto en sesiones). Regla vigente: una sola cabina abierta.
+  2. La galería carga todas las fotos como texto base64; con cientos de sesiones será lenta (conviene miniaturas o carga bajo demanda, hito 5).
+  3. Recargar la página (F5) en modo invitado devuelve los controles de operador sin pedir PIN: el PIN es candado de cortesía; se cierra con la app de escritorio o con un modo de pantalla completa sin recarga.
+  4. "Repetir toda la sesión" desde la revisión deja en disco las fotos viejas hasta que se reemplazan; una sesión cortada en ese momento puede mezclar tomas.
+  5. Sin recuperación de PIN olvidado (hoy solo borrando los datos del sitio).
+  6. D4 pendiente de construir (hito 1.5): una sesión que se corta en la revisión con todas las fotos hoy queda "incompleta" en vez de armar la tira sola.

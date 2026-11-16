@@ -31,6 +31,7 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - C1 lista de eventos (`04-lista-eventos`), C2 crear evento (`05-crear-evento`), C3 cámara (dentro de Ajustes de la cabina), conectadas por el almacén compartido `pages/shared/almacen-eventos.js`.
 - Documentación al día hasta C3 (mapa, flujo de navegación, contexto de producto).
 - Esqueleto de arquitectura escrito y revisado (2026-11-16): `src/docs/ARQUITECTURA_FLUJO.md`. Hallazgo mayor: la cabina no dibuja la plantilla real del evento.
+- Hito 0.1a (2026-11-16): cada foto se guarda al tomarla (sesiones "incompleta"/"fallida") y PIN al equipo (`shared/equipo.js`, hash, creación obligatoria al primer lanzamiento, bloqueo 5 min tras 5 intentos). Probado con Chrome headless (arnés temporal fuera del repo), consola sin errores, revisado por Code Reviewer. Pendiente de prueba del dueño con cámara real. Detalle y hallazgos abiertos: `ARQUITECTURA_FLUJO.md` §7.3.
 - Espacio de trabajo con agentes creado hoy (2026-11-16): este archivo, `src/docs/proyecto-ia/`, cerebro local `cerebro-fotocabina/`, orquestador en `.claude/agents/`.
 
 ## En curso / a medias
@@ -39,8 +40,8 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 | (nada en curso) | | | | |
 
 ## Siguiente paso exacto
-1. El dueño responde las 11 decisiones de la sección 8 de `src/docs/ARQUITECTURA_FLUJO.md`.
-2. Construir según la sección 7: hito 0.1a (guardar cada foto al tomarla y PIN al equipo), 0.2 (motor de plantillas compartido), 1.1 (la cabina usa la plantilla real); en paralelo, prueba técnica de escritorio (3a).
+1. El dueño prueba a mano el hito 0.1a (pasos en el mensaje de cierre del 2026-11-16) y responde las decisiones nuevas.
+2. Construir según la sección 7 de `src/docs/ARQUITECTURA_FLUJO.md`: 0.2 (motor de plantillas compartido), 1.1 (la cabina usa la plantilla real), 0.1b (repositorio v2); en paralelo, prueba técnica de escritorio (3a).
 
 ## Decisiones pendientes del dueño
 1. Visto bueno a la prueba técnica de escritorio (D8), más adelante, al llegar a impresión.

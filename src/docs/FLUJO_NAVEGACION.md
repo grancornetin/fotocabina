@@ -227,7 +227,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 - **Llega:** desde C1, "Crear evento" (botón principal o el de la lista vacía).
 - **Sale:** guardar → vuelve a C1 con el evento nuevo visible, mismo patrón que "Lanzar evento" del editor (guardar y volver son un solo paso) · cancelar / botón "Mis eventos" del header → C1 sin guardar.
 - **Feliz:** nombra el evento, opcionalmente le asigna plantilla (selector con las reales del editor, o "Elegir después"), define copias y modo de entrega (Impresión/Digital/Ambos), guarda, lo ve primero en "Próximos".
-- **Decisión de producto (2026-09-22):** el PIN de operador **no** se configura acá — es universal para todos los eventos, sigue en Ajustes de `01-camera-flow`. El mapa original sugería PIN por evento; se descartó explícitamente.
+- **Decisión de producto (2026-09-22):** el PIN de operador **no** se configura acá — es universal para todos los eventos, sigue en Ajustes de `01-camera-flow`. El mapa original sugería PIN por evento; se descartó explícitamente. Desde el hito 0.1a vive en el Equipo (`shared/equipo.js`); "Lanzar" pasa por la creación del PIN si el equipo aún no tiene uno (sin cambio de pantalla: es el mismo teclado, y al terminar el evento se lanza).
 - **Errores/bordes:**
   - Guardar sin nombre → validación clara en el formulario (implementado), foco vuelve al campo.
   - Asignar una plantilla que luego se borra en B3 → mismo hueco recurrente de A2/B3/C1 (todavía sin resolver en ningún lado).
@@ -243,7 +243,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - **Resuelto por decisión nueva:** semáforo de cámara en rojo → "Lanzar evento" queda deshabilitado. Semáforo de impresora en rojo → puede lanzar igual, con advertencia visible (el evento puede ser solo digital).
   - Cambiar de evento desde el dropdown con ajustes sin guardar del anterior → debe confirmarse que no los pisa sin avisar (el README dice que "recarga al vuelo", falta verificar que no pierda cambios).
   - Evento activo eliminado/archivado desde otra pestaña mientras esta pantalla sigue abierta → debe detectar el estado inconsistente, no dejar lanzar un evento fantasma.
-  - PIN de operador olvidado o adivinado por fuerza bruta (hoy fijo `1234` en código) → falta política de bloqueo tras intentos fallidos.
+  - PIN de operador olvidado o adivinado por fuerza bruta → **resuelto en el hito 0.1a (2026-11-16):** bloqueo de 5 minutos tras 5 intentos fallidos, persistente. Sigue sin recuperación si se olvida el PIN (hoy: borrar los datos del sitio, que borra todo; decidir con C8).
   - Sin internet / licencia vencida (Etapa 2) → no bloquea "Lanzar evento"; a lo sumo aviso discreto, nunca frena el evento en curso.
 
 ### C3 · Configuración de cámara — *Construida (2026-09-24), como panel dentro de la cabina*
@@ -485,5 +485,5 @@ Estas son decisiones de producto pendientes — no bloquean lo que ya está cons
 2. **Qué hace A5 si el invitado abandona sin decidir** — ¿confirma automáticamente con lo que hay, o descarta la sesión? No está definido.
 3. **A8 (QR) no tiene un estado real para "el servidor local no pudo levantarse"** (puerto ocupado, firewall) — hoy es una maqueta con temporizador fijo, y este es justo uno de los casos límite pedidos explícitamente.
 4. **No hay autosave ni aviso de "cambios sin guardar" en el editor de plantillas** — riesgo real porque es una sesión de trabajo larga y tranquila (más propensa a cierres accidentales).
-5. **El PIN de operador es fijo en código (`1234`)**, sin política de bloqueo tras intentos fallidos — hueco de seguridad básica para un producto en un tótem público.
+5. ~~El PIN de operador es fijo en código (`1234`)~~ **Resuelto (hito 0.1a, 2026-11-16):** el PIN es del equipo, se crea al primer lanzamiento, se guarda con hash y se bloquea tras intentos fallidos.
 6. **C2 (crear evento) no define dónde vive "punto de retiro externo" ni "impresión remota"** aunque ya se sabe que debería incluirlas (ligado a H3/H4).

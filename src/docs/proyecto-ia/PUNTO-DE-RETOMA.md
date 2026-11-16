@@ -1,6 +1,5 @@
-# Punto de retoma: orquestador, esqueleto de arquitectura
+# Punto de retoma: orquestador, hito 0.1a
 
-**Estado:** hecho (propuesta lista). **Actualizado:** 2026-11-16
-- `src/docs/ARQUITECTURA_FLUJO.md` completo y revisado; observaciones de los dos revisores integradas.
-- Correcciones D1 a D5 hechas; DSLRBOOTH §3.11, CLAUDE.md §1 y src/README.md actualizados; cerebro local actualizado.
-- Siguiente: esperar las 11 decisiones del dueño (sección 8) y empezar por el hito 0.1a y 0.2 (sección 7).
+**Estado:** hecho y commiteado. **Actualizado:** 2026-11-16
+- Construido, revisado (Code Reviewer, correcciones aplicadas) y probado con Chrome headless: PIN del equipo, foto guardada al tomarla, sesiones incompletas, migración.
+- Siguiente: el dueño prueba a mano; luego hitos 0.2, 1.1, 0.1b (ver `ARQUITECTURA_FLUJO.md` §7 y §7.3 con los hallazgos abiertos).

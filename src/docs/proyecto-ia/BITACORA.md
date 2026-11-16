@@ -79,3 +79,9 @@
 - **Dónde verlo:** `src/PRODUCT.md`, `src/docs/ARQUITECTURA_FLUJO.md` §8.
 - **Estado:** hecho
 
+## [2026-11-16] hito | 0.1a construido: foto guardada al tomarla y PIN al equipo
+- **Quién:** orquestador (con revisión de Code Reviewer)
+- **Qué:** cada foto se guarda en disco en el instante de tomarla; las sesiones cortadas quedan "incompletas" y se ven en la galería; el PIN es del equipo (hash, creación obligatoria al primer lanzamiento, bloqueo de 5 min tras 5 intentos); voseo corregido en `01-camera-flow`.
+- **Por qué:** un corte de luz perdía las fotos de la sesión en curso, y el PIN 1234 era público y visible.
+- **Dónde verlo:** `src/pages/01-camera-flow/`, `src/pages/shared/equipo.js`, `src/docs/ARQUITECTURA_FLUJO.md` §7.3.
+- **Estado:** hecho y probado con Chrome headless; falta que el dueño lo pruebe a mano con cámara real.

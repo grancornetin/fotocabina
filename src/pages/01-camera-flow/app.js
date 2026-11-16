@@ -21,7 +21,9 @@
   const drawerBackdrop = q('#drawerBackdrop');
   const drawerCloseBtn = q('#drawerCloseBtn');
   const pauseMessageInput = q('#pauseMessageInput');
-  const pinInput = q('#pinInput');
+  const pinChangeBtn = q('#pinChangeBtn');
+  const pinStatus = q('#pinStatus');
+  const pinTitle = q('#pinTitle');
   const soonOverlay = q('#soonOverlay');
   const soonTitle = q('#soonTitle');
   const soonText = q('#soonText');
@@ -98,17 +100,33 @@
   // hay evento activo (la cabina se abrió directo, como siempre se pudo hacer), se siguen
   // usando los ajustes generales de este equipo, igual que antes.
   const AJUSTES_CLAVE = 'fotocabina-ajustes';
-  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambiá de pose!', pin: '1234', volver: 30, espejo: true, camaraId: null };
+  // El PIN ya no es un ajuste del evento: es del equipo (shared/equipo.js, ARQUITECTURA_FLUJO.md
+  // §2.1) y vale para todos los eventos. Los ajustes viejos que lo traían se limpian al leerlos.
+  const AJUSTES_BASE = { fotos: 3, cuenta: 3, pausa: 3, mensajePausa: '¡Cambia de pose!', volver: 30, espejo: true, camaraId: null };
+  const MENSAJE_PAUSA_ANTIGUO = '¡Cambiá de pose!';
   const eventoActivo = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtenerActivo() : null;
+  // PIN propio que el operador ya tenía en el formato anterior (dentro de los ajustes); se conserva
+  // una vez, como PIN del equipo, si no era el de fábrica.
+  let pinAntiguo = null;
   const ajustes = cargarAjustes();
+
+  function limpiarAjustesAntiguos(guardados) {
+    const limpios = { ...guardados };
+    if (limpios.pin !== undefined) {
+      if (!pinAntiguo && /^\d{4}$/.test(limpios.pin) && limpios.pin !== '1234') pinAntiguo = limpios.pin;
+      delete limpios.pin;
+    }
+    if (limpios.mensajePausa === MENSAJE_PAUSA_ANTIGUO) limpios.mensajePausa = AJUSTES_BASE.mensajePausa;
+    return limpios;
+  }
 
   function cargarAjustes() {
     if (eventoActivo && eventoActivo.ajustes) {
-      return { ...AJUSTES_BASE, ...eventoActivo.ajustes };
+      return { ...AJUSTES_BASE, ...limpiarAjustesAntiguos(eventoActivo.ajustes) };
     }
     try {
       const guardado = JSON.parse(localStorage.getItem(AJUSTES_CLAVE) || '{}');
-      return { ...AJUSTES_BASE, ...guardado };
+      return { ...AJUSTES_BASE, ...limpiarAjustesAntiguos(guardado) };
     } catch (e) {
       return { ...AJUSTES_BASE };
     }
@@ -158,6 +176,20 @@
   let gifGeneracion = 0;
   let eventoActual = eventoActivo ? { id: eventoActivo.id, nombre: eventoActivo.nombre } : { id: 'demo', nombre: 'Sesión de prueba' };
   let sesionActual = null;
+
+  // Cola de guardado: cada escritura a disco espera a la anterior, así dos fotos seguidas nunca
+  // se pisan al actualizar el registro de la misma sesión y el orden en disco es el real.
+  let colaGuardado = Promise.resolve();
+  function encolarGuardado(tarea) {
+    // Cada tarea tiene un tope de tiempo: un guardado colgado no debe frenar a los siguientes.
+    const conTope = () => Promise.race([tarea(), new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('guardado demorado')), 8000))]);
+    const siguiente = colaGuardado.then(conTope);
+    colaGuardado = siguiente.catch(() => {});
+    return siguiente;
+  }
+  function avisarFalloDeGuardado() {
+    showNotice('No se pudo guardar la foto en este equipo.');
+  }
 
   // Estado de pausa/cancelación cooperativo: las esperas consultan estos flags en cada tick
   // para poder cortar o congelar un countdown/interstitial en curso.
@@ -281,7 +313,6 @@
     seleccionarOpcion('pause', ajustes.pausa);
     seleccionarOpcion('return', ajustes.volver);
     pauseMessageInput.value = ajustes.mensajePausa;
-    pinInput.value = ajustes.pin;
     actualizarResumenPlantilla();
     aplicarEspejo();
   }
@@ -334,7 +365,7 @@
     AlmacenEventos.setActivo(id);
     const evento = AlmacenEventos.obtener(id);
     if (evento && evento.ajustes) {
-      Object.assign(ajustes, evento.ajustes);
+      Object.assign(ajustes, limpiarAjustesAntiguos(evento.ajustes));
       aplicarAjustesAControles();
     }
     actualizarContadorEvento();
@@ -344,13 +375,21 @@
 
   async function actualizarContadorEvento() {
     try {
-      const sesiones = await AlmacenSesiones.listar(eventoActual.id);
-      if (!sesiones.length) {
+      const registros = await AlmacenSesiones.listarRegistros(eventoActual.id);
+      const completas = registros.filter((r) => r.estado === 'compuesta' || r.estado === 'finalizada');
+      const incompletas = registros.filter((r) => r.estado === 'incompleta' || r.estado === 'fallida').length;
+      if (!completas.length && !incompletas) {
         templateStats.textContent = 'Sin sesiones todavía';
         return;
       }
-      const ultima = new Date(sesiones[0].fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-      templateStats.textContent = `${sesiones.length} ${sesiones.length === 1 ? 'sesión' : 'sesiones'} · última ${ultima}`;
+      const partes = [];
+      if (completas.length) {
+        const ultima = new Date(completas[0].fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        partes.push(`${completas.length} ${completas.length === 1 ? 'sesión' : 'sesiones'}`);
+        partes.push(`última ${ultima}`);
+      }
+      if (incompletas) partes.push(`${incompletas} ${incompletas === 1 ? 'incompleta' : 'incompletas'}`);
+      templateStats.textContent = partes.join(' · ');
     } catch (e) {
       templateStats.textContent = '';
     }
@@ -455,7 +494,7 @@
       cabin.classList.add('is-connected');
       connectHint.classList.remove('stage-hint--error');
       setCameraStatus('ready', 'Cámara lista');
-      connectHint.textContent = `Todo listo. Lanzá el evento cuando quieras. Durante el evento, tocá "Operador" e ingresá el PIN ${ajustes.pin} para volver acá.`;
+      connectHint.textContent = `Todo listo. Lanza el evento cuando quieras. Durante el evento, toca "Operador" e ingresa tu PIN para volver aquí.`;
       connectBtn.textContent = 'Cámara conectada';
       launchBtn.disabled = false;
       poblarSelectorCamaras();
@@ -485,10 +524,10 @@
   // Cada causa pide una acción distinta del operador, así que cada una tiene su mensaje.
   function mensajeErrorCamara(e) {
     const nombre = e && e.name;
-    if (nombre === 'NotAllowedError' || nombre === 'SecurityError') return 'El navegador no tiene permiso para usar la cámara. Tocá el candado de la barra de direcciones y permití la cámara.';
-    if (nombre === 'NotFoundError' || nombre === 'OverconstrainedError') return 'No encontramos ninguna cámara conectada. Revisá el cable USB y volvé a intentar.';
-    if (nombre === 'NotReadableError' || nombre === 'AbortError') return 'La cámara está siendo usada por otro programa. Cerrá las otras apps de cámara (Zoom, Teams, la app de Cámara) y reintentá.';
-    return 'No pudimos abrir la cámara. Revisá que esté conectada y reintentá.';
+    if (nombre === 'NotAllowedError' || nombre === 'SecurityError') return 'El navegador no tiene permiso para usar la cámara. Toca el candado de la barra de direcciones y permite la cámara.';
+    if (nombre === 'NotFoundError' || nombre === 'OverconstrainedError') return 'No encontramos ninguna cámara conectada. Revisa el cable USB y vuelve a intentar.';
+    if (nombre === 'NotReadableError' || nombre === 'AbortError') return 'La cámara está siendo usada por otro programa. Cierra las otras apps de cámara (Zoom, Teams, la app de Cámara) y reintenta.';
+    return 'No pudimos abrir la cámara. Revisa que esté conectada y reintenta.';
   }
 
   // Si la cámara se desconecta después de conectar (cable flojo, batería de la DSLR), el
@@ -504,7 +543,7 @@
         connectBtn.disabled = false;
         connectBtn.textContent = 'Reconectar cámara';
         launchBtn.disabled = true;
-        mostrarErrorEnPanelCamara('Se perdió la conexión con la cámara. Revisá el cable y tocá "Reconectar cámara".');
+        mostrarErrorEnPanelCamara('Se perdió la conexión con la cámara. Revisa el cable y toca "Reconectar cámara".');
       });
     });
   }
@@ -552,6 +591,14 @@
 
   // ---------- Modo invitado: entrar / salir ----------
 
+  // Primera vez en este equipo: antes de lanzar hay que crear el PIN de operador, porque sin
+  // él nadie podría volver a los controles (ni existe un PIN de fábrica que adivinar).
+  function pedirLanzamiento() {
+    cerrarDrawer();
+    if (AjustesEquipo.estadoPin().definido) launchEvent();
+    else abrirPin('crear', launchEvent);
+  }
+
   function launchEvent() {
     cerrarDrawer();
     cerrarProximamente();
@@ -568,6 +615,7 @@
   function exitEvent() {
     detenerTemporizadorInicio();
     if (sessionActive) cancelRequested = true;
+    cerrarSesionAbierta();
     cabin.classList.remove('is-guest-mode');
     sessionActive = false;
     paused = false;
@@ -589,6 +637,7 @@
 
   function enterIdle() {
     detenerTemporizadorInicio();
+    cerrarSesionAbierta();
     photos = [];
     finalBlob = null;
     gifBlob = null;
@@ -614,6 +663,61 @@
     await captureAllPhotos(0);
   }
 
+  // ---------- Sesión en disco: cada foto se guarda en el instante de tomarla ----------
+  // (docs/ARQUITECTURA_FLUJO.md §4 A3 y §5.3). Si se corta la luz o se cierra la página a mitad
+  // de la sesión, las fotos ya tomadas existen: la sesión queda "incompleta" en la galería.
+
+  function asegurarSesion() {
+    if (!sesionActual) {
+      const ahora = new Date().toISOString();
+      sesionActual = {
+        id: AlmacenSesiones.nuevoId(),
+        evento: eventoActual.id,
+        eventoNombre: eventoActual.nombre,
+        fecha: ahora,
+        iniciadaEn: ahora,
+        estado: 'capturando',
+        fotosEsperadas: ajustes.fotos,
+        esEnsayo: false,
+        error: null,
+        fotos: [],
+        intentosFotos: [],
+      };
+    }
+    return sesionActual;
+  }
+
+  // Cambia el estado de la sesión y lo deja escrito (después de las fotos que ya estaban en cola).
+  function marcarEstado(estado, extra) {
+    const sesion = sesionActual;
+    if (!sesion) return Promise.resolve();
+    sesion.estado = estado;
+    Object.assign(sesion, extra || {});
+    return encolarGuardado(async () => {
+      if ((sesion.intentosFotos || []).length === 0) return; // aún no hay nada en disco
+      await AlmacenSesiones.guardarRegistro(sesion);
+    }).catch(() => avisarFalloDeGuardado()).then(actualizarContadorEvento);
+  }
+
+  function guardarFotoAhora(indice) {
+    const sesion = asegurarSesion();
+    const dataUrl = photos[indice];
+    return encolarGuardado(() => AlmacenSesiones.guardarFoto(sesion, indice + 1, dataUrl))
+      .catch(() => avisarFalloDeGuardado());
+  }
+
+  // El invitado se fue o la sesión se cortó antes de terminar: las fotos tomadas se conservan.
+  function cerrarSesionAbierta() {
+    const sesion = sesionActual;
+    if (!sesion || !AlmacenSesiones.ESTADOS_ABIERTOS.includes(sesion.estado)) return;
+    sesion.estado = 'incompleta';
+    sesion.terminadaEn = new Date().toISOString();
+    encolarGuardado(async () => {
+      if ((sesion.intentosFotos || []).length === 0) return; // sin fotos no hay nada que conservar
+      await AlmacenSesiones.guardarRegistro(sesion);
+    }).catch(() => avisarFalloDeGuardado()).then(actualizarContadorEvento);
+  }
+
   function beginCapture() {
     sessionActive = true;
     cancelRequested = false;
@@ -630,12 +734,15 @@
 
   async function captureAllPhotos(startIndex) {
     beginCapture();
+    asegurarSesion();
+    sesionActual.estado = 'capturando';
     try {
       const total = ajustes.fotos;
       for (let i = startIndex; i < total; i++) {
         countdownLabel.textContent = `Foto ${i + 1} de ${total}`;
         await countdown(ajustes.cuenta);
         photos[i] = capture();
+        guardarFotoAhora(i);
 
         if (i < total - 1 && ajustes.pausa > 0) {
           countdownLayer.dataset.visible = 'false';
@@ -713,7 +820,21 @@
     pauseOverlay.dataset.visible = 'false';
   }
 
-  // ---------- PIN de operador ----------
+  // ---------- PIN de operador (del equipo, no del evento) ----------
+  // El PIN vive en shared/equipo.js: con hash, sin valor de fábrica y con bloqueo tras intentos
+  // fallidos que sobrevive a recargar la página. Este teclado sirve para tres cosas:
+  //   entrar  -> volver a los controles de operador desde el modo invitado
+  //   crear   -> primera vez en este equipo: elegir el PIN antes de lanzar el evento
+  //   cambiar -> Ajustes > Cambiar PIN (pide el actual, luego el nuevo dos veces)
+  const TEXTOS_PIN = {
+    actual: 'Ingresa tu PIN actual.',
+    verificar: 'Ingresa el PIN para volver a los controles.',
+    nuevo: 'Elige un PIN de 4 dígitos.',
+    repetir: 'Repite el PIN para confirmarlo.',
+  };
+  let pinFlujo = null; // { modo, pasos, paso, nuevo, alTerminar }
+  let pinOcupado = false;
+  let relojBloqueo = null;
 
   function renderPinDots() {
     Array.from(pinDots.children).forEach((dot, i) => {
@@ -721,13 +842,60 @@
     });
   }
 
-  function abrirPin() {
+  function pinMensaje(texto, esError) {
+    pinHint.textContent = texto;
+    pinHint.classList.toggle('pin-hint--error', !!esError);
+    pinDots.classList.toggle('pin-dots--error', !!esError);
+  }
+
+  function formatearRestante(ms) {
+    const total = Math.ceil(ms / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  function pasoPideVerificar() {
+    const paso = pinFlujo && pinFlujo.pasos[pinFlujo.paso];
+    return paso === 'actual' || paso === 'verificar';
+  }
+
+  // Mientras el equipo está bloqueado por intentos fallidos, el teclado se desactiva y muestra
+  // cuánto falta. Al vencer el bloqueo vuelve solo a pedir el PIN.
+  function actualizarBloqueoPin() {
+    clearInterval(relojBloqueo);
+    relojBloqueo = null;
+    if (!pinFlujo || !pasoPideVerificar()) { pinPad.classList.remove('is-locked'); return; }
+    const estado = AjustesEquipo.estadoPin();
+    pinPad.classList.toggle('is-locked', estado.bloqueado);
+    if (!estado.bloqueado) {
+      if (pinHint.dataset.bloqueo === 'true') {
+        pinHint.dataset.bloqueo = 'false';
+        pinMensaje(TEXTOS_PIN[pinFlujo.pasos[pinFlujo.paso]], false);
+      }
+      return;
+    }
+    pinHint.dataset.bloqueo = 'true';
     pinBuffer = '';
     renderPinDots();
-    pinDots.classList.remove('pin-dots--error');
-    pinHint.classList.remove('pin-hint--error');
-    pinHint.textContent = 'Ingresá el PIN para volver a los controles.';
+    pinMensaje(`Demasiados intentos. Vuelve a intentar en ${formatearRestante(estado.restanteMs)}.`, true);
+    relojBloqueo = setInterval(actualizarBloqueoPin, 1000);
+  }
+
+  function mostrarPaso() {
+    pinBuffer = '';
+    renderPinDots();
+    pinHint.dataset.bloqueo = 'false';
+    pinMensaje(TEXTOS_PIN[pinFlujo.pasos[pinFlujo.paso]], false);
+    pinTitle.textContent = pinFlujo.modo === 'entrar' ? 'Acceso de operador' : (pinFlujo.modo === 'crear' ? 'Crea tu PIN de operador' : 'Cambiar PIN');
+    actualizarBloqueoPin();
+  }
+
+  function abrirPin(modo = 'entrar', alTerminar = null) {
+    const definido = AjustesEquipo.estadoPin().definido;
+    if (modo === 'entrar' && !definido) { exitEvent(); return; } // sin PIN en el equipo, nadie queda encerrado
+    const pasos = modo === 'entrar' ? ['verificar'] : (definido ? ['actual', 'nuevo', 'repetir'] : ['nuevo', 'repetir']);
+    pinFlujo = { modo: modo === 'entrar' ? 'entrar' : (definido ? 'cambiar' : 'crear'), pasos, paso: 0, nuevo: '', alTerminar };
     pinOverlay.dataset.visible = 'true';
+    mostrarPaso();
     if (sessionActive && !paused) {
       pauseSession();
       pausadoPorPin = true;
@@ -735,8 +903,12 @@
   }
 
   function cerrarPin() {
+    clearInterval(relojBloqueo);
+    relojBloqueo = null;
     pinOverlay.dataset.visible = 'false';
     pinBuffer = '';
+    pinFlujo = null;
+    pinPad.classList.remove('is-locked');
     if (pausadoPorPin) {
       pausadoPorPin = false;
       resumeSession();
@@ -747,28 +919,95 @@
     return pinOverlay.dataset.visible === 'true';
   }
 
+  async function pinCompleto() {
+    const flujo = pinFlujo;
+    const paso = flujo.pasos[flujo.paso];
+    pinOcupado = true;
+    try {
+      if (paso === 'verificar' || paso === 'actual') {
+        const resultado = await AjustesEquipo.verificarPin(pinBuffer);
+        if (pinFlujo !== flujo) return; // se canceló mientras se verificaba
+        if (resultado.ok) {
+          if (paso === 'verificar') { pausadoPorPin = false; cerrarPin(); exitEvent(); return; }
+          flujo.paso += 1;
+          mostrarPaso();
+          return;
+        }
+        if (resultado.bloqueado) { actualizarBloqueoPin(); return; }
+        const quedan = resultado.intentosRestantes;
+        pinMensaje(`PIN incorrecto. ${quedan === 1 ? 'Te queda 1 intento' : `Te quedan ${quedan} intentos`}.`, true);
+        await sleep(700);
+        if (pinFlujo !== flujo) return;
+        pinBuffer = '';
+        renderPinDots();
+        pinDots.classList.remove('pin-dots--error');
+        return;
+      }
+
+      if (paso === 'nuevo') {
+        const problema = AjustesEquipo.problemaConPin(pinBuffer);
+        if (problema) {
+          pinMensaje(problema, true);
+          await sleep(900);
+          if (pinFlujo === flujo) mostrarPaso();
+          return;
+        }
+        flujo.nuevo = pinBuffer;
+        flujo.paso += 1;
+        mostrarPaso();
+        return;
+      }
+
+      if (paso === 'repetir') {
+        if (pinBuffer !== flujo.nuevo) {
+          pinMensaje('Los PIN no coinciden. Empecemos de nuevo.', true);
+          await sleep(900);
+          if (pinFlujo !== flujo) return;
+          flujo.paso = flujo.pasos.indexOf('nuevo');
+          flujo.nuevo = '';
+          mostrarPaso();
+          return;
+        }
+        const guardado = await AjustesEquipo.definirPin(flujo.nuevo);
+        if (pinFlujo !== flujo) { actualizarEstadoPin(); return; } // se canceló: el PIN quedó guardado pero no se lanza nada
+        if (!guardado.ok) {
+          pinMensaje(guardado.motivo, true);
+          await sleep(1200);
+          if (pinFlujo !== flujo) return;
+          flujo.paso = flujo.pasos.indexOf('nuevo');
+          mostrarPaso();
+          return;
+        }
+        cerrarPin();
+        actualizarEstadoPin();
+        if (flujo.modo === 'cambiar') showNotice('Listo, cambiaste tu PIN.');
+        if (flujo.alTerminar) flujo.alTerminar();
+      }
+    } finally {
+      pinOcupado = false;
+    }
+  }
+
   async function teclaPin(key) {
+    if (pinOcupado) return;
     if (key === 'cancel') { cerrarPin(); return; }
+    if (pinPad.classList.contains('is-locked')) return;
     if (key === 'back') { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return; }
     if (!/^\d$/.test(key) || pinBuffer.length >= 4) return;
 
     pinBuffer += key;
     renderPinDots();
     if (pinBuffer.length < 4) return;
+    await pinCompleto();
+  }
 
-    if (pinBuffer === ajustes.pin) {
-      pausadoPorPin = false;
-      exitEvent();
-      return;
-    }
-
-    pinDots.classList.add('pin-dots--error');
-    pinHint.classList.add('pin-hint--error');
-    pinHint.textContent = 'PIN incorrecto.';
-    await sleep(600);
-    pinBuffer = '';
-    renderPinDots();
-    pinDots.classList.remove('pin-dots--error');
+  // Estado del PIN en Ajustes: dice si ya hay uno y deja cambiarlo (nunca lo muestra).
+  function actualizarEstadoPin() {
+    const definido = AjustesEquipo.estadoPin().definido;
+    pinChangeBtn.textContent = definido ? 'Cambiar PIN' : 'Crear PIN';
+    pinStatus.textContent = definido
+      ? 'Es el mismo para todos los eventos de este equipo.'
+      : 'Aún no tienes PIN. Se te pedirá crearlo al lanzar el evento.';
   }
 
   // ---------- Miniatura reusable con chips de acción (revisión, resultado y galería) ----------
@@ -814,6 +1053,7 @@
       reviewStrip.appendChild(buildThumb(src, index, [accionRepetir(retakeSinglePhoto)]));
     });
     review.hidden = false;
+    marcarEstado('revision');
   }
 
   async function recaptureOne(index) {
@@ -822,6 +1062,7 @@
     try {
       await countdown(ajustes.cuenta);
       photos[index] = capture();
+      guardarFotoAhora(index);
       endCapture();
       return true;
     } catch (e) {
@@ -848,7 +1089,18 @@
   async function confirmAndCompose() {
     review.hidden = true;
     composing.hidden = false;
-    await compose();
+    marcarEstado('componiendo', { error: null });
+    try {
+      await compose();
+    } catch (e) {
+      // La tira no se pudo armar: las fotos originales siguen a salvo en disco. La sesión queda
+      // "fallida" con el paso donde falló y el invitado puede volver a intentar desde la revisión.
+      composing.hidden = true;
+      showReview();
+      await marcarEstado('fallida', { error: { paso: 'componiendo', mensaje: String((e && e.message) || e) } });
+      showNotice('No se pudo armar la tira. Toca "Confirmar" para intentarlo de nuevo.');
+      return;
+    }
     composing.hidden = true;
     setResultTab('strip');
     result.hidden = false;
@@ -932,8 +1184,8 @@
   function mostrarQrEntrega() {
     if (qrEntregaTimeout) clearTimeout(qrEntregaTimeout);
     qrCard.dataset.state = 'waiting';
-    qrCardTitle.textContent = 'Llevate tus fotos';
-    qrCardSub.textContent = 'Escaneá el código con tu celular';
+    qrCardTitle.textContent = 'Llévate tus fotos';
+    qrCardSub.textContent = 'Escanea el código con tu celular';
 
     const idSesion = (sesionActual && sesionActual.id) || 'demo';
     const urlMuestra = `https://fotocabina.app/s/${idSesion}`;
@@ -950,27 +1202,21 @@
     qrEntregaTimeout = setTimeout(() => {
       qrCard.dataset.state = 'done';
       qrCardTitle.textContent = 'Descargado';
-      qrCardSub.textContent = 'Ya lo tenés en tu celular';
+      qrCardSub.textContent = 'Ya lo tienes en tu celular';
     }, 6000);
   }
 
-  // La sesión se guarda sola apenas se arma la tira: si el invitado se va sin tocar "Finalizar",
-  // el operador igual la encuentra en la galería para reimprimir o reenviar.
+  // Al armar la tira se guardan la tira y el estado "compuesta". Las fotos ya estaban en disco
+  // desde que se tomaron; si alguna no se pudo guardar entonces, aquí se reintenta.
   async function guardarSesionActual() {
-    if (!sesionActual) {
-      sesionActual = {
-        id: AlmacenSesiones.nuevoId(),
-        evento: eventoActual.id,
-        eventoNombre: eventoActual.nombre,
-        fecha: new Date().toISOString(),
-        estado: 'compuesta',
-      };
-    }
-    sesionActual.fotos = photos.slice();
-    sesionActual.tira = finalBlob;
-    sesionActual.gif = gifBlob;
+    const sesion = asegurarSesion();
+    sesion.fotos = photos.slice();
+    sesion.tira = finalBlob;
+    sesion.gif = gifBlob;
+    sesion.estado = 'compuesta';
+    sesion.error = null;
     try {
-      await AlmacenSesiones.guardar(sesionActual);
+      await encolarGuardado(() => AlmacenSesiones.guardar(sesion));
     } catch (e) {
       showNotice('No se pudo guardar la sesión en este equipo.');
     }
@@ -1006,8 +1252,9 @@
     gifStatus.textContent = '';
 
     if (sesionActual) {
-      sesionActual.gif = gifBlob;
-      try { await AlmacenSesiones.guardar(sesionActual); } catch (e) { /* ya se avisó al guardar la tira */ }
+      const sesion = sesionActual;
+      sesion.gif = gifBlob;
+      try { await encolarGuardado(() => AlmacenSesiones.guardar(sesion)); } catch (e) { /* ya se avisó al guardar la tira */ }
     }
   }
 
@@ -1119,6 +1366,19 @@
     liberarUrls();
   }
 
+  // Etiqueta visible solo para las sesiones que no terminaron bien (el resto no lleva marca).
+  function etiquetaEstado(sesion) {
+    if (sesion.estado === 'incompleta') return 'Incompleta';
+    if (sesion.estado === 'fallida') return 'No se armó la tira';
+    return '';
+  }
+
+  function textoFotos(sesion) {
+    const tomadas = sesion.fotos.filter(Boolean).length;
+    if (sesion.estado === 'incompleta' && sesion.fotosEsperadas) return `${tomadas} de ${sesion.fotosEsperadas} fotos`;
+    return `${tomadas} ${tomadas === 1 ? 'foto' : 'fotos'}`;
+  }
+
   async function renderGaleria() {
     liberarUrls();
     galleryGrid.innerHTML = '';
@@ -1136,15 +1396,29 @@
       card.className = 'gallery-card';
 
       const img = document.createElement('img');
-      img.alt = 'Tira de la sesión';
-      img.src = sesion.tira ? crearUrl(sesion.tira) : (sesion.fotos[0] || '');
+      img.alt = sesion.tira ? 'Tira de la sesión' : 'Primera foto de la sesión';
+      img.src = sesion.tira ? crearUrl(sesion.tira) : (sesion.fotos.find(Boolean) || '');
       card.appendChild(img);
 
       const meta = document.createElement('div');
       meta.className = 'gallery-card-meta';
       const nombreEvento = filtroGaleria === 'all' ? ` · ${sesion.eventoNombre}` : '';
-      meta.innerHTML = `<span class="gallery-card-time">${formatearFecha(sesion.fecha)}</span><span class="gallery-card-count">${sesion.fotos.length} fotos${nombreEvento}</span>`;
+      const tiempo = document.createElement('span');
+      tiempo.className = 'gallery-card-time';
+      tiempo.textContent = formatearFecha(sesion.fecha);
+      const cuenta = document.createElement('span');
+      cuenta.className = 'gallery-card-count';
+      cuenta.textContent = `${textoFotos(sesion)}${nombreEvento}`;
+      meta.appendChild(tiempo);
+      meta.appendChild(cuenta);
       card.appendChild(meta);
+      const etiqueta = etiquetaEstado(sesion);
+      if (etiqueta) {
+        const marca = document.createElement('span');
+        marca.className = 'gallery-card-badge';
+        marca.textContent = etiqueta;
+        card.appendChild(marca);
+      }
 
       card.addEventListener('click', () => mostrarDetalle(sesion));
       galleryGrid.appendChild(card);
@@ -1155,14 +1429,18 @@
     sesionDetalle = sesion;
     galleryList.hidden = true;
     galleryDetail.hidden = false;
-    detailStrip.src = sesion.tira ? crearUrl(sesion.tira) : (sesion.fotos[0] || '');
-    detailMeta.textContent = `${sesion.eventoNombre} · ${formatearFecha(sesion.fecha)} · ${sesion.fotos.length} fotos`;
+    detailStrip.src = sesion.tira ? crearUrl(sesion.tira) : (sesion.fotos.find(Boolean) || '');
+    const etiqueta = etiquetaEstado(sesion);
+    detailMeta.textContent = `${sesion.eventoNombre} · ${formatearFecha(sesion.fecha)} · ${textoFotos(sesion)}${etiqueta ? ` · ${etiqueta}` : ''}`;
+    detailPrintBtn.disabled = !sesion.tira;
+    detailDownloadBtn.disabled = !sesion.tira;
     detailGifBtn.disabled = !sesion.gif;
     detailDeleteBtn.textContent = 'Eliminar sesión';
     detailDeleteBtn.dataset.confirm = 'false';
 
     detailPhotos.innerHTML = '';
     sesion.fotos.forEach((src, index) => {
+      if (!src) return;
       detailPhotos.appendChild(buildThumb(src, index, [accionDescargarFoto(() => sesion.fotos)]));
     });
   }
@@ -1176,11 +1454,48 @@
 
   // ---------- Wiring ----------
 
+  // Migración al PIN del equipo (una sola vez): el PIN propio que el operador ya había elegido
+  // pasa al equipo y se borra de los eventos guardados; el de fábrica (1234) simplemente se descarta.
+  // De paso se corrige el mensaje de pausa antiguo (voseo) en los eventos ya guardados.
+  async function migrarPinAlEquipo() {
+    if (typeof AlmacenEventos !== 'undefined') {
+      try {
+        AlmacenEventos.listar().forEach((evento) => {
+          const a = evento.ajustes;
+          if (a && (a.pin !== undefined || a.mensajePausa === MENSAJE_PAUSA_ANTIGUO)) {
+            if (!pinAntiguo && /^\d{4}$/.test(a.pin) && a.pin !== '1234') pinAntiguo = a.pin;
+            delete a.pin;
+            if (a.mensajePausa === MENSAJE_PAUSA_ANTIGUO) a.mensajePausa = AJUSTES_BASE.mensajePausa;
+            AlmacenEventos.guardar(evento);
+          }
+        });
+      } catch (e) { /* sin persistencia disponible */ }
+    }
+    if (pinAntiguo) await AjustesEquipo.migrarPinAntiguo(pinAntiguo);
+    // El PIN viejo también podía estar en los ajustes sueltos del equipo: se borra de ahí.
+    try {
+      const sueltos = JSON.parse(localStorage.getItem(AJUSTES_CLAVE) || 'null');
+      if (sueltos && sueltos.pin !== undefined) {
+        if (/^\d{4}$/.test(sueltos.pin) && sueltos.pin !== '1234' && !AjustesEquipo.estadoPin().definido) await AjustesEquipo.migrarPinAntiguo(sueltos.pin);
+        localStorage.setItem(AJUSTES_CLAVE, JSON.stringify(limpiarAjustesAntiguos(sueltos)));
+      }
+    } catch (e) { /* sin persistencia disponible */ }
+    actualizarEstadoPin();
+  }
+  migrarPinAlEquipo();
+
+  // Al abrir la cabina no hay ninguna sesión de invitado en curso: lo que quedó a medias (cierre
+  // de la página, corte de luz) pasa a "incompleta" con las fotos que alcanzaron a guardarse.
+  AlmacenSesiones.marcarIncompletas().then((n) => {
+    if (n > 0) showNotice(n === 1 ? 'Encontramos 1 sesión que quedó a medias. Sus fotos están en la galería, marcada como incompleta.' : `Encontramos ${n} sesiones que quedaron a medias. Sus fotos están en la galería, marcadas como incompletas.`);
+    actualizarContadorEvento();
+  }).catch(() => {});
+
   poblarSelectorEventos();
   initSelects();
 
   connectBtn.addEventListener('click', connectCamera);
-  launchBtn.addEventListener('click', launchEvent);
+  launchBtn.addEventListener('click', pedirLanzamiento);
   galleryBtn.addEventListener('click', abrirGaleria);
   aplicarAjustesAControles();
   actualizarContadorEvento();
@@ -1218,24 +1533,14 @@
     ajustes.mensajePausa = pauseMessageInput.value.trim() || AJUSTES_BASE.mensajePausa;
     guardarAjustes();
   });
-  pinInput.addEventListener('input', () => {
-    const valor = pinInput.value.replace(/\D/g, '').slice(0, 4);
-    pinInput.value = valor;
-    const valido = valor.length === 4;
-    pinInput.setAttribute('aria-invalid', String(!valido));
-    if (valido) {
-      ajustes.pin = valor;
-      guardarAjustes();
-    }
-  });
-
   guestIdle.addEventListener('click', runSession);
 
   pauseBtn.addEventListener('click', pauseSession);
   resumeBtn.addEventListener('click', resumeSession);
   cancelSessionBtn.addEventListener('click', cancelSession);
 
-  lockBtn.addEventListener('click', abrirPin);
+  lockBtn.addEventListener('click', () => abrirPin('entrar'));
+  pinChangeBtn.addEventListener('click', () => { cerrarDrawer(); abrirPin('cambiar'); });
   pinPad.addEventListener('click', (e) => {
     const key = e.target.closest('[data-key]');
     if (key) teclaPin(key.dataset.key);
@@ -1248,8 +1553,9 @@
     detenerTemporizadorInicio();
     result.hidden = true;
     if (sesionActual) {
-      try { await AlmacenSesiones.borrar(sesionActual.id); } catch (e) { /* si falla, quedará en la galería */ }
+      const sesion = sesionActual;
       sesionActual = null;
+      try { await encolarGuardado(() => AlmacenSesiones.borrar(sesion.id)); } catch (e) { /* si falla, quedará en la galería */ }
       actualizarContadorEvento();
     }
     gifBlob = null;
@@ -1258,8 +1564,10 @@
 
   finishBtn.addEventListener('click', async () => {
     if (sesionActual) {
-      sesionActual.estado = 'finalizada';
-      try { await AlmacenSesiones.guardar(sesionActual); } catch (e) { /* ya guardada al componer */ }
+      const sesion = sesionActual;
+      sesion.estado = 'finalizada';
+      sesion.terminadaEn = new Date().toISOString();
+      try { await encolarGuardado(() => AlmacenSesiones.guardarRegistro(sesion)); } catch (e) { /* ya guardada al componer */ }
     }
     enterIdle();
   });
@@ -1311,7 +1619,7 @@
     if (!sesionDetalle) return;
     if (detailDeleteBtn.dataset.confirm !== 'true') {
       detailDeleteBtn.dataset.confirm = 'true';
-      detailDeleteBtn.textContent = 'Tocá de nuevo para eliminar';
+      detailDeleteBtn.textContent = 'Toca de nuevo para eliminar';
       return;
     }
     try {
@@ -1349,7 +1657,7 @@
     if (e.key === 'Escape' && cabin.classList.contains('is-guest-mode')) {
       e.preventDefault();
       if (sessionActive) cancelSession();
-      else abrirPin();
+      else abrirPin('entrar');
       return;
     }
 
