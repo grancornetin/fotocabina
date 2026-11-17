@@ -186,10 +186,8 @@
 
     if (aviso) {
       aviso.hidden = estadoPlantilla.modo !== 'invalida';
-      q('#templateAvisoTexto').textContent = estadoPlantilla.modo !== 'invalida' ? ''
-        : estadoPlantilla.sinAsignar
-          ? 'Este evento todavía no tiene una plantilla. Elige o crea una en el editor para poder lanzarlo.'
-          : `Este evento no tiene una plantilla válida: ${estadoPlantilla.motivo}. Elige o crea una en el editor.`;
+      // El motivo ya viene redactado por el validador (shared/validador-evento.js).
+      q('#templateAvisoTexto').textContent = estadoPlantilla.modo !== 'invalida' ? '' : estadoPlantilla.motivo;
     }
     if (dibujoBase && miniatura) {
       const conMiniatura = !!plantillaActiva && !!miniatura.getAttribute('src');
@@ -199,10 +197,71 @@
     actualizarLanzamiento();
   }
 
-  // "Lanzar evento" solo se ofrece con la cámara lista y una plantilla que se pueda dibujar (o en demostración).
+  // ---------- Validador del evento (hito 0.3) ----------
+  // Qué impide lanzar, y qué conviene saber, lo decide shared/validador-evento.js (una sola regla para
+  // todas las pantallas). Aquí solo se arma la foto del estado en vivo y se muestra el resultado.
+
+  // Cámaras en vivo: nada conectado = lista vacía (el validador bloquea); conectada = la activa (con su
+  // resolución real) más las demás que el navegador lista.
+  function camarasVivas() {
+    if (!cabin.classList.contains('is-connected')) return [];
+    const pista = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    const aj = pista && pista.getSettings ? pista.getSettings() : {};
+    const id = aj.deviceId || ajustes.camaraId || 'activa';
+    const propia = camarasListadas.find((c) => c.id === id);
+    const activa = { id, etiqueta: (propia && propia.etiqueta) || 'Cámara conectada', activa: true, anchoPx: aj.width || null, altoPx: aj.height || null };
+    return [activa, ...camarasListadas.filter((c) => c.id !== id)];
+  }
+
+  // La impresora no se puede detectar desde el navegador (impresora: null) y el espacio en disco tampoco.
+  function entradaValidador(evento, plantilla) {
+    const pin = (typeof AjustesEquipo !== 'undefined') ? AjustesEquipo.estadoPin() : null;
+    return {
+      equipo: pin ? { pin: { definido: !!pin.definido } } : null,
+      evento,
+      plantilla,
+      vivo: { camaras: camarasVivas(), impresora: null, espacioLibreMB: null },
+    };
+  }
+
+  // Veredicto actual del evento; null si no aplica (demostración) o todavía se está leyendo la plantilla.
+  function evaluarEvento() {
+    if (estadoPlantilla.modo === 'demo' || estadoPlantilla.modo === 'cargando' || typeof ValidadorEvento === 'undefined') return null;
+    const evento = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoActual.id) : null;
+    return ValidadorEvento.validar(entradaValidador(evento, plantillaParaValidar));
+  }
+
+  // Bloqueos y avisos que no son de la plantilla (esos van en su tarjeta, con botón al editor) ni de la
+  // cámara (el panel de cámara ya lo explica). Breve: máximo 4 líneas.
+  function pintarNotasDeLanzamiento(res) {
+    const lista = q('#launchNotes');
+    if (!lista) return;
+    lista.textContent = '';
+    const notas = res
+      ? [...res.bloqueos, ...res.avisos].filter((n) => (n.grupo !== 'plantilla' || n.gravedad === 'aviso') && n.codigo !== 'SIN_CAMARA' && n.codigo !== 'CAMARA_NO_COMPROBADA')
+      : [];
+    notas.slice(0, 4).forEach((n) => {
+      const li = document.createElement('li');
+      li.className = 'launch-note launch-note--' + n.gravedad;
+      li.textContent = n.mensaje;
+      lista.appendChild(li);
+    });
+    if (notas.length > 4) {
+      const li = document.createElement('li');
+      li.className = 'launch-note';
+      li.textContent = `Y ${notas.length - 4} ${notas.length - 4 === 1 ? 'aviso más' : 'avisos más'}.`;
+      lista.appendChild(li);
+    }
+    lista.hidden = lista.children.length === 0;
+  }
+
+  // "Lanzar evento" solo se ofrece cuando el validador no ve ningún bloqueo (o en demostración, con la cámara lista).
   function actualizarLanzamiento() {
-    const plantillaLista = estadoPlantilla.modo === 'demo' || estadoPlantilla.modo === 'valida';
-    launchBtn.disabled = !cabin.classList.contains('is-connected') || !plantillaLista;
+    const conectada = cabin.classList.contains('is-connected');
+    const res = evaluarEvento();
+    pintarNotasDeLanzamiento(res);
+    const listo = estadoPlantilla.modo === 'demo' ? true : (!!res && res.listo && estadoPlantilla.modo === 'valida');
+    launchBtn.disabled = !conectada || !listo;
   }
 
   const sinPunto = (t) => String(t || '').replace(/\.+$/, '');
@@ -214,44 +273,45 @@
     const token = ++cargaPlantillaId;
     const eventoId = eventoActual.id;
     let nuevoEstado, nueva = null, miniaturaUrl = null; // null = no tocar la miniatura que ya se ve
+    let usaCongelada = false, crudaLeida = null; // crudaLeida: lo que se leyó (objeto, null o ILEGIBLE), tal como lo revisa el validador
     if (eventoId === 'demo') {
       nuevoEstado = { modo: 'demo', motivo: '' };
-    } else if (typeof AlmacenPlantillas === 'undefined' || typeof MotorPlantillas === 'undefined') {
-      nuevoEstado = { modo: 'invalida', motivo: 'faltan componentes de la aplicación' };
+    } else if (typeof AlmacenPlantillas === 'undefined' || typeof MotorPlantillas === 'undefined' || typeof ValidadorEvento === 'undefined') {
+      nuevoEstado = { modo: 'invalida', motivo: 'Faltan componentes de la aplicación: recarga la página.' };
     } else {
       estadoPlantilla = { modo: 'cargando', motivo: '' };
       plantillaActiva = null;
       actualizarLanzamiento();
       const evento = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoId) : null;
       const plantillaId = evento && evento.plantillas && evento.plantillas.porDefecto;
-      if (!plantillaId) {
-        nuevoEstado = { modo: 'invalida', motivo: 'todavía no se eligió ninguna', sinAsignar: true };
-      } else {
-        let hallada = null;
-        try { hallada = await AlmacenPlantillas.obtener(plantillaId); } catch (e) { hallada = null; }
+      let hallada = null;
+      let huboError = false;
+      if (plantillaId) {
+        try { hallada = await AlmacenPlantillas.obtener(plantillaId); } catch (e) { hallada = null; huboError = true; }
         // Recarga con la plantilla viva borrada: si el evento ya se lanzó y su copia congelada sigue en
         // IndexedDB, se usa esa copia (el evento no se bloquea). Sin congelado, sigue bloqueado (decisión 1A).
-        let usaCongelada = false;
         const huellaCongelada = evento && evento.congelado && evento.congelado.plantilla && evento.congelado.plantilla.huella;
         if (!hallada && huellaCongelada && typeof AlmacenSesiones !== 'undefined') {
           try { hallada = await AlmacenSesiones.obtenerCongelada(huellaCongelada); usaCongelada = !!hallada; } catch (e) { hallada = null; }
         }
-        if (!hallada) {
-          nuevoEstado = { modo: 'invalida', motivo: 'la que tenía ya no existe o no se pudo leer' };
-        } else {
-          const v = MotorPlantillas.validarPlantilla(hallada);
-          if (!v.valida) nuevoEstado = { modo: 'invalida', motivo: enMinuscula(v.motivos.map(sinPunto).join('; ')) };
-          else {
-            nuevoEstado = { modo: 'valida', motivo: '', congelada: usaCongelada };
-            nueva = hallada;
-            if (conMiniatura) { try { miniaturaUrl = await MotorPlantillas.miniatura(hallada, 108); } catch (e) { miniaturaUrl = ''; } }
-          }
-        }
+      }
+      // Si la plantilla es válida o no, y por qué, lo dice el validador (la regla vive en un solo lugar).
+      // Si se usa la copia congelada, el validador recibe null (como la lista): así emite el aviso PLANTILLA_SOLO_COPIA_CONGELADA y no bloquea.
+      crudaLeida = usaCongelada ? null : (hallada || (huboError ? ValidadorEvento.ILEGIBLE : null));
+      const res = ValidadorEvento.validar(entradaValidador(evento, crudaLeida));
+      const bloqPlantilla = res.bloqueos.find((b) => b.grupo === 'plantilla');
+      if (bloqPlantilla || !hallada) {
+        nuevoEstado = { modo: 'invalida', motivo: (bloqPlantilla || { mensaje: 'No se pudo leer la copia guardada de la plantilla de este evento. Elige o crea una en el editor.' }).mensaje };
+      } else {
+        nuevoEstado = { modo: 'valida', motivo: '', congelada: usaCongelada };
+        nueva = hallada;
+        if (conMiniatura) { try { miniaturaUrl = await MotorPlantillas.miniatura(hallada, 108); } catch (e) { miniaturaUrl = ''; } }
       }
     }
     if (token !== cargaPlantillaId) return; // llegó una carga más nueva
     if (nueva !== plantillaActiva) { huellaActiva = null; modificadaActiva = null; congeladaOk = false; }
     plantillaActiva = nueva;
+    plantillaParaValidar = crudaLeida;
     estadoPlantilla = nuevoEstado;
     const img = q('#templateThumbImg');
     if (img && miniaturaUrl !== null) { if (miniaturaUrl) img.src = miniaturaUrl; else img.removeAttribute('src'); }
@@ -290,6 +350,7 @@
   // marcada `copiaCongelada: false`.
   async function congelarVigente(plantilla) {
     plantillaActiva = plantilla;
+    plantillaParaValidar = plantilla;
     modificadaActiva = plantilla.modificada || null;
     huellaActiva = await AlmacenPlantillas.huella(plantilla);
     congeladaOk = false;
@@ -359,6 +420,8 @@
   // 'valida' (plantillaActiva lista) o 'invalida' (el evento no se puede lanzar; motivo en palabras simples).
   let plantillaActiva = null;
   let estadoPlantilla = { modo: 'demo', motivo: '' };
+  let plantillaParaValidar = null; // lo último que se leyó de la plantilla (aunque no sirva), para el validador
+  let camarasListadas = [];       // cámaras del equipo que lista el navegador: [{ id, etiqueta }]
   let cargaPlantillaId = 0;
   // Congelado (hito 0.1b): la plantilla con la que se toman las sesiones nuevas. `huellaActiva` es la
   // identidad de ese diseño; `congeladaOk` dice si su copia completa ya está guardada en IndexedDB
@@ -753,6 +816,8 @@
       return;
     }
     if (!dispositivos.length) return;
+    camarasListadas = dispositivos.map((d, i) => ({ id: d.deviceId, etiqueta: d.label || `Cámara ${i + 1}` }));
+    actualizarLanzamiento();
 
     const select = q('.ds-select[data-select="camera"]');
     if (!select) return;
@@ -800,7 +865,7 @@
     try {
       await cargarPlantilla(false); // la plantilla se relee y queda fija para este lanzamiento
     } catch (e) {
-      estadoPlantilla = { modo: 'invalida', motivo: 'no se pudo leer' };
+      estadoPlantilla = { modo: 'invalida', motivo: 'No se pudo leer la plantilla de este evento. Elige o crea una en el editor.' };
       plantillaActiva = null;
       actualizarResumenPlantilla();
     }
@@ -809,6 +874,10 @@
       showNotice('Primero elige una plantilla válida para este evento.');
       return;
     }
+    // Cualquier otro bloqueo del evento (por ejemplo, archivado) también lo dice el validador.
+    const veredicto = evaluarEvento();
+    const otro = veredicto && veredicto.bloqueos.find((b) => b.codigo !== 'SIN_CAMARA');
+    if (otro) { showNotice(otro.mensaje); return; }
     if (!cabin.classList.contains('is-connected')) { showNotice('La cámara no está conectada.'); return; }
     if (plantillaActiva) { try { await congelarVigente(plantillaActiva); } catch (e) { /* la sesión igual queda sin copia congelada */ } }
     if (AjustesEquipo.estadoPin().definido) launchEvent();

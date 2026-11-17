@@ -24,6 +24,8 @@
   // guardadas. null = todavía no se sabe; false = no se pudo leer (no se muestra un número falso).
   var conteo = null;
   var nombresPlantilla = null;
+  // Plantillas completas por id, para que el validador revise cada evento. null = todavía no se leyeron.
+  var plantillasPorId = null;
 
   var eventsGrid = document.getElementById('eventsGrid');
   var eventsEmpty = document.getElementById('eventsEmpty');
@@ -70,6 +72,40 @@
     return texto;
   }
 
+  // ¿Se puede lanzar este evento? Lo decide el validador (shared/validador-evento.js), sin cargar hardware:
+  // cámaras, impresora y disco quedan sin dato (null), así que aquí solo pesan los bloqueos del evento y la plantilla.
+  // Devuelve el primer bloqueo, o null si se puede lanzar o todavía no hay datos para saberlo.
+  // Los eventos archivados no se marcan: su pestaña ya lo dice.
+  function bloqueoDeLanzamiento(evento) {
+    if (typeof ValidadorEvento === 'undefined' || evento.estado === 'archivado') return null;
+    var id = idPlantilla(evento);
+    // Sin datos de plantillas (todavía no cargan o no se pudieron leer) no se puede afirmar que una asignada "ya no existe": no se marca.
+    // Un evento sin ninguna plantilla asignada sí se marca, porque no depende de esa lectura.
+    if (plantillasPorId === null || (!plantillasPorId && id)) return null;
+    var plantilla = id && plantillasPorId ? (plantillasPorId[id] || null) : null;
+    var res = ValidadorEvento.validar({
+      evento: evento,
+      plantilla: plantilla,
+      vivo: { camaras: null, impresora: null, espacioLibreMB: null },
+    });
+    return res.bloqueos[0] || null;
+  }
+
+  function pintarLanzable(parrafo, evento) {
+    var b = bloqueoDeLanzamiento(evento);
+    parrafo.textContent = '';
+    parrafo.hidden = !b;
+    if (!b) return;
+    var etiqueta = document.createElement('span');
+    etiqueta.className = 'ds-badge ds-badge--error';
+    etiqueta.textContent = 'No lanzable';
+    var motivo = document.createElement('span');
+    motivo.className = 'event-card-block-text';
+    motivo.textContent = b.mensaje;
+    parrafo.appendChild(etiqueta);
+    parrafo.appendChild(motivo);
+  }
+
   // Pone al día, en las tarjetas ya dibujadas, lo que llega después de dibujar (nombres y conteo).
   function refrescarDerivados() {
     Array.prototype.forEach.call(eventsGrid.querySelectorAll('.event-card'), function (card) {
@@ -79,6 +115,8 @@
       var sesiones = card.querySelector('[data-campo="sesiones"]');
       if (plantilla) plantilla.textContent = textoPlantilla(evento);
       if (sesiones) sesiones.textContent = textoSesiones(evento);
+      var lanzable = card.querySelector('[data-campo="lanzable"]');
+      if (lanzable) pintarLanzable(lanzable, evento);
     });
   }
 
@@ -86,9 +124,12 @@
     var pNombres = (typeof AlmacenPlantillas !== 'undefined')
       ? AlmacenPlantillas.listar().then(function (lista) {
           var mapa = {};
-          (lista || []).forEach(function (p) { mapa[p.id] = p.nombre; });
+          var completas = {};
+          (lista || []).forEach(function (p) { mapa[p.id] = p.nombre; completas[p.id] = p; });
           nombresPlantilla = mapa;
-        }).catch(function () { nombresPlantilla = false; })
+          // listar() da null si el almacén no existe o está dañado: no se sabe, no se marca nada (no es "ya no existe").
+          plantillasPorId = lista === null ? false : completas;
+        }).catch(function () { nombresPlantilla = false; plantillasPorId = false; })
       : Promise.resolve();
     var pConteo = (typeof AlmacenSesiones !== 'undefined')
       ? AlmacenSesiones.contarPorEvento().then(function (c) { conteo = c; }).catch(function () { conteo = false; })
@@ -112,6 +153,7 @@
           '<span class="ds-badge ' + badgeClase + '">' + estadoLabel[evento.estado] + '</span>' +
         '</div>' +
         '<p class="event-card-meta">' + esc(formatearFecha(evento.fecha)) + ' · <span data-campo="plantilla">' + esc(textoPlantilla(evento)) + '</span></p>' +
+        '<p class="event-card-block" data-campo="lanzable" hidden></p>' +
         '<p class="event-card-stats">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="7" height="7" rx="1.5"/><rect x="13" y="3" width="7" height="7" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></svg>' +
           '<span data-campo="sesiones">' + esc(textoSesiones(evento)) + '</span>' +
@@ -134,6 +176,9 @@
           '</button>' +
         '</div>' +
       '</div>';
+
+    // Cada tarjeta nueva (cambio de pestaña, duplicar, archivar) vuelve a mostrar la marca con los datos ya leidos.
+    pintarLanzable(card.querySelector('[data-campo="lanzable"]'), evento);
 
     card.querySelector('[data-action="lanzar"]').addEventListener('click', function () {
       AlmacenEventos.setActivo(evento.id);

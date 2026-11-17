@@ -25,6 +25,10 @@ Los eventos ya no son datos de prueba en memoria: viven en el almacén compartid
 
 Esta pantalla carga `../shared/almacen-plantillas.js` (nombres de plantilla) y `../01-camera-flow/almacen-sesiones.js` (conteo y borrado de sesiones). La tarjeta se dibuja al instante y esos dos datos se completan en cuanto llegan. Hallazgo: `almacen-sesiones.js` debería vivir en `shared/` (ver `../shared/README.md`).
 
+## "No lanzable" (hito 0.3)
+
+Cada tarjeta de un evento próximo o en curso muestra una etiqueta roja "No lanzable" con el motivo en una frase cuando el validador (`../shared/validador-evento.js`) ve un bloqueo; hoy los casos reales son: sin plantilla asignada, plantilla borrada, ilegible o sin espacios de foto. Se calcula **sin cargar hardware** (cámaras, impresora y disco sin dato) con las plantillas completas que esta pantalla ya lee (`AlmacenPlantillas.listar`), así que aparece junto con el nombre de la plantilla, no antes. Los eventos archivados no se marcan (su pestaña ya lo dice). "Lanzar" sigue funcionando: la cabina vuelve a explicar el motivo y ofrece abrir el editor. Esta pantalla ahora también carga `../shared/motor-plantillas.js` y `../shared/validador-evento.js`.
+
 ## Pendiente
 
 - **Miniatura real:** hoy todas las cards muestran el mismo ícono de cámara placeholder; falta traer la miniatura real de la plantilla o de una foto reciente del evento.

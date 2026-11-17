@@ -1264,6 +1264,12 @@ button { font-family: inherit; }
 .template-aviso { flex: 1 1 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 10px; border-top: 1px solid var(--color-border); }
 .template-aviso[hidden] { display: none; }
 .template-aviso-text { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--color-red); }
+/* Bloqueos y avisos del validador del evento (hito 0.3): breves, debajo de la tarjeta de plantilla */
+.launch-notes { flex: 1 1 100%; list-style: none; margin: 0; padding: 10px 0 0; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 6px; }
+.launch-notes[hidden] { display: none; }
+.launch-note { font-size: 0.8125rem; line-height: 1.4; color: var(--color-fog); }
+.launch-note--bloqueo { color: var(--color-red); }
+.launch-note--aviso { color: var(--color-amber); }
 .template-name { margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--color-bone); }
 .template-meta { margin: 2px 0 0; font-size: 0.75rem; color: var(--color-fog); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .template-card .thumb-chip { position: static; margin-left: 4px; }

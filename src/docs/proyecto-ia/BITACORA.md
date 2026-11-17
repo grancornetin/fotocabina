@@ -107,3 +107,11 @@
 - **Reservas abiertas:** contador no atómico entre pestañas; `almacen-sesiones.js` debería vivir en `shared/`; copias congeladas solo se limpian al borrar el evento; impresión automática y copias aún sin conectar; puente temporal del editor al formato v2; falta la prueba manual del dueño con cámara real y 16:9.
 - **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §7.5, `src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.12, `src/pages/shared/`, `src/pages/01-camera-flow/`, `src/pages/04-lista-eventos/`, `src/pages/05-crear-evento/`.
 - **Estado:** hecho y certificado; pendiente de commit y de la prueba del dueño con cámara real.
+
+## [2026-11-17] hito | 0.3 construido: validador único "evento listo para lanzar"
+- **Quién:** orquestador + equipo (frontend construyó; Code Reviewer corrigió; Evidence Collector certificó; Reality Checker: LISTO CON RESERVAS, su único bloqueo era la documentación, ya hecha).
+- **Qué:** una sola revisión (`shared/validador-evento.js`) decide si un evento se puede lanzar y por qué. La lista de eventos marca "No lanzable" con el motivo y la cabina bloquea "Lanzar evento" explicando el bloqueo. Sin servidor local, la entrega solo digital avisa (no bloquea); la impresora no comprobable en el navegador avisa; el disco bloquea bajo 200 MB (regla inactiva hasta que haya dato real). Pruebas sin dependencias: 55 de 55.
+- **Por qué:** las reglas de "se puede lanzar" estaban desperdigadas (cámara en la cabina, plantilla en otro lado) y una regla cambiada en un sitio no llegaba al otro.
+- **Reservas abiertas:** la cabina duplica su configuración congelada (debe salir del validador); endurecer estados de impresora y cámaras inválidas; acotar el ritmo; reutilizar la regla de tira 2 × 6 del motor; mostrar ritmo y resumen (C2c); pasar el espacio libre real; botón "Lanzar" lima aún visible en una tarjeta "No lanzable"; falta "Reabrir" para archivados (decisión del dueño, hito 1.3); el tope de hojas aún no lo configura ninguna pantalla (hito 1.2). Detalle en `ARQUITECTURA_FLUJO.md` §7.6.
+- **Dónde verlo:** `src/pages/shared/validador-evento.js`, `src/pages/shared/tests-validador.html`, `src/pages/01-camera-flow/`, `src/pages/04-lista-eventos/`, `src/docs/ARQUITECTURA_FLUJO.md` §2.3, §2.4 y §7.6.
+- **Estado:** hecho y certificado; pendiente de commit y de la prueba del dueño en el navegador.

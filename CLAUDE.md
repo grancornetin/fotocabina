@@ -48,6 +48,7 @@ Antes de dar una tarea por terminada:
 - Antes de crear un componente, buscarlo en `00-design-system` o `01-camera-flow` (clases `ds-*`).
 - Textos de interfaz, nombres de archivos, clases y commits en español.
 - Páginas de prueba, capturas y servidores locales viven fuera del repo (carpeta temporal); nunca se commitean.
+- Excepción: `src/pages/shared/tests-validador.html` (pruebas sin dependencias del validador, pedidas en ARQUITECTURA_FLUJO §2.4) sí se commitea.
 - Carpetas de referencia local (`pantallas dslrbooth/`, `ui inspo/`) y el archivo de memoria personal están en `.gitignore`: el repo es público.
 
 <!-- NAVAJA-IA:INICIO (bloque administrado por la skill nuevo-proyecto; edítalo ahí o con cuidado) -->

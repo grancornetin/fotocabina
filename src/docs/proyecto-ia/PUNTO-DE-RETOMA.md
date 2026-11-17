@@ -1,6 +1,14 @@
-# Punto de retoma: orquestador, hitos 0.2 y 1.1
+# Punto de retoma: orquestador, hitos 0.2, 1.1, 0.1b y 0.3
 
-**Estado:** HECHO (0.2 en ad14c88; 1.1 commiteado al cerrar). **Actualizado:** 2026-11-16
+**Estado:** 0.2, 1.1 y 0.1b HECHOS y commiteados; 0.3 HECHO y certificado (2026-11-17), **sin commit**. **Actualizado:** 2026-11-17
+
+## Frontend 0.3 (validador "evento listo para lanzar")
+
+**Estado:** TERMINADO y certificado (Code Reviewer, Evidence Collector, Reality Checker: LISTO CON RESERVAS; documentación hecha). Sin commit ni push (lo hace el orquestador al cerrar).
+- Archivos: `shared/validador-evento.js` (nuevo), `shared/tests-validador.html` (nuevo, 55 de 55 casos, sí se commitea, ver CLAUDE.md §5), `01-camera-flow/{index.html, app.js, styles.css}` (Lanzar usa el validador; lista breve de bloqueos y avisos en `#launchNotes`), `04-lista-eventos/{index.html, app.js, styles.css}` (etiqueta "No lanzable" con motivo), READMEs de `shared/`, `01-camera-flow/` y `04-lista-eventos/`.
+- Pruebas: arnés fuera del repo (`C:/tmp/h03/`), Chrome headless, consola sin errores.
+- Correcciones del Code Reviewer aplicadas: copia congelada = aviso `PLANTILLA_SOLO_COPIA_CONGELADA`; la lista no marca si no pudo leer las plantillas; ritmo acotado; impresora `desconocido`/`unknown` = aviso.
+- Reservas abiertas: ver `ARQUITECTURA_FLUJO.md` §7.6 y el hallazgo 1 del Tablero (`configCongelada()`).
 - 0.1a ya estaba commiteado (fb6c020).
 - Plan: 0.2 (motor compartido `shared/motor-plantillas.js` + lector `shared/almacen-plantillas.js`, el editor pasa a usarlo) -> revisión + prueba del editor -> commit 0.2. Luego 1.1 (cabina con plantilla real) -> revisión -> Evidence Collector -> Reality Checker -> docs -> commit 1.1.
 - Hecho hasta ahora: lectura de documentos y diseño del encargo; reservas en TABLERO.md.

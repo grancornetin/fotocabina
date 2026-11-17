@@ -381,6 +381,7 @@ img, svg { display: block; }
 .ds-badge--ready::before { box-shadow: 0 0 6px rgba(var(--color-lime-rgb),0.9); }
 .ds-badge--warn { color: var(--color-amber); border-color: rgba(255,177,61,0.3); background: rgba(255,177,61,0.08); }
 .ds-badge--idle { color: var(--color-fog); }
+.ds-badge--error { color: var(--color-red); border-color: rgba(255,77,77,0.3); background: rgba(255,77,77,0.08); }
 
 /* ---------- Grid de eventos ---------- */
 
@@ -452,6 +453,18 @@ img, svg { display: block; }
   color: var(--color-fog);
   margin: 0 0 var(--sp-2);
 }
+
+.event-card-block {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0 0 var(--sp-2);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--color-red);
+}
+.event-card-block[hidden] { display: none; }
 
 .event-card-stats {
   display: flex;

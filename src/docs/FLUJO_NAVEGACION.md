@@ -217,6 +217,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 - **Llega:** apertura de la app, o tocando el **logo/"Inicio"** desde la cabina (decisión nueva, resuelve el hueco de vuelta).
 - **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · Duplicar/Archivar/Eliminar actúan en la misma vista.
 - **Feliz:** ve eventos por tabs (Próximos/En curso/Archivados), toca "Lanzar" en el de hoy.
+- **"Lanzar" y el validador (hito 0.3, 2026-11-17):** la lista decide con el validador único (`shared/validador-evento.js`) si el evento es lanzable y marca "No lanzable" con el motivo; la cabina vuelve a revisar al abrirse y es quien explica el bloqueo. Hueco: la card "No lanzable" aún muestra su botón "Lanzar" lima; y falta "Reabrir" para archivados (hito 1.3).
 - **Errores/bordes:**
   - Almacén de eventos corrupto/vacío por fallo de localStorage → distinguir "no hay eventos" de "error leyendo el almacén".
   - Archivar/Eliminar falla a mitad → revertir visualmente, no mostrar el cambio como hecho.
@@ -240,6 +241,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 - **Llega:** desde C1 al "Lanzar" un evento · desde modo invitado, "Operador"/ESC + PIN correcto (vuelve, no llega de cero).
 - **Sale:** "Lanzar evento" (lima) → A1, pantalla completa, solo con cámara lista y plantilla válida · riel: Galería→A11, **Plantilla**→B1 (con evento) o "Próximamente" (sin evento), Ajustes→panel lateral, Ayuda→"Próximamente" · **"Abrir el editor"** (aviso sin plantilla válida)→B1 con `?evento=<id>`, vuelve por "Lanzar evento" del editor · **logo→C1** (nuevo) · semáforo de impresora→sección Impresión de Ajustes.
 - **Feliz:** semáforos en verde, tarjeta de plantilla activa OK, toca "Lanzar evento".
+- **Bloqueo de "Lanzar evento" (hito 0.3, 2026-11-17):** lo decide el validador único; si hay un bloqueo, el botón queda deshabilitado y una lista breve dice qué pasa y cómo arreglarlo (los avisos no impiden lanzar). Es la misma regla que usa C1 para marcar "No lanzable".
 - **Errores/bordes:**
   - **Sin plantilla válida (hito 1.1, 2026-11-16, certificado):** evento sin plantilla elegida, plantilla borrada o dañada, o sin espacios de foto → "Lanzar evento" queda deshabilitado y la tarjeta de plantilla dice el motivo en palabras simples con el botón "Abrir el editor". Esto cierra en C2b el hueco recurrente de A2/B3/C1/C2 ("evento sin plantilla válida") para el momento de lanzar; sigue sin avisarse al borrar una plantilla en uso (B3) ni al crear el evento (C2). Si por esquivar el bloqueo se llegara a lanzar, el aviso "Primero elige una plantilla válida para este evento" lo frena. Cabina abierta sin evento (demostración): sin bloqueo y con el diseño antiguo. Si la plantilla falla al componer en plena sesión → vuelve a la revisión con las fotos guardadas, sesión "fallida" (camino de error de siempre).
   - **Resuelto por decisión nueva:** semáforo de cámara en rojo → "Lanzar evento" queda deshabilitado. Semáforo de impresora en rojo → puede lanzar igual, con advertencia visible (el evento puede ser solo digital).

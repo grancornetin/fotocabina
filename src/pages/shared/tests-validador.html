@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pruebas del validador de evento</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0A0A0B; --panel: #141416; --border: #2a2a2e; --bone: #F2F2EE; --fog: #9a9aa2; --lime: #C6F432; --red: #FF4D4D; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--bone); font: 15px/1.45 system-ui, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.35rem; margin: 0 0 4px; }
+    p.sub { color: var(--fog); margin: 0 0 16px; }
+    #total { font-size: 1.1rem; font-weight: 600; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); margin-bottom: 16px; }
+    #total.ok { color: var(--lime); }
+    #total.mal { color: var(--red); }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--fog); font-weight: 500; font-size: 0.8125rem; }
+    td.estado { font-weight: 700; white-space: nowrap; width: 72px; }
+    td.estado.pasa { color: var(--lime); }
+    td.estado.falla { color: var(--red); }
+    td small { color: var(--fog); display: block; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Pruebas del validador de evento</h1>
+  <p class="sub">shared/validador-evento.js · función pura, sin hardware. Cada fila es una regla o un caso borde.</p>
+  <div id="total" role="status">Ejecutando…</div>
+  <table>
+    <thead><tr><th>Resultado</th><th>Caso</th></tr></thead>
+    <tbody id="filas"></tbody>
+  </table>
+</main>
+
+<script src="motor-plantillas.js"></script>
+<script src="validador-evento.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Datos base (un evento perfecto, sin bloqueos ni avisos) ----------
+  function foto(n) { return { id: 'f' + n, tipo: 'foto', numero: n, visible: true, xMm: 3, yMm: 3 + (n - 1) * 40, anchoMm: 44, altoMm: 33, rotacion: 0 }; }
+  function plantilla(fotos, papel) {
+    var el = [];
+    for (var i = 1; i <= fotos; i++) el.push(foto(i));
+    return { id: 'pl-1', nombre: 'Tira de prueba', papel: papel || { anchoMm: 50.8, altoMm: 152.4, ppp: 300, duplicarEnHoja: true }, elementos: el };
+  }
+  function evento(extra) {
+    var e = {
+      version: 2, id: 'ev-1', nombre: 'Boda', fecha: '2026-12-01', estado: 'proximo',
+      entrega: { modo: 'ambos', copias: 1, impresionAuto: true },
+      plantillas: { habilitadas: ['pl-1'], porDefecto: 'pl-1' },
+      ritmo: { cuentaSeg: 3, pausaSeg: 3, mensajePausa: 'x', pacienciaSeg: 30 },
+    };
+    for (var k in (extra || {})) e[k] = extra[k];
+    return e;
+  }
+  function base() {
+    return {
+      equipo: { pin: { definido: true } },
+      evento: evento(),
+      plantilla: plantilla(3),
+      vivo: {
+        camaras: [{ id: 'c1', etiqueta: 'Webcam', activa: true, anchoPx: 1920, altoPx: 1080 }],
+        impresora: { estado: 'lista', segundosPorHoja: 20, medios: [{ anchoMm: 101.6, altoMm: 152.4 }] },
+        espacioLibreMB: 50000,
+      },
+    };
+  }
+
+  var V = ValidadorEvento;
+  function codigos(lista) { return lista.map(function (x) { return x.codigo; }); }
+  function tiene(lista, c) { return codigos(lista).indexOf(c) !== -1; }
+  function formaOk(lista) {
+    return lista.every(function (x) {
+      return typeof x.codigo === 'string' && V.CODIGOS.indexOf(x.codigo) !== -1 && (x.gravedad === 'bloqueo' || x.gravedad === 'aviso') &&
+        typeof x.mensaje === 'string' && x.mensaje.length > 5 && x.accion && x.accion.etiqueta && x.accion.destino;
+    });
+  }
+
+  // Cada caso: nombre, cómo se cambia la entrada base, y qué se espera del resultado.
+  var casos = [];
+  function caso(nombre, cambiar, espera, detalle) { casos.push({ nombre: nombre, cambiar: cambiar, espera: espera, detalle: detalle || '' }); }
+
+  caso('Evento perfecto: listo, sin bloqueos ni avisos', function (e) {}, function (r) { return r.listo && r.bloqueos.length === 0 && r.avisos.length === 0; });
+  caso('Todos los bloqueos y avisos traen código estable, mensaje y acción', function (e) { e.plantilla = null; e.vivo.camaras = []; e.vivo.impresora = null; e.equipo.pin.definido = false; },
+    function (r) { return formaOk(r.bloqueos) && formaOk(r.avisos) && r.bloqueos.length >= 2 && r.avisos.length >= 2; });
+
+  // Plantilla
+  caso('Sin plantilla asignada: bloquea (PLANTILLA_SIN_ASIGNAR)', function (e) { e.evento.plantillas.porDefecto = null; e.plantilla = null; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'PLANTILLA_SIN_ASIGNAR') && r.bloqueos[0].accion.destino === 'editor-plantillas'; });
+  caso('Plantilla asignada pero ya no existe (null): bloquea (PLANTILLA_NO_ENCONTRADA)', function (e) { e.plantilla = null; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'PLANTILLA_NO_ENCONTRADA') && !tiene(r.bloqueos, 'PLANTILLA_SIN_ASIGNAR'); });
+  caso('Plantilla ilegible (marcador): bloquea (PLANTILLA_ILEGIBLE)', function (e) { e.plantilla = V.ILEGIBLE; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_ILEGIBLE'); });
+  caso('Plantilla dañada (sin papel válido): bloquea (PLANTILLA_DANADA)', function (e) { e.plantilla.papel = { anchoMm: 0, altoMm: 0 }; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_DANADA'); });
+  caso('Plantilla que no es un objeto: bloquea (PLANTILLA_DANADA)', function (e) { e.plantilla = 'basura'; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_DANADA'); });
+  caso('Plantilla sin elementos (no es lista): bloquea (PLANTILLA_DANADA)', function (e) { delete e.plantilla.elementos; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_DANADA') && !tiene(r.bloqueos, 'PLANTILLA_SIN_FOTOS'); });
+  caso('Plantilla sin ninguna foto: bloquea (PLANTILLA_SIN_FOTOS)', function (e) { e.plantilla.elementos = []; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_SIN_FOTOS'); });
+  caso('Plantilla con fotos con huecos de numeración: bloquea (PLANTILLA_DANADA)', function (e) { e.plantilla.elementos[2].numero = 5; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_DANADA'); });
+  caso('null y dañada dan códigos distintos', function (e) {}, function () {
+    var a = V.validar(Object.assign(base(), { plantilla: null }));
+    var b = V.validar(Object.assign(base(), { plantilla: { papel: { anchoMm: 0, altoMm: 0 }, elementos: [] } }));
+    return codigos(a.bloqueos).join() !== codigos(b.bloqueos).join();
+  });
+
+  // Evento
+  caso('Evento archivado: bloquea (EVENTO_ARCHIVADO) con mensaje de reabrir', function (e) { e.evento.estado = 'archivado'; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'EVENTO_ARCHIVADO') && /reábrelo/.test(r.bloqueos[0].mensaje); });
+  caso('Evento v1 sin migrar: bloquea (EVENTO_FORMATO_ANTIGUO) y no revienta', function (e) { e.evento = { id: 'x', nombre: 'Viejo', estado: 'proximos', entrega: 'impresion', plantillaId: 'pl-1' }; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'EVENTO_FORMATO_ANTIGUO'); });
+  caso('Evento null: bloquea (EVENTO_NO_VALIDO)', function (e) { e.evento = null; }, function (r) { return !r.listo && tiene(r.bloqueos, 'EVENTO_NO_VALIDO'); });
+  caso('Entrada vacía o null no lanza excepción', function (e) {}, function () {
+    var a = V.validar(undefined), b = V.validar(null), c = V.validar({});
+    return !a.listo && !b.listo && !c.listo;
+  });
+
+  // Cámara
+  caso('Lista de cámaras vacía: bloquea (SIN_CAMARA)', function (e) { e.vivo.camaras = []; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'SIN_CAMARA') && r.bloqueos.filter(function (b) { return b.codigo === 'SIN_CAMARA'; })[0].accion.destino === 'conectar-camara'; });
+  caso('Cámaras null (no se pudo saber): solo avisa (CAMARA_NO_COMPROBADA)', function (e) { e.vivo.camaras = null; },
+    function (r) { return r.listo && tiene(r.avisos, 'CAMARA_NO_COMPROBADA') && !tiene(r.bloqueos, 'SIN_CAMARA'); });
+  caso('Resolución justa de la cámara: avisa (RESOLUCION_JUSTA)', function (e) { e.vivo.camaras = [{ id: 'c', activa: true, anchoPx: 320, altoPx: 240 }]; },
+    function (r) { return r.listo && tiene(r.avisos, 'RESOLUCION_JUSTA'); });
+  caso('Cámara sin dato de resolución: no avisa por resolución', function (e) { e.vivo.camaras = [{ id: 'c', etiqueta: 'Cámara' }]; },
+    function (r) { return r.listo && !tiene(r.avisos, 'RESOLUCION_JUSTA'); });
+  caso('Cámara 16:9 con resolución suficiente tras el recorte: no avisa', function (e) { e.vivo.camaras = [{ id: 'c', activa: true, anchoPx: 1280, altoPx: 720 }]; },
+    function (r) { return !tiene(r.avisos, 'RESOLUCION_JUSTA'); });
+
+  // Impresora y modo
+  caso('Impresión + impresora con problema (sin papel): bloquea (IMPRESORA_CON_PROBLEMA)', function (e) { e.evento.entrega.modo = 'impresion'; e.vivo.impresora = { estado: 'sin-papel' }; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'IMPRESORA_CON_PROBLEMA'); });
+  caso('Ambos + impresora con problema: también bloquea (decisión D2 ajustada)', function (e) { e.evento.entrega.modo = 'ambos'; e.vivo.impresora = { estado: 'desconectada' }; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'IMPRESORA_CON_PROBLEMA'); });
+  caso('Solo digital + impresora con problema: ni la mira', function (e) { e.evento.entrega.modo = 'digital'; e.vivo.impresora = { estado: 'error' }; },
+    function (r) { return !tiene(r.bloqueos, 'IMPRESORA_CON_PROBLEMA') && !tiene(r.avisos, 'IMPRESORA_NO_COMPROBABLE'); });
+  caso('Impresión + impresora no detectable (null): solo avisa (IMPRESORA_NO_COMPROBABLE)', function (e) { e.evento.entrega.modo = 'impresion'; e.vivo.impresora = null; },
+    function (r) { return r.listo && tiene(r.avisos, 'IMPRESORA_NO_COMPROBABLE') && !tiene(r.bloqueos, 'IMPRESORA_CON_PROBLEMA'); });
+  caso('Ambos + impresora null: solo avisa', function (e) { e.vivo.impresora = null; },
+    function (r) { return r.listo && tiene(r.avisos, 'IMPRESORA_NO_COMPROBABLE'); });
+  caso('Impresora ocupada imprimiendo: no es un problema', function (e) { e.vivo.impresora.estado = 'ocupada'; },
+    function (r) { return r.listo; });
+  caso('Papel de la plantilla no coincide con el medio de la impresora: avisa (PAPEL_DISTINTO)', function (e) { e.vivo.impresora.medios = [{ anchoMm: 127, altoMm: 178 }]; },
+    function (r) { return r.listo && tiene(r.avisos, 'PAPEL_DISTINTO'); });
+  caso('Impresora sin lista de medios: no avisa por papel', function (e) { delete e.vivo.impresora.medios; },
+    function (r) { return !tiene(r.avisos, 'PAPEL_DISTINTO'); });
+  caso('Tira 2×6 duplicada coincide con el medio 4×6 en cualquier orientación', function (e) { e.vivo.impresora.medios = [{ anchoMm: 152.4, altoMm: 101.6 }]; },
+    function (r) { return !tiene(r.avisos, 'PAPEL_DISTINTO'); });
+  caso('Copias × tiempo de impresión mayor que la sesión: avisa (IMPRESION_MAS_LENTA_QUE_SESION)', function (e) { e.evento.entrega.copias = 3; },
+    function (r) { return r.listo && tiene(r.avisos, 'IMPRESION_MAS_LENTA_QUE_SESION') && r.ritmo.impresion.estado === 'mas-lenta'; });
+  caso('Sin dato de tiempo de impresión: no avisa y el ritmo dice "sin dato"', function (e) { delete e.vivo.impresora.segundosPorHoja; e.evento.entrega.copias = 10; },
+    function (r) { return !tiene(r.avisos, 'IMPRESION_MAS_LENTA_QUE_SESION') && r.ritmo.impresion.estado === 'sin-dato' && /sin dato/.test(r.ritmo.texto); });
+
+  // Revisión del Code Reviewer
+  caso('Plantilla borrada pero el evento tiene copia congelada: no bloquea, avisa (PLANTILLA_SOLO_COPIA_CONGELADA)', function (e) { e.plantilla = null; e.evento.congelado = { plantilla: { id: 'pl-1', huella: 'h-abc', nombre: 'X' } }; },
+    function (r) { return r.listo && tiene(r.avisos, 'PLANTILLA_SOLO_COPIA_CONGELADA') && !tiene(r.bloqueos, 'PLANTILLA_NO_ENCONTRADA'); });
+  caso('Plantilla ilegible aunque haya copia congelada: sigue bloqueando', function (e) { e.plantilla = V.ILEGIBLE; e.evento.congelado = { plantilla: { huella: 'h-abc' } }; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_ILEGIBLE'); });
+  caso('Sin plantilla asignada con copia congelada: sigue bloqueando', function (e) { e.plantilla = null; e.evento.plantillas.porDefecto = null; e.evento.congelado = { plantilla: { huella: 'h-abc' } }; },
+    function (r) { return tiene(r.bloqueos, 'PLANTILLA_SIN_ASIGNAR'); });
+  caso('Cuenta y pausa negativas: el ritmo no da negativos ni Infinity', function (e) { e.evento.ritmo.cuentaSeg = -50; e.evento.ritmo.pausaSeg = -50; },
+    function (r) { return r.configuracion.cuentaSeg === 0 && r.configuracion.pausaSeg === 0 && r.ritmo.segundosPorSesion > 0 && isFinite(r.ritmo.sesionesPorHora); });
+  caso('Copias 0 o negativas se acotan a 1', function (e) { e.evento.entrega.copias = -3; }, function (r) { return r.configuracion.copias === 1; });
+  caso('Estado de impresora "desconocido": aviso de no comprobable, no bloqueo', function (e) { e.vivo.impresora = { estado: 'desconocido' }; },
+    function (r) { return r.listo && tiene(r.avisos, 'IMPRESORA_NO_COMPROBABLE'); });
+  caso('Estado de impresora "unknown": aviso de no comprobable, no bloqueo', function (e) { e.vivo.impresora = { estado: 'unknown' }; },
+    function (r) { return r.listo && tiene(r.avisos, 'IMPRESORA_NO_COMPROBABLE') && !tiene(r.bloqueos, 'IMPRESORA_CON_PROBLEMA'); });
+
+  // Equipo, disco, tope, digital
+  caso('Sin PIN creado: avisa (PIN_SIN_CREAR) y no bloquea', function (e) { e.equipo.pin.definido = false; },
+    function (r) { return r.listo && tiene(r.avisos, 'PIN_SIN_CREAR'); });
+  caso('Sin dato del equipo: no se evalúa el PIN', function (e) { e.equipo = null; }, function (r) { return !tiene(r.avisos, 'PIN_SIN_CREAR'); });
+  caso('Disco casi lleno (100 MB): bloquea (DISCO_LLENO)', function (e) { e.vivo.espacioLibreMB = 100; },
+    function (r) { return !r.listo && tiene(r.bloqueos, 'DISCO_LLENO'); });
+  caso('Disco justo (500 MB): avisa (DISCO_POCO)', function (e) { e.vivo.espacioLibreMB = 500; },
+    function (r) { return r.listo && tiene(r.avisos, 'DISCO_POCO'); });
+  caso('Disco sin dato (null): no hace nada', function (e) { e.vivo.espacioLibreMB = null; },
+    function (r) { return r.listo && !tiene(r.avisos, 'DISCO_POCO') && !tiene(r.bloqueos, 'DISCO_LLENO'); });
+  caso('Tope con entrega digital (ambos): vale y queda en la configuración', function (e) { e.evento.entrega.topeHojas = 100; },
+    function (r) { return r.configuracion.topeHojas === 100 && !tiene(r.avisos, 'TOPE_NO_APLICA'); });
+  caso('Tope en solo impresión: avisa que no aplica y queda sin tope', function (e) { e.evento.entrega.modo = 'impresion'; e.evento.entrega.topeHojas = 100; },
+    function (r) { return tiene(r.avisos, 'TOPE_NO_APLICA') && r.configuracion.topeHojas === null; });
+  caso('Solo digital sin servidor local: avisa (DIGITAL_SIN_SERVIDOR), no bloquea', function (e) { e.evento.entrega.modo = 'digital'; },
+    function (r) { return r.listo && tiene(r.avisos, 'DIGITAL_SIN_SERVIDOR'); });
+  caso('Solo digital con servidor local: sin aviso de servidor', function (e) { e.evento.entrega.modo = 'digital'; e.equipo.servidorLocal = true; },
+    function (r) { return !tiene(r.avisos, 'DIGITAL_SIN_SERVIDOR'); });
+
+  // Configuración efectiva y ritmo
+  caso('Configuración efectiva: fotos, papel, modo, copias, cuenta, pausa, impresión automática', function (e) { e.evento.entrega.copias = 2; },
+    function (r) {
+      var c = r.configuracion;
+      return c.fotos === 3 && c.modo === 'ambos' && c.copias === 2 && c.cuentaSeg === 3 && c.pausaSeg === 3 && c.impresionAuto === true &&
+        c.papel.anchoMm === 50.8 && /3 fotos/.test(c.resumen) && /duplicada en hoja 4 × 6 in/.test(c.resumen) && /2 copias/.test(c.resumen);
+    });
+  caso('Ritmo: 3 fotos, cuenta 3, pausa 3 = 3×3 + 2×3 + revisión + composición', function (e) {},
+    function (r) { return r.ritmo.segundosPorSesion === 9 + 6 + V.RITMO.REVISION_SEG + V.RITMO.COMPOSICION_SEG && r.ritmo.sesionesPorHora === Math.floor(3600 / r.ritmo.segundosPorSesion) && /por sesión/.test(r.ritmo.texto); });
+  caso('Ritmo con 1 foto: no resta pausas negativas', function (e) { e.plantilla = plantilla(1); e.evento.ritmo.pausaSeg = 10; },
+    function (r) { return r.ritmo.segundosPorSesion === 3 + V.RITMO.REVISION_SEG + V.RITMO.COMPOSICION_SEG; });
+  caso('Ritmo sin plantilla: no disponible y no inventa números', function (e) { e.plantilla = null; },
+    function (r) { return r.ritmo.disponible === false && r.ritmo.segundosPorSesion === null && r.configuracion.fotos === null; });
+  caso('Ritmo en solo digital: sin comparación de impresión', function (e) { e.evento.entrega.modo = 'digital'; },
+    function (r) { return r.ritmo.disponible && r.ritmo.impresion === null; });
+  caso('Valores de ritmo ausentes en el evento: usa 3 s por defecto', function (e) { delete e.evento.ritmo; },
+    function (r) { return r.configuracion.cuentaSeg === 3 && r.configuracion.pausaSeg === 3; });
+  caso('Un cambio de regla es de un solo lugar: los códigos publicados existen', function (e) {},
+    function () { return V.CODIGOS.length >= 18 && V.CODIGOS.every(function (c, i) { return V.CODIGOS.indexOf(c) === i; }); });
+  caso('El validador no modifica lo que recibe', function (e) {}, function () {
+    var ent = base(); var antes = JSON.stringify(ent); V.validar(ent); return JSON.stringify(ent) === antes;
+  });
+
+  // ---------- Ejecución ----------
+  var filas = document.getElementById('filas');
+  var pasan = 0;
+  casos.forEach(function (c) {
+    var ok = false, error = '';
+    try {
+      var ent = base();
+      c.cambiar(ent);
+      var res = V.validar(ent);
+      ok = !!c.espera(res);
+      if (!ok) error = 'bloqueos: ' + codigos(res.bloqueos).join(', ') + ' · avisos: ' + codigos(res.avisos).join(', ');
+    } catch (e) {
+      error = 'excepción: ' + e.message;
+    }
+    if (ok) pasan++;
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td'); td1.className = 'estado ' + (ok ? 'pasa' : 'falla'); td1.textContent = ok ? 'PASA' : 'FALLA';
+    var td2 = document.createElement('td'); td2.textContent = c.nombre;
+    if (error) { var s = document.createElement('small'); s.textContent = error; td2.appendChild(s); }
+    tr.appendChild(td1); tr.appendChild(td2); filas.appendChild(tr);
+  });
+  var total = document.getElementById('total');
+  total.textContent = pasan + ' de ' + casos.length + ' casos pasan' + (pasan === casos.length ? ' — TODO PASA' : ' — HAY FALLAS');
+  total.className = pasan === casos.length ? 'ok' : 'mal';
+  document.title = (pasan === casos.length ? 'PASA ' : 'FALLA ') + pasan + '/' + casos.length;
+})();
+</script>
+</body>
+</html>
