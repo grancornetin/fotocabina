@@ -95,10 +95,12 @@
 
   // Ajustes de sesión del operador. Si la cabina se abrió desde "Lanzar" en la lista de
   // eventos (04-lista-eventos), el evento activo del almacén compartido (shared/almacen-
-  // eventos.js) trae sus propios ajustes y esos son los que mandan — así "Duplicar" en la
-  // lista tiene sentido: clona fotos/cuenta/pausa/PIN junto con el resto del evento. Si no
-  // hay evento activo (la cabina se abrió directo, como siempre se pudo hacer), se siguen
-  // usando los ajustes generales de este equipo, igual que antes.
+  // eventos.js, formato v2) trae su propio ritmo (cuenta, pausa, mensaje, paciencia) y su
+  // preferencia de cámara y espejo, y esos son los que mandan — así "Duplicar" en la lista
+  // tiene sentido. Dentro de la cabina se trabaja con el formato plano de siempre
+  // (`ajustes.cuenta`, `.pausa`, `.volver`...); AlmacenEventos.ajustesDeEvento / aplicarAjustes
+  // hacen el paso de ida y vuelta. Si no hay evento activo (la cabina se abrió directo, como
+  // siempre se pudo hacer), se siguen usando los ajustes generales de este equipo.
   const AJUSTES_CLAVE = 'fotocabina-ajustes';
   // El PIN ya no es un ajuste del evento: es del equipo (shared/equipo.js, ARQUITECTURA_FLUJO.md
   // §2.1) y vale para todos los eventos. Los ajustes viejos que lo traían se limpian al leerlos.
@@ -121,8 +123,8 @@
   }
 
   function cargarAjustes() {
-    if (eventoActivo && eventoActivo.ajustes) {
-      return { ...AJUSTES_BASE, ...limpiarAjustesAntiguos(eventoActivo.ajustes) };
+    if (eventoActivo) {
+      return { ...AJUSTES_BASE, ...AlmacenEventos.ajustesDeEvento(eventoActivo) };
     }
     try {
       const guardado = JSON.parse(localStorage.getItem(AJUSTES_CLAVE) || '{}');
@@ -133,9 +135,15 @@
   }
 
   function guardarAjustes() {
-    if (eventoActivo) {
-      eventoActivo.ajustes = { ...ajustes };
-      try { AlmacenEventos.guardar(eventoActivo); } catch (e) { /* sin persistencia disponible */ }
+    if (typeof AlmacenEventos !== 'undefined' && eventoActual.id !== 'demo') {
+      // Se relee el evento antes de escribir: así no se pisa lo que otra parte guardó mientras tanto
+      // (por ejemplo la copia congelada del lanzamiento).
+      try {
+        const fresco = AlmacenEventos.obtener(eventoActual.id);
+        if (fresco) AlmacenEventos.guardar(AlmacenEventos.aplicarAjustes(fresco, ajustes));
+        const errGuardado = AlmacenEventos.errorDeGuardado();
+        if (errGuardado) showNotice(errGuardado.mensaje);
+      } catch (e) { /* sin persistencia disponible */ }
     } else {
       try {
         localStorage.setItem(AJUSTES_CLAVE, JSON.stringify(ajustes));
@@ -171,7 +179,6 @@
       if (nombrePlantilla) nombrePlantilla.textContent = 'Sin plantilla válida';
     } else {
       templateMeta.textContent = `${ajustes.fotos} fotos · 2×6 en 4×6 · cuenta ${ajustes.cuenta} s · ${pausa}`;
-      if (nombrePlantilla && eventoActivo && eventoActivo.plantilla) nombrePlantilla.textContent = eventoActivo.plantilla;
     }
 
     // Con plantilla real, el número de fotos lo manda la plantilla: el selector manual no se ofrece.
@@ -179,8 +186,10 @@
 
     if (aviso) {
       aviso.hidden = estadoPlantilla.modo !== 'invalida';
-      q('#templateAvisoTexto').textContent = estadoPlantilla.modo === 'invalida'
-        ? `Este evento no tiene una plantilla válida: ${estadoPlantilla.motivo}. Elige o crea una en el editor.` : '';
+      q('#templateAvisoTexto').textContent = estadoPlantilla.modo !== 'invalida' ? ''
+        : estadoPlantilla.sinAsignar
+          ? 'Este evento todavía no tiene una plantilla. Elige o crea una en el editor para poder lanzarlo.'
+          : `Este evento no tiene una plantilla válida: ${estadoPlantilla.motivo}. Elige o crea una en el editor.`;
     }
     if (dibujoBase && miniatura) {
       const conMiniatura = !!plantillaActiva && !!miniatura.getAttribute('src');
@@ -214,19 +223,26 @@
       plantillaActiva = null;
       actualizarLanzamiento();
       const evento = (typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoId) : null;
-      const plantillaId = evento && evento.plantillaId;
+      const plantillaId = evento && evento.plantillas && evento.plantillas.porDefecto;
       if (!plantillaId) {
-        nuevoEstado = { modo: 'invalida', motivo: 'todavía no se eligió ninguna' };
+        nuevoEstado = { modo: 'invalida', motivo: 'todavía no se eligió ninguna', sinAsignar: true };
       } else {
         let hallada = null;
         try { hallada = await AlmacenPlantillas.obtener(plantillaId); } catch (e) { hallada = null; }
+        // Recarga con la plantilla viva borrada: si el evento ya se lanzó y su copia congelada sigue en
+        // IndexedDB, se usa esa copia (el evento no se bloquea). Sin congelado, sigue bloqueado (decisión 1A).
+        let usaCongelada = false;
+        const huellaCongelada = evento && evento.congelado && evento.congelado.plantilla && evento.congelado.plantilla.huella;
+        if (!hallada && huellaCongelada && typeof AlmacenSesiones !== 'undefined') {
+          try { hallada = await AlmacenSesiones.obtenerCongelada(huellaCongelada); usaCongelada = !!hallada; } catch (e) { hallada = null; }
+        }
         if (!hallada) {
           nuevoEstado = { modo: 'invalida', motivo: 'la que tenía ya no existe o no se pudo leer' };
         } else {
           const v = MotorPlantillas.validarPlantilla(hallada);
           if (!v.valida) nuevoEstado = { modo: 'invalida', motivo: enMinuscula(v.motivos.map(sinPunto).join('; ')) };
           else {
-            nuevoEstado = { modo: 'valida', motivo: '' };
+            nuevoEstado = { modo: 'valida', motivo: '', congelada: usaCongelada };
             nueva = hallada;
             if (conMiniatura) { try { miniaturaUrl = await MotorPlantillas.miniatura(hallada, 108); } catch (e) { miniaturaUrl = ''; } }
           }
@@ -234,6 +250,7 @@
       }
     }
     if (token !== cargaPlantillaId) return; // llegó una carga más nueva
+    if (nueva !== plantillaActiva) { huellaActiva = null; modificadaActiva = null; congeladaOk = false; }
     plantillaActiva = nueva;
     estadoPlantilla = nuevoEstado;
     const img = q('#templateThumbImg');
@@ -243,13 +260,85 @@
     if (cabin.classList.contains('is-guest-mode')) updateFrameWindow(1);
   }
 
+  // ---------- Congelado de la plantilla (hito 0.1b) ----------
+  // Al lanzar el evento, y al empezar cada sesión si el operador editó la plantilla mientras tanto,
+  // se congela una copia completa del diseño (IndexedDB, por huella) y una nota liviana en el evento.
+  // Cada sesión guarda a qué diseño pertenece, así ver o recomponer una sesión antigua nunca usa la
+  // plantilla de hoy.
+
+  // Lo que se congela junto con el diseño: número de fotos, papel, entrega, copias y ritmo.
+  function configCongelada() {
+    const evento = (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoActual.id) : null;
+    const entrega = (evento && evento.entrega) || {};
+    const papel = plantillaActiva && plantillaActiva.papel ? plantillaActiva.papel : null;
+    return {
+      fotos: numeroDeFotos(),
+      papel: papel ? { anchoMm: papel.anchoMm, altoMm: papel.altoMm, ppp: papel.ppp || 300, duplicarEnHoja: !!papel.duplicarEnHoja } : null,
+      modo: entrega.modo || null,
+      copias: entrega.copias || null,
+      impresionAuto: !!entrega.impresionAuto,
+      cuentaSeg: ajustes.cuenta,
+      pausaSeg: ajustes.pausa,
+      mensajePausa: ajustes.mensajePausa,
+      pacienciaSeg: ajustes.volver,
+      espejo: !!ajustes.espejo,
+    };
+  }
+
+  // Congela `plantilla` como la vigente de esta cabina: calcula su huella, guarda la copia y anota el
+  // congelado en el evento. Si no se pudo guardar la copia, la sesión se toma igual pero queda
+  // marcada `copiaCongelada: false`.
+  async function congelarVigente(plantilla) {
+    plantillaActiva = plantilla;
+    modificadaActiva = plantilla.modificada || null;
+    huellaActiva = await AlmacenPlantillas.huella(plantilla);
+    congeladaOk = false;
+    try {
+      await AlmacenSesiones.congelarPlantilla(huellaActiva, plantilla);
+      congeladaOk = true;
+    } catch (e) { /* se sigue sin copia congelada */ }
+    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') {
+      try {
+        AlmacenEventos.congelar(eventoActual.id, { plantilla: { id: plantilla.id, huella: huellaActiva, nombre: plantilla.nombre }, config: configCongelada(), copiaGuardada: congeladaOk });
+      } catch (e) { /* sin persistencia disponible */ }
+    }
+  }
+
+  // Al empezar cada sesión: si la plantilla vigente del editor cambió (otra huella), las sesiones
+  // nuevas usan la edición y se congela. Si no se puede leer (la borraron, quedó inválida), se sigue
+  // con la que ya estaba congelada: un evento en marcha no se frena delante del invitado.
+  async function refrescarPlantillaVigente() {
+    if (eventoActual.id === 'demo' || typeof AlmacenPlantillas === 'undefined' || typeof AlmacenEventos === 'undefined') return;
+    const evento = AlmacenEventos.obtener(eventoActual.id);
+    const id = evento && evento.plantillas && evento.plantillas.porDefecto;
+    if (!id) return;
+    const nueva = await AlmacenPlantillas.obtener(id);
+    if (!nueva || !MotorPlantillas.validarPlantilla(nueva).valida) return;
+    if (plantillaActiva && nueva.id === plantillaActiva.id && nueva.modificada && nueva.modificada === modificadaActiva && huellaActiva) return;
+    const huellaNueva = await AlmacenPlantillas.huella(nueva);
+    if (huellaNueva === huellaActiva) { modificadaActiva = nueva.modificada || null; return; }
+    await congelarVigente(nueva);
+    estadoPlantilla = { modo: 'valida', motivo: '' };
+    actualizarResumenPlantilla();
+    updateFrameWindow(1);
+  }
+
+  // Empezar una sesión desde la pantalla de inicio del invitado: primero se asegura la plantilla vigente.
+  async function iniciarSesionInvitado() {
+    if (iniciandoSesion || sessionActive) return;
+    iniciandoSesion = true;
+    try { await refrescarPlantillaVigente(); } catch (e) { /* se sigue con la plantilla congelada */ }
+    iniciandoSesion = false;
+    runSession();
+  }
+
   const PROXIMAMENTE = {
     plantillas: { titulo: 'Plantillas del evento', texto: 'Elegir qué diseños puede usar el invitado en este evento y ver cómo queda cada uno antes de lanzar.' },
     ayuda: { titulo: 'Ayuda', texto: 'Guía rápida de uso, atajos de teclado y contacto de soporte.' },
   };
   // Proporción del marco de encuadre cuando no hay plantilla real (demostración). Con plantilla,
   // sale del espacio de foto que se va a tomar (MotorPlantillas.proporcionDeFoto).
-  const FRAME_RATIO = '4 / 3.2';
+  const FRAME_RATIO_NUM = 4 / 3.2;
   const GIF_ANCHO = 480, GIF_ALTO = 360, GIF_RETARDO_MS = 600;
 
   const ICONO_CAMARA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.6em;height:0.6em;display:inline-block;vertical-align:middle"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6l1.5-2h3L15 6"/></svg>';
@@ -271,6 +360,13 @@
   let plantillaActiva = null;
   let estadoPlantilla = { modo: 'demo', motivo: '' };
   let cargaPlantillaId = 0;
+  // Congelado (hito 0.1b): la plantilla con la que se toman las sesiones nuevas. `huellaActiva` es la
+  // identidad de ese diseño; `congeladaOk` dice si su copia completa ya está guardada en IndexedDB
+  // (plantillasCongeladas); `modificadaActiva` evita recalcular la huella si la plantilla no se tocó.
+  let huellaActiva = null;
+  let modificadaActiva = null;
+  let congeladaOk = false;
+  let iniciandoSesion = false;
 
   // Cola de guardado: cada escritura a disco espera a la anterior, así dos fotos seguidas nunca
   // se pisan al actualizar el registro de la misma sesión y el orden en disco es el real.
@@ -426,7 +522,7 @@
     const menu = select.querySelector('.ds-select-menu');
     const value = select.querySelector('.ds-select-value');
 
-    const eventos = AlmacenEventos.listar().filter((e) => e.estado !== 'archivados');
+    const eventos = AlmacenEventos.listar().filter((e) => e.estado !== 'archivado');
 
     // Sin evento activo (la cabina se abrió directo, sin pasar por "Lanzar" en la lista):
     // el dropdown ofrece los eventos existentes para elegir, pero no fuerza ninguno — se
@@ -459,8 +555,8 @@
 
     AlmacenEventos.setActivo(id);
     const evento = AlmacenEventos.obtener(id);
-    if (evento && evento.ajustes) {
-      Object.assign(ajustes, limpiarAjustesAntiguos(evento.ajustes));
+    if (evento) {
+      Object.assign(ajustes, AlmacenEventos.ajustesDeEvento(evento));
       aplicarAjustesAControles();
     }
     actualizarContadorEvento();
@@ -472,8 +568,8 @@
   async function actualizarContadorEvento() {
     try {
       const registros = await AlmacenSesiones.listarRegistros(eventoActual.id);
-      const completas = registros.filter((r) => r.estado === 'compuesta' || r.estado === 'finalizada');
-      const incompletas = registros.filter((r) => r.estado === 'incompleta' || r.estado === 'fallida').length;
+      const completas = registros.filter(AlmacenSesiones.esCompleta);
+      const incompletas = registros.filter(AlmacenSesiones.esIncompleta).length;
       if (!completas.length && !incompletas) {
         templateStats.textContent = 'Sin sesiones todavía';
         return;
@@ -681,13 +777,18 @@
 
   // ---------- Marco de encuadre (guía proporcional al tamaño de foto en la plantilla) ----------
 
+  // Proporción (ancho / alto) del marco que se está mostrando. `capture()` recorta a esta misma
+  // proporción, así lo que el invitado ve dentro del marco es lo que queda en la foto.
+  let ratioMarcoActual = FRAME_RATIO_NUM;
+
   function updateFrameWindow(numeroFoto) {
-    let ratio = FRAME_RATIO;
+    let ratio = FRAME_RATIO_NUM;
     if (plantillaActiva) {
       const r = MotorPlantillas.proporcionDeFoto(plantillaActiva, numeroFoto || 1);
-      if (r) ratio = String(Math.round(r * 1000) / 1000);
+      if (r && isFinite(r) && r > 0) ratio = r;
     }
-    frameWindow.style.setProperty('--frame-ratio', ratio);
+    ratioMarcoActual = ratio;
+    frameWindow.style.setProperty('--frame-ratio', String(Math.round(ratio * 1000) / 1000));
   }
 
   // ---------- Modo invitado: entrar / salir ----------
@@ -709,6 +810,7 @@
       return;
     }
     if (!cabin.classList.contains('is-connected')) { showNotice('La cámara no está conectada.'); return; }
+    if (plantillaActiva) { try { await congelarVigente(plantillaActiva); } catch (e) { /* la sesión igual queda sin copia congelada */ } }
     if (AjustesEquipo.estadoPin().definido) launchEvent();
     else abrirPin('crear', launchEvent);
   }
@@ -789,12 +891,15 @@
       sesionActual = {
         id: AlmacenSesiones.nuevoId(),
         evento: eventoActual.id,
+        eventoId: eventoActual.id,
+        equipoId: null,
         eventoNombre: eventoActual.nombre,
         fecha: ahora,
         iniciadaEn: ahora,
         estado: 'capturando',
         fotosEsperadas: numeroDeFotos(),
-        plantillaId: plantillaActiva ? plantillaActiva.id : null,
+        plantilla: { id: plantillaActiva ? plantillaActiva.id : null, copiaCongelada: !!(plantillaActiva && huellaActiva && congeladaOk), huella: plantillaActiva ? huellaActiva : null },
+        configCongelada: configCongelada(),
         esEnsayo: false,
         error: null,
         fotos: [],
@@ -859,7 +964,14 @@
         updateFrameWindow(i + 1);
         countdownLabel.textContent = `Foto ${i + 1} de ${total}`;
         await countdown(ajustes.cuenta);
-        photos[i] = capture();
+        let foto = capture();
+        if (!foto) {
+          // La cámara no entregó imagen: se avisa y se repite esta foto (hasta 3 veces) sin perder la sesión.
+          let intentos = 1;
+          while (!foto && intentos < 3) { showNotice('La cámara no entregó imagen. Repitiendo la foto…'); await countdown(ajustes.cuenta); foto = capture(); intentos++; }
+          if (!foto) { showNotice('La cámara no entregó imagen. La sesión se canceló.'); throw new SessionCancelled(); }
+        }
+        photos[i] = foto;
         guardarFotoAhora(i);
 
         if (i < total - 1 && ajustes.pausa > 0) {
@@ -901,16 +1013,76 @@
     interstitialLayer.dataset.visible = 'false';
   }
 
-  function capture() {
-    const c = document.createElement('canvas');
-    c.width = 1280;
-    c.height = 960;
-    const ctx = c.getContext('2d');
-    if (ajustes.espejo) {
-      ctx.translate(c.width, 0);
-      ctx.scale(-1, 1);
+  // ---------- Recorte de la foto al marco (sin estirar nunca) ----------
+  // La cámara puede entregar 4:3, 16:9 (DSLR, capturadora) o vertical. La foto se RECORTA (cover,
+  // centrado en el marco) a la proporción del espacio de foto de la plantilla; nunca se deforma.
+
+  const LADO_MAXIMO_FOTO = 2560;
+
+  // Ajusta un rectángulo de origen (sx, sy, sw, sh) a la proporción exacta `ratio`, sin salirse de él
+  // y manteniendo su centro. Con eso la foto sale con la proporción pedida aunque el marco en
+  // pantalla tenga un borde de un par de píxeles.
+  function ajustarARatio(rect, ratio) {
+    let { sx, sy, sw, sh } = rect;
+    if (sw / sh > ratio) { const nuevoAncho = sh * ratio; sx += (sw - nuevoAncho) / 2; sw = nuevoAncho; }
+    else { const nuevoAlto = sw / ratio; sy += (sh - nuevoAlto) / 2; sh = nuevoAlto; }
+    return { sx, sy, sw, sh };
+  }
+
+  // Recorte centrado del mayor tamaño posible con esa proporción (cuando no hay marco medible).
+  function recorteCentrado(vw, vh, ratio) {
+    return ajustarARatio({ sx: 0, sy: 0, sw: vw, sh: vh }, ratio);
+  }
+
+  // Región del video (en píxeles del video) que queda dentro del marco de la pantalla.
+  //   vw, vh: tamaño real del video · escenario: { ancho, alto } del contenedor del video (que lo
+  //   muestra con object-fit: cover, centrado) · marco: { x, y, ancho, alto } relativo a ese
+  //   contenedor · espejo: si el video se muestra reflejado.
+  function recorteDelMarco(vw, vh, escenario, marco, espejo, ratio) {
+    const k = Math.max(escenario.ancho / vw, escenario.alto / vh);
+    const ox = (escenario.ancho - vw * k) / 2;
+    const oy = (escenario.alto - vh * k) / 2;
+    const xMarco = espejo ? escenario.ancho - (marco.x + marco.ancho) : marco.x;
+    const crudo = { sx: (xMarco - ox) / k, sy: (marco.y - oy) / k, sw: marco.ancho / k, sh: marco.alto / k };
+    // El marco nunca debería salirse del video; si por redondeos lo hace, se recorta al video.
+    const x0 = Math.max(0, crudo.sx), y0 = Math.max(0, crudo.sy);
+    const x1 = Math.min(vw, crudo.sx + crudo.sw), y1 = Math.min(vh, crudo.sy + crudo.sh);
+    return ajustarARatio({ sx: x0, sy: y0, sw: Math.max(1, x1 - x0), sh: Math.max(1, y1 - y0) }, ratio);
+  }
+
+  function regionDeCaptura() {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return null;
+    const ratio = ratioMarcoActual;
+    const espejo = !!ajustes.espejo;
+    const escena = video.getBoundingClientRect();
+    // El marco anima su proporción (220 ms): se mide ya en su tamaño final, sin transición.
+    const transicion = frameWindow.style.transition;
+    frameWindow.style.transition = 'none';
+    const marco = frameWindow.getBoundingClientRect();
+    frameWindow.style.transition = transicion;
+    if (escena.width > 0 && escena.height > 0 && marco.width > 0 && marco.height > 0) {
+      return recorteDelMarco(vw, vh, { ancho: escena.width, alto: escena.height }, { x: marco.left - escena.left, y: marco.top - escena.top, ancho: marco.width, alto: marco.height }, espejo, ratio);
     }
-    ctx.drawImage(video, 0, 0, c.width, c.height);
+    return recorteCentrado(vw, vh, ratio);
+  }
+
+  function capture() {
+    const region = regionDeCaptura();
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    if (region) {
+      // Tamaño de salida: el del recorte en píxeles reales del video (hasta un tope), con la
+      // proporción exacta del marco.
+      const escala = Math.min(1, LADO_MAXIMO_FOTO / Math.max(region.sw, region.sh));
+      c.width = Math.max(1, Math.round(region.sw * escala));
+      c.height = Math.max(1, Math.round(region.sh * escala));
+      if (ajustes.espejo) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+      // En espejo, el video se dibuja sin reflejar su región y el canvas se refleja: igual que la pantalla.
+      ctx.drawImage(video, region.sx, region.sy, region.sw, region.sh, 0, 0, c.width, c.height);
+    } else {
+      return null; // el video no entrega imagen: nunca se guarda una foto negra
+    }
 
     flash.classList.remove('on');
     void flash.offsetWidth;
@@ -1180,7 +1352,13 @@
     countdownLabel.textContent = `Repitiendo foto ${index + 1} de ${numeroDeFotos()}`;
     try {
       await countdown(ajustes.cuenta);
-      photos[index] = capture();
+      const foto = capture();
+      if (!foto) {
+        showNotice('La cámara no entregó imagen. Toca "Repetir" de nuevo.');
+        endCapture();
+        return true; // vuelve a la revisión con la foto anterior intacta
+      }
+      photos[index] = foto;
       guardarFotoAhora(index);
       endCapture();
       return true;
@@ -1248,20 +1426,22 @@
     return new Promise((resolver, rechazar) => canvas.toBlob((b) => (b ? resolver(b) : rechazar(new Error('No se pudo crear la imagen'))), 'image/png'));
   }
 
-  // Número de esta sesión dentro del evento: las ya armadas + 1 (se guarda en la sesión para no cambiar al reintentar).
+  // Número de esta sesión dentro del evento. Sale de un contador propio del evento (guardado, no se
+  // recalcula): sobrevive a borrados de sesiones y a reiniciar, y nunca entrega dos veces el mismo
+  // número. Las sesiones guardadas antes de que existiera el contador se tienen en cuenta la primera
+  // vez (`minimo`). Se guarda en la sesión para no cambiar al reintentar la composición.
   async function numeroDeSesion(sesion) {
     if (sesion.numero) return sesion.numero;
-    let base;
+    let minimo = ultimoNumeroAsignado;
     try {
       const registros = await AlmacenSesiones.listarRegistros(eventoActual.id);
-      const armadas = registros.filter((r) => r.id !== sesion.id && (r.estado === 'compuesta' || r.estado === 'finalizada'));
+      const armadas = registros.filter((r) => r.id !== sesion.id && AlmacenSesiones.esCompleta(r));
       // Las sesiones con número cuentan por su número; las antiguas (sin número) por conteo.
-      base = Math.max(armadas.length, ...armadas.map((r) => Number(r.numero) || 0));
+      minimo = Math.max(minimo, armadas.length, ...armadas.map((r) => Number(r.numero) || 0));
     } catch (e) {
-      // Sin lectura del almacén no se numera desde 1 en silencio: se sigue la cuenta de esta pantalla.
-      base = ultimoNumeroAsignado;
+      // Sin lectura del almacén el contador guardado igual evita repetir; se suma el de esta pantalla.
     }
-    sesion.numero = base + 1;
+    sesion.numero = AlmacenEventos.siguienteNumeroSesion(eventoActual.id, minimo);
     ultimoNumeroAsignado = Math.max(ultimoNumeroAsignado, sesion.numero);
     return sesion.numero;
   }
@@ -1597,6 +1777,27 @@
     });
   }
 
+  // Una sesión con todas sus fotos pero sin tira (la composición falló) se arma con la copia
+  // congelada de ESA sesión (su diseño original), nunca con la plantilla de hoy. Devuelve
+  // { tira, hoja, medidas } o null si no se puede (sin copia congelada o faltan fotos).
+  async function recomponerSesion(sesion) {
+    const huella = sesion.plantilla && sesion.plantilla.huella;
+    if (!huella || typeof MotorPlantillas === 'undefined') return null;
+    const p = await AlmacenSesiones.obtenerCongelada(huella);
+    if (!p || !MotorPlantillas.validarPlantilla(p).valida) return null;
+    if (sesion.fotos.filter(Boolean).length < MotorPlantillas.contarFotos(p)) return null;
+    const datos = { fecha: new Date(sesion.fecha), nombreEvento: sesion.eventoNombre };
+    if (sesion.numero) datos.numeroSesion = sesion.numero;
+    const opciones = { fotos: sesion.fotos, datos };
+    const hoja = await MotorPlantillas.renderizarHoja(p, opciones);
+    const tira = hoja.copias === 1 ? hoja.canvas : await MotorPlantillas.renderizar(p, opciones);
+    return {
+      tira: await aBlob(tira),
+      hoja: hoja.copias === 1 ? null : await aBlob(hoja.canvas),
+      medidas: { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm },
+    };
+  }
+
   function mostrarDetalle(sesion) {
     sesionDetalle = sesion;
     galleryList.hidden = true;
@@ -1609,6 +1810,19 @@
     detailGifBtn.disabled = !sesion.gif;
     detailDeleteBtn.textContent = 'Eliminar sesión';
     detailDeleteBtn.dataset.confirm = 'false';
+
+    if (!sesion.tira) {
+      recomponerSesion(sesion).then((r) => {
+        if (!r || sesionDetalle !== sesion) return;
+        sesion.tira = r.tira;
+        sesion.hoja = r.hoja;
+        sesion.impresion = r.medidas;
+        detailStrip.src = crearUrl(r.tira);
+        detailPrintBtn.disabled = false;
+        detailDownloadBtn.disabled = false;
+        detailMeta.textContent += ' · armada con el diseño original de la sesión';
+      }).catch(() => { /* se queda con las fotos sueltas */ });
+    }
 
     detailPhotos.innerHTML = '';
     sesion.fotos.forEach((src, index) => {
@@ -1632,18 +1846,14 @@
   async function migrarPinAlEquipo() {
     if (typeof AlmacenEventos !== 'undefined') {
       try {
-        AlmacenEventos.listar().forEach((evento) => {
-          const a = evento.ajustes;
-          if (a && (a.pin !== undefined || a.mensajePausa === MENSAJE_PAUSA_ANTIGUO)) {
-            if (!pinAntiguo && /^\d{4}$/.test(a.pin) && a.pin !== '1234') pinAntiguo = a.pin;
-            delete a.pin;
-            if (a.mensajePausa === MENSAJE_PAUSA_ANTIGUO) a.mensajePausa = AJUSTES_BASE.mensajePausa;
-            AlmacenEventos.guardar(evento);
-          }
-        });
+        // La migración de los eventos a v2 quitó el PIN de cada evento; si había uno propio queda en el respaldo.
+        const delRespaldo = AlmacenEventos.pinAntiguoDelRespaldo();
+        if (!pinAntiguo && delRespaldo) pinAntiguo = delRespaldo;
       } catch (e) { /* sin persistencia disponible */ }
     }
     if (pinAntiguo) await AjustesEquipo.migrarPinAntiguo(pinAntiguo);
+    // Ya pasó al equipo (o no había): el PIN no debe quedar en claro en el respaldo de los eventos.
+    try { AlmacenEventos.limpiarPinsDelRespaldo(); } catch (e) { /* sin respaldo */ }
     // El PIN viejo también podía estar en los ajustes sueltos del equipo: se borra de ahí.
     try {
       const sueltos = JSON.parse(localStorage.getItem(AJUSTES_CLAVE) || 'null');
@@ -1707,7 +1917,7 @@
     ajustes.mensajePausa = pauseMessageInput.value.trim() || AJUSTES_BASE.mensajePausa;
     guardarAjustes();
   });
-  guestIdle.addEventListener('click', runSession);
+  guestIdle.addEventListener('click', iniciarSesionInvitado);
 
   pauseBtn.addEventListener('click', pauseSession);
   resumeBtn.addEventListener('click', resumeSession);

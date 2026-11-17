@@ -154,21 +154,22 @@
       return;
     }
 
-    var evento = {
-      id: AlmacenEventos.nuevoId(),
+    // Evento nuevo en el formato v2: id estable de texto, entrega ({ modo, copias, impresionAuto })
+    // y plantilla elegida (si no, queda sin plantilla y "Lanzar" se bloquea hasta asignarle una).
+    var evento = AlmacenEventos.crear({
       nombre: nombre,
       fecha: fFecha.value || new Date().toISOString().slice(0, 10),
-      estado: 'proximos',
-      plantilla: plantillaElegida ? plantillaElegida.nombre : 'Sin plantilla asignada',
       plantillaId: plantillaElegida ? plantillaElegida.id : null,
-      sesiones: 0,
-      entrega: entregaActual,
-      impresionAuto: tImpresionAuto.getAttribute('aria-checked') === 'true',
-      copias: copiasAuto,
-      ajustes: AlmacenEventos.ajustesPorDefecto(),
-    };
+      entrega: {
+        modo: entregaActual,
+        copias: copiasAuto,
+        impresionAuto: tImpresionAuto.getAttribute('aria-checked') === 'true',
+      },
+    });
 
     AlmacenEventos.guardar(evento);
+    var errGuardado = AlmacenEventos.errorDeGuardado();
+    if (errGuardado) { mostrarErrorNombre(errGuardado.mensaje); return; }
     window.location.href = '../04-lista-eventos/index.html';
   });
 

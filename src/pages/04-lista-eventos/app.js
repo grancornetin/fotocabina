@@ -1,20 +1,29 @@
 (function () {
   'use strict';
 
-  // Los eventos viven en el almacén compartido (shared/almacen-eventos.js, localStorage),
-  // para que "Lanzar" pueda pasarle el evento elegido a 01-camera-flow y, más adelante, al
+  // Los eventos viven en el almacén compartido (shared/almacen-eventos.js, localStorage, formato
+  // v2), para que "Lanzar" pueda pasarle el evento elegido a 01-camera-flow y, más adelante, al
   // editor de plantillas. La primera vez que se abre esta pantalla, el almacén se llena solo
-  // con eventos de ejemplo.
+  // con eventos de ejemplo. Los eventos guardados con el formato anterior se migran al leer.
   var eventos = AlmacenEventos.listar();
 
   var estadoLabel = {
-    'proximos': 'Próximo',
+    'proximo': 'Próximo',
     'en-curso': 'En curso',
-    'archivados': 'Archivado',
+    'archivado': 'Archivado',
   };
+
+  // Las pestañas usan el nombre en plural; el estado guardado va en singular.
+  var estadoDePestana = { 'proximos': 'proximo', 'en-curso': 'en-curso', 'archivados': 'archivado' };
 
   var filtroActual = 'proximos';
   var eventoAConfirmar = null;
+
+  // Datos que no se guardan en el evento sino que se derivan (regla 3 del contrato de datos):
+  // el nombre de la plantilla sale de la plantilla, y el n.º de sesiones de contar las sesiones
+  // guardadas. null = todavía no se sabe; false = no se pudo leer (no se muestra un número falso).
+  var conteo = null;
+  var nombresPlantilla = null;
 
   var eventsGrid = document.getElementById('eventsGrid');
   var eventsEmpty = document.getElementById('eventsEmpty');
@@ -27,30 +36,85 @@
   function formatearFecha(iso) {
     var partes = iso.split('-');
     var fecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
-    return fecha.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return fecha.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function esc(texto) {
+    return String(texto).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
 
   function iconoCamara() {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/></svg>';
   }
 
+  function idPlantilla(evento) {
+    return (evento.plantillas && evento.plantillas.porDefecto) || null;
+  }
+
+  function textoPlantilla(evento) {
+    var id = idPlantilla(evento);
+    if (!id) return 'Sin plantilla asignada';
+    if (nombresPlantilla === null) return '';
+    if (nombresPlantilla === false) return 'Plantilla no disponible';
+    return nombresPlantilla[id] || 'Plantilla no encontrada';
+  }
+
+  function textoSesiones(evento) {
+    if (conteo === null) return 'Contando sesiones…';
+    if (conteo === false) return 'No se pudieron contar las sesiones';
+    var c = conteo[evento.id] || { completas: 0, incompletas: 0 };
+    var texto = c.completas + (c.completas === 1 ? ' sesión' : ' sesiones');
+    if (c.incompletas) texto += ' · ' + c.incompletas + (c.incompletas === 1 ? ' incompleta' : ' incompletas');
+    return texto;
+  }
+
+  // Pone al día, en las tarjetas ya dibujadas, lo que llega después de dibujar (nombres y conteo).
+  function refrescarDerivados() {
+    Array.prototype.forEach.call(eventsGrid.querySelectorAll('.event-card'), function (card) {
+      var evento = eventos.filter(function (e) { return e.id === card.getAttribute('data-id'); })[0];
+      if (!evento) return;
+      var plantilla = card.querySelector('[data-campo="plantilla"]');
+      var sesiones = card.querySelector('[data-campo="sesiones"]');
+      if (plantilla) plantilla.textContent = textoPlantilla(evento);
+      if (sesiones) sesiones.textContent = textoSesiones(evento);
+    });
+  }
+
+  function cargarDerivados() {
+    var pNombres = (typeof AlmacenPlantillas !== 'undefined')
+      ? AlmacenPlantillas.listar().then(function (lista) {
+          var mapa = {};
+          (lista || []).forEach(function (p) { mapa[p.id] = p.nombre; });
+          nombresPlantilla = mapa;
+        }).catch(function () { nombresPlantilla = false; })
+      : Promise.resolve();
+    var pConteo = (typeof AlmacenSesiones !== 'undefined')
+      ? AlmacenSesiones.contarPorEvento().then(function (c) { conteo = c; }).catch(function () { conteo = false; })
+      : Promise.resolve();
+    return Promise.all([pNombres, pConteo]).then(refrescarDerivados);
+  }
+
   function crearCardEvento(evento) {
     var card = document.createElement('article');
     card.className = 'event-card' + (evento.estado === 'en-curso' ? ' event-card--live' : '');
+    card.setAttribute('data-id', evento.id);
 
     var badgeClase = evento.estado === 'en-curso' ? 'ds-badge--ready' : 'ds-badge--idle';
+    var esArchivado = evento.estado === 'archivado';
 
     card.innerHTML =
       '<div class="event-card-thumb">' + iconoCamara() + '</div>' +
       '<div class="event-card-body">' +
         '<div class="event-card-top">' +
-          '<h3 class="event-card-name">' + evento.nombre + '</h3>' +
+          '<h3 class="event-card-name">' + esc(evento.nombre) + '</h3>' +
           '<span class="ds-badge ' + badgeClase + '">' + estadoLabel[evento.estado] + '</span>' +
         '</div>' +
-        '<p class="event-card-meta">' + formatearFecha(evento.fecha) + ' · ' + evento.plantilla + '</p>' +
+        '<p class="event-card-meta">' + esc(formatearFecha(evento.fecha)) + ' · <span data-campo="plantilla">' + esc(textoPlantilla(evento)) + '</span></p>' +
         '<p class="event-card-stats">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="7" height="7" rx="1.5"/><rect x="13" y="3" width="7" height="7" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></svg>' +
-          '<span>' + evento.sesiones + (evento.sesiones === 1 ? ' sesión' : ' sesiones') + '</span>' +
+          '<span data-campo="sesiones">' + esc(textoSesiones(evento)) + '</span>' +
         '</p>' +
         '<div class="event-card-actions">' +
           '<button class="event-action-btn" data-action="editar-plantilla" title="Editar plantilla del evento" aria-label="Editar plantilla del evento">' +
@@ -59,8 +123,8 @@
           '<button class="event-action-btn" data-action="duplicar" title="Duplicar evento" aria-label="Duplicar evento">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>' +
           '</button>' +
-          '<button class="event-action-btn event-action-btn--danger" data-action="' + (evento.estado === 'archivados' ? 'eliminar' : 'archivar') + '" title="' + (evento.estado === 'archivados' ? 'Eliminar evento' : 'Archivar evento') + '" aria-label="' + (evento.estado === 'archivados' ? 'Eliminar evento' : 'Archivar evento') + '">' +
-            (evento.estado === 'archivados'
+          '<button class="event-action-btn event-action-btn--danger" data-action="' + (esArchivado ? 'eliminar' : 'archivar') + '" title="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '" aria-label="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '">' +
+            (esArchivado
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>'
               : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 002 2h10a2 2 0 002-2V9M10 13h4"/></svg>') +
           '</button>' +
@@ -92,30 +156,38 @@
     return card;
   }
 
+  // La copia conserva TODO lo que define al evento (plantilla, entrega y copias, ritmo, cámara);
+  // solo cambia el nombre, el id y el estado (vuelve a "Próximo").
   function duplicarEvento(evento) {
-    var copia = {
-      id: AlmacenEventos.nuevoId(),
-      nombre: evento.nombre + ' (copia)',
-      fecha: evento.fecha,
-      estado: 'proximos',
-      plantilla: evento.plantilla,
-      plantillaId: evento.plantillaId || null,
-      sesiones: 0,
-      ajustes: Object.assign({}, evento.ajustes || AlmacenEventos.ajustesPorDefecto()),
-    };
+    var copia = AlmacenEventos.duplicar(evento);
+    if (!copia) { mostrarAviso('No se pudo duplicar el evento.'); return; }
     AlmacenEventos.guardar(copia);
+    var errDup = AlmacenEventos.errorDeGuardado();
+    if (errDup) { eventos = AlmacenEventos.listar(); render(); mostrarAviso(errDup.mensaje); return; }
     eventos = AlmacenEventos.listar();
-    mostrarAviso('Evento duplicado con la misma plantilla, cámara, impresora y ajustes. Cambiale el nombre y la fecha.');
+    mostrarAviso('Evento duplicado con la misma plantilla, entrega, copias y ajustes. Cámbiale el nombre y la fecha.');
     render();
   }
 
   function pedirConfirmacion(evento) {
     eventoAConfirmar = evento;
-    var esArchivado = evento.estado === 'archivados';
+    var esArchivado = evento.estado === 'archivado';
     document.getElementById('confirmTitle').textContent = esArchivado ? 'Eliminar evento' : 'Archivar evento';
-    document.getElementById('confirmText').textContent = esArchivado
-      ? 'Esta acción no se puede deshacer. Las sesiones guardadas de "' + evento.nombre + '" se pierden.'
-      : 'El evento "' + evento.nombre + '" se mueve a Archivados. Podés volver a activarlo cuando quieras.';
+    var texto;
+    if (esArchivado) {
+      var c = conteo && conteo[evento.id];
+      var cuantas = c ? c.completas + c.incompletas : 0;
+      if (conteo === false || conteo === null) {
+        texto = 'Esta acción no se puede deshacer. Se borran "' + evento.nombre + '" y todas sus sesiones guardadas, con sus fotos.';
+      } else if (cuantas > 0) {
+        texto = 'Esta acción no se puede deshacer. Se borran "' + evento.nombre + '" y sus ' + cuantas + (cuantas === 1 ? ' sesión guardada' : ' sesiones guardadas') + ', con todas sus fotos.';
+      } else {
+        texto = 'Esta acción no se puede deshacer. Se borra "' + evento.nombre + '". No tiene sesiones guardadas.';
+      }
+    } else {
+      texto = 'El evento "' + evento.nombre + '" se mueve a Archivados. Puedes volver a activarlo cuando quieras.';
+    }
+    document.getElementById('confirmText').textContent = texto;
     document.getElementById('confirmAcceptBtn').textContent = esArchivado ? 'Eliminar' : 'Archivar';
     document.getElementById('confirmOverlay').setAttribute('data-visible', 'true');
   }
@@ -127,16 +199,43 @@
 
   document.getElementById('confirmCancelBtn').addEventListener('click', cerrarConfirmacion);
 
+  // Eliminar de verdad: primero se borran las sesiones del evento y sus archivos (en IndexedDB, en una
+  // sola operación); solo si eso salió bien se borra el evento. Así no quedan fotos de invitados
+  // huérfanas ni se promete un borrado que no ocurrió.
+  function eliminarEventoYSesiones(evento) {
+    if (typeof AlmacenSesiones === 'undefined') return Promise.reject(new Error('sin almacén de sesiones'));
+    return AlmacenSesiones.borrarDeEvento(evento.id).then(function (borradas) {
+      AlmacenEventos.eliminar(evento.id);
+      var enUso = AlmacenEventos.listar().map(function (e) {
+        return e.congelado && e.congelado.plantilla ? e.congelado.plantilla.huella : null;
+      }).filter(Boolean);
+      return AlmacenSesiones.limpiarCongeladas(enUso).catch(function () { return 0; }).then(function () { return borradas; });
+    });
+  }
+
   document.getElementById('confirmAcceptBtn').addEventListener('click', function () {
     if (!eventoAConfirmar) return;
-    if (eventoAConfirmar.estado === 'archivados') {
-      AlmacenEventos.eliminar(eventoAConfirmar.id);
-      mostrarAviso('Evento eliminado.');
-    } else {
-      eventoAConfirmar.estado = 'archivados';
-      AlmacenEventos.guardar(eventoAConfirmar);
-      mostrarAviso('Evento archivado.');
+    var evento = eventoAConfirmar;
+    if (evento.estado === 'archivado') {
+      cerrarConfirmacion();
+      eliminarEventoYSesiones(evento).then(function (borradas) {
+        eventos = AlmacenEventos.listar();
+        if (conteo) delete conteo[evento.id];
+        mostrarAviso(borradas > 0
+          ? 'Evento eliminado, con sus ' + borradas + (borradas === 1 ? ' sesión.' : ' sesiones.')
+          : 'Evento eliminado.');
+        render();
+      }).catch(function () {
+        mostrarAviso('No se pudieron borrar las sesiones del evento, así que el evento no se eliminó. Inténtalo de nuevo.');
+      });
+      return;
     }
+    // Se archiva sobre la copia más reciente del almacén (no sobre la de cuando se dibujó la lista).
+    var fresco = AlmacenEventos.obtener(evento.id) || evento;
+    fresco.estado = 'archivado';
+    AlmacenEventos.guardar(fresco);
+    var errArch = AlmacenEventos.errorDeGuardado();
+    mostrarAviso(errArch ? errArch.mensaje : 'Evento archivado.');
     eventos = AlmacenEventos.listar();
     cerrarConfirmacion();
     render();
@@ -147,17 +246,17 @@
     notice.textContent = texto;
     notice.hidden = false;
     clearTimeout(notice._timeout);
-    notice._timeout = setTimeout(function () { notice.hidden = true; }, 3200);
+    notice._timeout = setTimeout(function () { notice.hidden = true; }, 5200);
   }
 
   var textosVacio = {
-    'proximos': { title: 'No hay eventos próximos', text: 'Creá un evento nuevo para empezar a configurar la cabina.' },
-    'en-curso': { title: 'Ningún evento en curso', text: 'Cuando lances un evento desde "Próximos" va a aparecer acá.' },
-    'archivados': { title: 'No hay eventos archivados', text: 'Los eventos que archivés van a quedar guardados acá.' },
+    'proximos': { title: 'No hay eventos próximos', text: 'Crea un evento nuevo para empezar a configurar la cabina.' },
+    'en-curso': { title: 'Ningún evento en curso', text: 'Cuando lances un evento desde "Próximos" va a aparecer aquí.' },
+    'archivados': { title: 'No hay eventos archivados', text: 'Los eventos que archives van a quedar guardados aquí.' },
   };
 
   function render() {
-    var visibles = eventos.filter(function (e) { return e.estado === filtroActual; });
+    var visibles = eventos.filter(function (e) { return e.estado === estadoDePestana[filtroActual]; });
 
     eventsGrid.innerHTML = '';
     visibles.forEach(function (evento) {
@@ -173,7 +272,7 @@
       eventsEmptyBtn.hidden = filtroActual === 'en-curso';
     }
 
-    var totalActivos = eventos.filter(function (e) { return e.estado !== 'archivados'; }).length;
+    var totalActivos = eventos.filter(function (e) { return e.estado !== 'archivado'; }).length;
     eventsSub.textContent = totalActivos + (totalActivos === 1 ? ' evento activo' : ' eventos activos');
   }
 
@@ -197,7 +296,7 @@
   /* ---------- Hoja "Próximamente" para accesos aún no construidos ---------- */
 
   var soonTextos = {
-    camara: 'La cámara se elige por evento, desde la cabina: tocá "Lanzar" en el evento y abrí Ajustes › Cámara.',
+    camara: 'La cámara se elige por evento, desde la cabina: toca "Lanzar" en el evento y abre Ajustes › Cámara.',
     impresora: 'La configuración de impresora (C4) todavía no está construida.',
     ayuda: 'La ayuda todavía no está construida.',
   };
@@ -262,4 +361,5 @@
   aplicarTema(temaGuardado);
 
   render();
+  cargarDerivados();
 })();

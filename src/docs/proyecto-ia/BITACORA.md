@@ -99,3 +99,11 @@
 - **Reservas abiertas:** `capture()` estira la imagen con cámaras 16:9; eventos antiguos sin `plantillaId` quedan bloqueados; plantilla congelada al lanzar pendiente (0.1b); excepción preexistente en el editor al renombrar desde la barra.
 - **Dónde verlo:** `src/pages/01-camera-flow/`, `src/docs/ARQUITECTURA_FLUJO.md` §7.4.
 - **Estado:** hecho; falta la prueba del dueño con cámara real.
+
+## [2026-11-16] hito | 0.1b construido y certificado: repositorio v2, plantilla congelada por sesión y recorte de cámara
+- **Quién:** orquestador + equipo (frontend construyó; Code Reviewer corrigió; Evidence Collector certificó 6/6; Reality Checker aprobó el código y bloqueó solo la documentación, ya hecha).
+- **Qué:** los eventos pasan al formato v2 con migración automática y respaldo; al lanzar se congela la plantilla y cada sesión guarda la copia con que se tomó (editar la plantilla aplica a la sesión siguiente); número de sesión con contador propio del evento; la foto se recorta al marco sin estirarse (16:9 incluido); un evento sin plantilla queda con "Lanzar" bloqueado (decisión 1A); eliminar un evento borra sus sesiones y archivos, y duplicar lo clona completo. `AlmacenEventos` quedó síncrono, no asíncrono como decía el plan.
+- **Por qué:** las fotos 16:9 salían deformadas, editar una plantilla cambiaba sesiones ya hechas, el número de sesión podía repetirse y borrar un evento dejaba fotos huérfanas.
+- **Reservas abiertas:** contador no atómico entre pestañas; `almacen-sesiones.js` debería vivir en `shared/`; copias congeladas solo se limpian al borrar el evento; impresión automática y copias aún sin conectar; puente temporal del editor al formato v2; falta la prueba manual del dueño con cámara real y 16:9.
+- **Dónde verlo:** `src/docs/ARQUITECTURA_FLUJO.md` §7.5, `src/docs/DSLRBOOTH_PRODUCT_CONTEXT.md` §3.12, `src/pages/shared/`, `src/pages/01-camera-flow/`, `src/pages/04-lista-eventos/`, `src/pages/05-crear-evento/`.
+- **Estado:** hecho y certificado; pendiente de commit y de la prueba del dueño con cámara real.

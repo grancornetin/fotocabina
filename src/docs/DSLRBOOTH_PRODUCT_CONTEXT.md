@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-16 (esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-16 (hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -256,6 +256,16 @@ Todo el detalle está en `docs/ARQUITECTURA_FLUJO.md`; aquí solo las decisiones
 - Hallazgo mayor: la cabina todavía **no dibuja la plantilla real** del evento al componer (ver §6.1 del documento maestro).
 - Pantallas nuevas propuestas: A12 (cabina en pausa), C2c (revisión previa), C8 (ajustes del equipo), C9 (red y entrega digital), C10 (resumen y cierre), C11 (ayuda).
 - Orden de construcción recomendado y prueba técnica de escritorio antes de la impresión: sección 7 de ese documento.
+
+### 3.12 Hito 0.1b: plantilla congelada, eventos sin plantilla y recorte de cámara (2026-11-16)
+
+Construido y certificado (Evidence Collector 6/6; código aprobado por Reality Checker). Detalle técnico en `docs/ARQUITECTURA_FLUJO.md` §7.5 y en `pages/shared/README.md`. Decisiones del dueño que quedan firmes:
+
+- **Evento sin plantilla = "Lanzar" bloqueado (decisión 1A).** Un evento que no tiene plantilla asignada (los de demostración, o uno creado con "Elegir después") no se puede lanzar: la cabina muestra un aviso y el botón "Abrir el editor" hasta que se le asigne una. No se inventa una plantilla de respaldo.
+- **Recorte en vez de estirar.** Con una cámara 16:9 (o cualquier proporción distinta del marco), la foto se recorta al encuadre exacto que el invitado ve en el marco; nunca se deforma. Lo que se ve dentro del marco es lo que queda en la foto.
+- **Las sesiones conservan el diseño con que se tomaron; las nuevas usan la edición nueva.** Al lanzar, cada sesión guarda su propia copia de la plantilla. Si el operador edita la plantilla con el evento en marcha, la edición aplica a la sesión siguiente, sin relanzar el evento, y las sesiones ya hechas no cambian.
+- **Foto suelta = recorte exacto del marco** (decisión de bajo riesgo): la foto individual que se descarga o se repite es la misma región que mostraba el marco, no la imagen completa de la cámara.
+- **Número de sesión:** sale de un contador propio de cada evento, que no repite aunque se borren sesiones.
 
 ## 4. Requisitos del editor de layouts
 

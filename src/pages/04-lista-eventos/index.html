@@ -95,8 +95,8 @@
         <div class="events-empty-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"/></svg>
         </div>
-        <p class="events-empty-title" id="eventsEmptyTitle">Todavía no hay eventos acá</p>
-        <p class="events-empty-text" id="eventsEmptyText">Creá tu primer evento para empezar a configurar la cabina.</p>
+        <p class="events-empty-title" id="eventsEmptyTitle">Todavía no hay eventos aquí</p>
+        <p class="events-empty-text" id="eventsEmptyText">Crea tu primer evento para empezar a configurar la cabina.</p>
         <button class="ds-btn ds-btn--secondary" id="eventsEmptyBtn">Crear evento</button>
       </div>
     </main>
@@ -107,7 +107,7 @@
   <div class="confirm-overlay" id="confirmOverlay" data-visible="false">
     <div class="confirm-card" role="dialog" aria-labelledby="confirmTitle">
       <h2 class="confirm-title" id="confirmTitle">Archivar evento</h2>
-      <p class="confirm-text" id="confirmText">El evento se mueve a Archivados. Podés volver a activarlo cuando quieras.</p>
+      <p class="confirm-text" id="confirmText">El evento se mueve a Archivados. Puedes volver a activarlo cuando quieras.</p>
       <div class="confirm-actions">
         <button class="ds-btn ds-btn--ghost" id="confirmCancelBtn">Cancelar</button>
         <button class="ds-btn ds-btn--destructive" id="confirmAcceptBtn">Archivar</button>
@@ -128,6 +128,8 @@
   <div class="notice" id="notice" role="alert" hidden></div>
 
   <script src="../shared/almacen-eventos.js"></script>
+  <script src="../shared/almacen-plantillas.js"></script>
+  <script src="../01-camera-flow/almacen-sesiones.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

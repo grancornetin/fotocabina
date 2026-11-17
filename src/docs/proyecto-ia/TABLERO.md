@@ -19,7 +19,7 @@
 | Agente | Rol | Estado | Sesión/cuenta | Última actividad |
 |---|---|---|---|---|
 | orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura, el hito 0.1a y los hitos 0.2 y 1.1 | activo | | 2026-11-16 |
-| frontend | Frontend Developer: construyó 0.2 y 1.1 | libre | | 2026-11-16 |
+| frontend | Frontend Developer: construyó 0.2, 1.1 y 0.1b | libre | | 2026-11-16 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
@@ -31,6 +31,8 @@
 | 4 | Hito 0.2: motor de plantillas compartido (`shared/`) sin romper el editor | frontend | hecha | `src/pages/shared/motor-plantillas.js`, `src/pages/shared/almacen-plantillas.js`, `src/pages/03-editor-plantillas/render.js` (y `index.html`, `estado.js` solo para enganchar el motor) | 2026-11-16 | Certifican Evidence Collector (editor igual) y Code Reviewer |
 | 5 | Hito 1.1: la cabina compone con la plantilla real del evento | frontend | hecha | `src/pages/01-camera-flow/*` | 2026-11-16 | Certifican Evidence Collector y Reality Checker (agentes distintos de quien construye) |
 
+| 6 | Hito 0.1b: repositorio v2 de eventos con plantilla congelada por sesión, migración v1 a v2, recorte 16:9 de la cámara | frontend | hecha | `src/pages/shared/almacen-eventos.js`, `src/pages/shared/almacen-plantillas.js`, `src/pages/shared/README.md`, `src/pages/01-camera-flow/*`, `src/pages/04-lista-eventos/*`, `src/pages/05-crear-evento/*` (solo lo mínimo para el repositorio) | 2026-11-16 | Certificado: Code Reviewer, Evidence Collector 6/6 y Reality Checker (código aprobado). Falta prueba manual del dueño con cámara real |
+
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
 |---|---|---|---|---|
@@ -41,6 +43,8 @@
 | src/pages/shared/motor-plantillas.js, src/pages/shared/almacen-plantillas.js, src/pages/shared/README.md, src/pages/03-editor-plantillas/ (render.js, index.html, estado.js, README.md) | frontend (orquestador) | 2026-11-16 | liberada | Hito 0.2 hecho |
 | src/pages/01-camera-flow/ (index.html, app.js, styles.css, README.md) | frontend (orquestador) | 2026-11-16 | liberada | Hito 1.1 hecho |
 | src/docs/MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, ARQUITECTURA_FLUJO.md (solo §7 y hallazgos), src/README.md | writer (orquestador) | 2026-11-16 | liberada | Documentación hecha |
+| src/pages/shared/ (almacen-eventos.js, almacen-plantillas.js, README.md), src/pages/01-camera-flow/, src/pages/04-lista-eventos/, src/pages/05-crear-evento/ | frontend (orquestador) | 2026-11-16 | liberada | Hito 0.1b |
+| src/docs/ARQUITECTURA_FLUJO.md (§6, §7, §8), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, BITACORA.md, RETOMAR.md, TABLERO.md | orquestador | 2026-11-16 | liberada | Documentación del hito 0.1b |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |

@@ -1,8 +1,10 @@
 // Guardado local de sesiones en IndexedDB (sin dependencias).
 //
-// Dos almacenes en la misma base (docs/ARQUITECTURA_FLUJO.md §5.1, regla 2): `sesiones` guarda
-// el registro liviano (estado, referencias) y `archivos` guarda lo pesado (cada foto original,
-// la tira y el GIF como Blob). Cada foto se escribe JUNTO con el registro de su sesión en una
+// Tres almacenes en la misma base (docs/ARQUITECTURA_FLUJO.md §5.1, regla 2): `sesiones` guarda
+// el registro liviano (estado, referencias), `archivos` guarda lo pesado (cada foto original,
+// la tira y el GIF como Blob) y `plantillasCongeladas` (hito 0.1b) guarda la copia completa del
+// diseño con el que se tomó cada sesión, indexada por huella (una copia por diseño, no una por
+// sesión). La sesión solo guarda `plantilla: { id, copiaCongelada, huella }` y `configCongelada`. Cada foto se escribe JUNTO con el registro de su sesión en una
 // sola transacción: si se corta la luz justo después de tomarla, la foto ya existe y la sesión
 // la conoce. Borrar una sesión borra también sus archivos (cascada).
 //
@@ -18,9 +20,10 @@
   'use strict';
 
   const NOMBRE_DB = 'fotocabina';
-  const VERSION = 2;
+  const VERSION = 3;
   const ALMACEN = 'sesiones';
   const ARCHIVOS = 'archivos';
+  const CONGELADAS = 'plantillasCongeladas';
   const ESTADOS_ABIERTOS = ['capturando', 'revision', 'componiendo'];
 
   function abrir() {
@@ -36,6 +39,9 @@
         if (!db.objectStoreNames.contains(ARCHIVOS)) {
           const archivos = db.createObjectStore(ARCHIVOS, { keyPath: 'id' });
           archivos.createIndex('sesionId', 'sesionId', { unique: false });
+        }
+        if (!db.objectStoreNames.contains(CONGELADAS)) {
+          db.createObjectStore(CONGELADAS, { keyPath: 'huella' });
         }
       };
       pedido.onsuccess = () => {
@@ -55,21 +61,21 @@
     });
   }
 
-  // Abre una transacción sobre los dos almacenes y devuelve lo que devuelva `operacion`
+  // Abre una transacción sobre los almacenes y devuelve lo que devuelva `operacion`
   // recién cuando la transacción se confirmó por completo (así "guardado" significa guardado).
   async function transaccion(modo, operacion) {
     const db = await abrir();
     return new Promise((resolver, rechazar) => {
       let tx;
       try {
-        tx = db.transaction([ALMACEN, ARCHIVOS], modo);
+        tx = db.transaction([ALMACEN, ARCHIVOS, CONGELADAS], modo);
       } catch (error) {
         db.close();
         rechazar(error);
         return;
       }
       let resultado;
-      Promise.resolve(operacion(tx.objectStore(ALMACEN), tx.objectStore(ARCHIVOS)))
+      Promise.resolve(operacion(tx.objectStore(ALMACEN), tx.objectStore(ARCHIVOS), tx.objectStore(CONGELADAS)))
         .then((valor) => { resultado = valor; })
         .catch((error) => { try { tx.abort(); } catch (e) { /* ya cerrada */ } rechazar(error); });
       tx.oncomplete = () => { db.close(); resolver(resultado); };
@@ -104,7 +110,7 @@
 
   // Registro liviano a partir de la sesión en memoria: sin imágenes, solo referencias.
   function aRegistro(sesion, fotosRef) {
-    const { fotos, tira, gif, hoja, intentosFotos, ...resto } = sesion;
+    const { fotos, tira, gif, hoja, intentosFotos, fotosEnDisco, ...resto } = sesion;
     const salidas = { ...(resto.salidas || {}) };
     if (tira) salidas.tira = idArchivo(sesion.id, 'tira');
     if (gif) salidas.gif = idArchivo(sesion.id, 'gif');
@@ -209,10 +215,20 @@
     return { registro, fotos, tira: tira ? tira.blob : null, gif: gif ? gif.blob : null, hoja: hoja ? hoja.blob : null };
   }
 
+  // Las sesiones guardadas antes del hito 0.1b no traen `eventoId` ni `plantilla`: se completan al
+  // leer (solo en memoria; lo guardado no se toca) para que el resto de la app vea siempre lo mismo.
+  function conCamposV2(sesion) {
+    if (!sesion.eventoId && sesion.evento) sesion.eventoId = sesion.evento;
+    if (!sesion.plantilla || typeof sesion.plantilla !== 'object') {
+      sesion.plantilla = { id: sesion.plantillaId || null, copiaCongelada: false, huella: null };
+    }
+    return sesion;
+  }
+
   // Devuelve la sesión en la forma que usa la app: fotos (data URL), tira y gif (Blob).
   async function hidratar(partes) {
     if (!partes) return null;
-    if (partes.heredada) return partes.registro;
+    if (partes.heredada) return conCamposV2({ ...partes.registro });
     const { registro } = partes;
     const sesion = { ...registro };
     sesion.intentosFotos = [];
@@ -224,7 +240,7 @@
     sesion.tira = partes.tira;
     sesion.gif = partes.gif;
     sesion.hoja = partes.hoja;
-    return sesion;
+    return conCamposV2(sesion);
   }
 
   async function obtener(id) {
@@ -277,8 +293,91 @@
     });
   }
 
+  // ---------- Borrado en cascada de un evento ----------
+
+  // Borra TODAS las sesiones de un evento y sus archivos (fotos, tira, hoja, GIF) en una sola
+  // transacción: o se borra todo o no se borra nada. Devuelve cuántas sesiones se borraron.
+  function borrarDeEvento(eventoId) {
+    return transaccion('readwrite', async (almacen, archivos) => {
+      const ids = await esperar(almacen.index('evento').getAllKeys(eventoId));
+      for (const id of ids || []) {
+        const claves = await esperar(archivos.index('sesionId').getAllKeys(id));
+        claves.forEach((clave) => archivos.delete(clave));
+        almacen.delete(id);
+      }
+      return (ids || []).length;
+    });
+  }
+
+  // ---------- Plantillas congeladas (una copia por diseño) ----------
+
+  // Guarda la copia completa de la plantilla (con fuentes e imágenes incrustadas) bajo su huella.
+  // Idempotente: si ya existe esa huella no se reescribe.
+  function congelarPlantilla(huella, plantilla) {
+    if (!huella || !plantilla) return Promise.reject(new Error('Falta la huella o la plantilla'));
+    return transaccion('readwrite', async (almacen, archivos, congeladas) => {
+      const existente = await esperar(congeladas.getKey(huella));
+      if (existente !== undefined) return false;
+      congeladas.put({ huella, plantilla: JSON.parse(JSON.stringify(plantilla)), nombre: plantilla.nombre || '', creadoEn: new Date().toISOString() });
+      return true;
+    });
+  }
+
+  // La copia congelada (objeto plantilla) con esa huella, o null si no existe.
+  async function obtenerCongelada(huella) {
+    if (!huella) return null;
+    const fila = await transaccion('readonly', async (almacen, archivos, congeladas) => esperar(congeladas.get(huella)));
+    return fila ? fila.plantilla : null;
+  }
+
+  // Borra las copias congeladas que ninguna sesión usa y que no están en `huellasEnUso` (las que
+  // todavía usan los eventos). Devuelve cuántas borró.
+  function limpiarCongeladas(huellasEnUso) {
+    const enUso = new Set(huellasEnUso || []);
+    return transaccion('readwrite', async (almacen, archivos, congeladas) => {
+      (await esperar(almacen.getAll()) || []).forEach((r) => { if (r.plantilla && r.plantilla.huella) enUso.add(r.plantilla.huella); });
+      const claves = (await esperar(congeladas.getAllKeys())) || [];
+      let borradas = 0;
+      // Una copia recién creada (menos de 1 minuto) puede estar por ser usada por una sesión que arranca: no se toca.
+      const filas = (await esperar(congeladas.getAll())) || [];
+      const recientes = new Set(filas.filter((f) => Date.now() - Date.parse(f.creadoEn || 0) < 60000).map((f) => f.huella));
+      claves.forEach((k) => { if (!enUso.has(k) && !recientes.has(k)) { congeladas.delete(k); borradas += 1; } });
+      return borradas;
+    });
+  }
+
+  // ---------- Conteo real de sesiones ----------
+
+  // Una sesión cuenta como "armada" si llegó a compuesta o finalizada; las del formato antiguo
+  // (sin estado, solo se guardaban ya armadas) también.
+  function esCompleta(registro) {
+    if (!registro) return false;
+    if (registro.estado === undefined) return registro.version !== 2;
+    return registro.estado === 'compuesta' || registro.estado === 'finalizada';
+  }
+
+  function esIncompleta(registro) {
+    return !!registro && (registro.estado === 'incompleta' || registro.estado === 'fallida');
+  }
+
+  // { [eventoId]: { completas, incompletas } } leyendo solo los registros livianos.
+  async function contarPorEvento() {
+    const registros = await listarRegistros();
+    const cuenta = {};
+    registros.forEach((r) => {
+      const id = r.eventoId || r.evento;
+      if (!id) return;
+      if (!cuenta[id]) cuenta[id] = { completas: 0, incompletas: 0 };
+      if (esCompleta(r)) cuenta[id].completas += 1;
+      else if (esIncompleta(r)) cuenta[id].incompletas += 1;
+    });
+    return cuenta;
+  }
+
   function nuevoId() {
-    return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    let u;
+    try { u = raiz.crypto.randomUUID(); } catch (e) { u = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`; }
+    return `s-${u}`;
   }
 
   raiz.AlmacenSesiones = {
@@ -291,6 +390,13 @@
     listar,
     listarRegistros,
     marcarIncompletas,
+    borrarDeEvento,
+    congelarPlantilla,
+    obtenerCongelada,
+    limpiarCongeladas,
+    esCompleta,
+    esIncompleta,
+    contarPorEvento,
     nuevoId,
   };
 })(window);
