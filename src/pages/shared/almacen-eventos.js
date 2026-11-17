@@ -128,6 +128,13 @@
       copias: entero(entregaCruda.copias !== undefined ? entregaCruda.copias : crudo.copias, 1, 1, 20),
       impresionAuto: typeof entregaCruda.impresionAuto === 'boolean' ? entregaCruda.impresionAuto : crudo.impresionAuto === true,
     };
+    // Tope de hojas (hito 1.2): opcional; un valor que no sea un entero positivo se descarta (= sin tope).
+    if ('topeHojas' in entrega) {
+      // Primero se valida y después se acota: 0, negativos, decimales y texto no numérico NO son un tope (se descartan).
+      const crudoTope = typeof entrega.topeHojas === 'string' && entrega.topeHojas.trim() ? Number(entrega.topeHojas) : entrega.topeHojas;
+      if (typeof crudoTope === 'number' && isFinite(crudoTope) && Number.isInteger(crudoTope) && crudoTope >= 1) entrega.topeHojas = Math.min(99999, crudoTope);
+      else delete entrega.topeHojas;
+    }
 
     // Plantillas: `plantillaId` pasa a { habilitadas, porDefecto }.
     const pl = esObjeto(crudo.plantillas) ? crudo.plantillas : {};

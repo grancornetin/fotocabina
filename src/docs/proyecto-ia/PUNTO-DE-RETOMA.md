@@ -2,6 +2,14 @@
 
 **Estado:** 0.2, 1.1 y 0.1b HECHOS y commiteados; 0.3 HECHO y certificado (2026-11-17), **sin commit**. **Actualizado:** 2026-11-17
 
+## Frontend 1.2 (editar evento, varias plantillas, tope, A7 por modo de entrega)
+
+**Estado:** TERMINADO y probado por quien lo construyó (2026-11-17); sin certificación independiente y sin commit.
+- Archivos: `shared/validador-evento.js` (`configuracion` suma mensajePausa/pacienciaSeg/espejo; `configuracionEfectiva` exportada; el resumen suma impresión automática y tope), `shared/tests-validador.html` (64 casos), `shared/almacen-eventos.js` (solo sanea `entrega.topeHojas`), `shared/README.md`, `05-crear-evento/{index.html, app.js, styles.css, README.md}` (reescritos: crear y editar, varias plantillas, tope, resumen del validador, salir sin guardar), `04-lista-eventos/{app.js, styles.css, README.md}` (botón "Editar evento", línea de entrega, "(+N más)"), `01-camera-flow/{app.js, index.html, README.md}` (`configCongelada()` desde el validador; `aplicarModoEntrega()` en A7; línea de entrega en la tarjeta de plantilla; sin GIF ni QR en solo impresión).
+- Pruebas (arnés `C:/tmp/h12`, servidor `C:/tmp/fotocabina-0.1b/server.js` puerto 8321, Chrome headless, cámara falsa): `tests-validador.html` 64/64; `t1-editar.js` 42/42; `t2-cabina.js` 17/17; capturas en `C:/tmp/h12/shots` (escritorio claro y oscuro, teléfono sin desborde); consola limpia. Regresión (`C:/tmp/fotocabina-0.1b`): t1 33/33, t2 44/44, t3 16/16, t4 10/10, t5 13/13 (se ajustó en esa prueba solo dónde se lee el aviso de "no hay espacio" en 05: ahora está en `#errorGuardado`), t7 42/42 con las tres cámaras.
+- **Correcciones del Code Reviewer aplicadas (2026-11-17):** tope inválido se descarta en el almacén (1); crear no duplica y el botón se bloquea al guardar (2); evento ya lanzado no se guarda sin plantilla, aviso ámbar si la por defecto es ilegible y aviso al operador en la cabina (3); detección de cambio ajeno con "Recargar" / "Guardar igualmente" (5); tope conservado al cambiar de modo (6); aria del tope y aviso de salir modal con Escape y foco atrapado (7); texto de entrega (9); `configCongelada()` nula si el evento real ya no existe y la cabina no empieza sesión (10). Nueva prueba `C:/tmp/h12/t4-correcciones.js` 21/21; t1 42/42 (ajustada: el evento de la prueba ya lanzado no puede quedar sin plantilla), t2 17/17, tests-validador 64/64.
+- Pendiente (otros): docs de `src/docs` (§7, §8, mapa, flujo, RETOMAR), commit, certificación independiente, prueba manual del dueño.
+
 ## Frontend 0.3 (validador "evento listo para lanzar")
 
 **Estado:** TERMINADO y certificado (Code Reviewer, Evidence Collector, Reality Checker: LISTO CON RESERVAS; documentación hecha). Sin commit ni push (lo hace el orquestador al cerrar).

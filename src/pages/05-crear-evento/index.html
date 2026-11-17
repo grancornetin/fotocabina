@@ -11,18 +11,27 @@
 
   <div class="crear-shell">
     <header class="crear-head">
-      <a class="crear-back" href="../04-lista-eventos/index.html" aria-label="Cancelar y volver a mis eventos">
+      <a class="crear-back" id="backLink" href="../04-lista-eventos/index.html" aria-label="Cancelar y volver a mis eventos">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
         Mis eventos
       </a>
     </header>
 
     <main class="crear-main">
+      <!-- Edición de un evento que no existe (enlace viejo o evento eliminado) -->
+      <div class="crear-missing" id="crearMissing" hidden>
+        <h1>No encontramos ese evento</h1>
+        <p>Puede que se haya eliminado. Vuelve a la lista para elegir otro o crear uno nuevo.</p>
+        <a class="ds-btn ds-btn--secondary" href="../04-lista-eventos/index.html">Volver a mis eventos</a>
+      </div>
+
       <form class="crear-form" id="crearForm" novalidate>
         <div class="crear-form-head">
-          <h1>Crear evento</h1>
-          <p>Con estos datos armamos la ficha del evento. La plantilla y los ajustes de sesión se pueden cambiar después desde la lista de eventos.</p>
+          <h1 id="formTitulo">Crear evento</h1>
+          <p id="formSub">Con estos datos armamos la ficha del evento. La plantilla y los ajustes de sesión se pueden cambiar después desde la lista de eventos.</p>
         </div>
+
+        <p class="crear-live" id="avisoEnCurso" hidden>Este evento está en curso. Si cambias la plantilla, el modo de entrega o las copias, valen desde la sesión siguiente: las que ya se tomaron no cambian.</p>
 
         <div class="crear-section">
           <div class="ds-field" id="campoNombre">
@@ -40,6 +49,25 @@
         </div>
 
         <div class="crear-section">
+          <p class="crear-section-title">Modo de entrega</p>
+          <div class="entrega-options" id="entregaOptions" role="radiogroup" aria-label="Modo de entrega">
+            <button class="entrega-opt" type="button" data-value="impresion" role="radio" aria-checked="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
+              <span>Impresión</span>
+            </button>
+            <button class="entrega-opt" type="button" data-value="digital" role="radio" aria-checked="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="12" height="18" rx="2"/><path d="M9 18h2"/><path d="M18 8l3 3-3 3"/></svg>
+              <span>Digital</span>
+            </button>
+            <button class="entrega-opt" type="button" data-value="ambos" role="radio" aria-checked="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+              <span>Ambos</span>
+            </button>
+          </div>
+          <p class="crear-hint" id="entregaHint"></p>
+        </div>
+
+        <div class="crear-section" id="seccionImpresion">
           <p class="crear-section-title">Impresión</p>
           <div class="crear-toggle-row">
             <div class="crear-toggle-text">
@@ -62,53 +90,68 @@
               <li class="ds-select-option" role="option" data-value="5" aria-selected="false">5 hojas</li>
             </ul>
           </div>
-        </div>
 
-        <div class="crear-section">
-          <p class="crear-section-title">Plantilla</p>
-          <div class="ds-select" data-select="plantilla" id="selectPlantilla">
-            <span class="ds-select-label">Plantilla asignada</span>
-            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-              <span class="ds-select-value">Elegir después</span>
-              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            <ul class="ds-select-menu" role="listbox" hidden>
-              <li class="ds-select-option" role="option" data-value="" aria-selected="true">Elegir después</li>
-            </ul>
+          <div class="ds-field" id="campoTope" hidden>
+            <label for="fTope">Tope de hojas del evento (opcional)</label>
+            <input class="ds-input" id="fTope" type="number" min="1" max="99999" step="1" inputmode="numeric" placeholder="Sin tope" aria-describedby="topeHelp" aria-invalid="false" />
+            <span class="ds-field-help" id="topeHelp">Al llegar a este número no se imprime más y el evento sigue solo con entrega digital. Cada hoja cuenta, incluidas las copias adicionales. Déjalo vacío para no poner límite.</span>
           </div>
-          <p class="crear-hint" id="plantillaHint">Puedes crear el evento sin plantilla y asignarla más tarde tocando "Editar plantilla" en su tarjeta.</p>
+          <p class="crear-hint" id="topeNoAplica" hidden>El tope de impresiones solo se ofrece cuando el evento entrega también fotos digitales (modo "Ambos"), para que siempre haya una forma de llevarse la foto.</p>
         </div>
 
         <div class="crear-section">
-          <p class="crear-section-title">Modo de entrega</p>
-          <div class="entrega-options" id="entregaOptions" role="radiogroup" aria-label="Modo de entrega">
-            <button class="entrega-opt" type="button" data-value="impresion" role="radio" aria-checked="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
-              <span>Impresión</span>
-            </button>
-            <button class="entrega-opt" type="button" data-value="digital" role="radio" aria-checked="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="12" height="18" rx="2"/><path d="M9 18h2"/><path d="M18 8l3 3-3 3"/></svg>
-              <span>Digital</span>
-            </button>
-            <button class="entrega-opt" type="button" data-value="ambos" role="radio" aria-checked="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-              <span>Ambos</span>
-            </button>
+          <p class="crear-section-title">Plantillas</p>
+          <p class="crear-hint" id="plantillaHint">Marca las plantillas que puede usar este evento y elige cuál va por defecto.</p>
+          <ul class="plantilla-lista" id="plantillaLista" aria-label="Plantillas del evento"></ul>
+          <p class="crear-hint" id="plantillaVacio" hidden>Todavía no tienes plantillas guardadas en el editor. Puedes crear el evento igual y asignarle una plantilla después.</p>
+        </div>
+
+        <div class="crear-section" id="seccionResumen">
+          <p class="crear-section-title">Así queda el evento</p>
+          <div class="resumen-box" id="resumenBox" aria-live="polite">
+            <p class="resumen-linea" id="resumenTexto">Calculando…</p>
+            <p class="resumen-linea resumen-ritmo" id="resumenRitmo" hidden></p>
+            <ul class="resumen-notas" id="resumenNotas"></ul>
+          </div>
+        </div>
+
+        <p class="crear-error" id="errorGuardado" role="alert" hidden></p>
+
+        <div class="crear-conflicto" id="conflictoBox" role="alert" hidden>
+          <p>Este evento cambió mientras lo editabas (por ejemplo desde la cabina u otra pestaña). Si guardas ahora, tus cambios pisan los que se hicieron.</p>
+          <div class="crear-conflicto-acciones">
+            <button class="ds-btn ds-btn--secondary" type="button" id="conflictoRecargarBtn">Recargar el evento (pierdes lo que editaste)</button>
+            <button class="ds-btn ds-btn--destructive" type="button" id="conflictoGuardarBtn">Guardar igualmente</button>
           </div>
         </div>
 
         <div class="crear-actions">
-          <a class="ds-btn ds-btn--ghost" href="../04-lista-eventos/index.html">Cancelar</a>
+          <a class="ds-btn ds-btn--ghost" id="cancelarBtn" href="../04-lista-eventos/index.html">Cancelar</a>
           <button class="ds-btn ds-btn--primary" type="submit" id="guardarBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
-            Crear evento
+            <span id="guardarTexto">Crear evento</span>
           </button>
         </div>
       </form>
     </main>
   </div>
 
+  <!-- Salir con cambios sin guardar -->
+  <div class="confirm-overlay" id="salirOverlay" data-visible="false">
+    <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="salirTitulo">
+      <h2 class="confirm-title" id="salirTitulo">¿Salir sin guardar?</h2>
+      <p class="confirm-text">Hiciste cambios que todavía no se guardaron. Si sales ahora, se pierden.</p>
+      <div class="confirm-actions">
+        <button class="ds-btn ds-btn--secondary" type="button" id="salirSeguirBtn">Seguir editando</button>
+        <button class="ds-btn ds-btn--destructive" type="button" id="salirSalirBtn">Salir sin guardar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="../shared/almacen-eventos.js"></script>
+  <script src="../shared/motor-plantillas.js"></script>
+  <script src="../shared/validador-evento.js"></script>
+  <script src="../shared/almacen-plantillas.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

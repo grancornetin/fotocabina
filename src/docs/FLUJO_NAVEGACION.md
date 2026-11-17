@@ -110,6 +110,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 ### A7 · Resultado final
 - **Llega:** desde A6, al terminar la composición.
 - **Sale:** "Borrar y repetir sesión" → A3/A1 · "Finalizar" → A1 (marca finalizada) · timeout de inactividad (nunca/30/60/90 s, aviso en últimos 10 s) → A1 sola, sesión ya guardada · Imprimir → A9 (falta; hoy abre el diálogo del sistema directo).
+- **Según el modo de entrega (hito 1.2, 2026-11-17):** lo que ofrece A7 sale del modo congelado en **esa** sesión. Solo impresión: tira e "Imprimir", sin QR, descarga, compartir, pestañas ni GIF. Solo digital: sin "Imprimir". Ambos y demostración sin evento: todo. Editar el evento después no cambia las sesiones ya tomadas.
 - **Feliz:** tabs Tira/Fotos/GIF, imprime y/o descarga, escanea QR, toca "Finalizar" o se va.
 - **Errores/bordes:**
   - Impresora sin papel / sin tinta / atascada / desconectada → interrumpe el envío sin perder el trabajo en cola; falta el paso intermedio A9 que hoy no existe.
@@ -215,7 +216,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### C1 · Lista de eventos — *Construida*
 - **Llega:** apertura de la app, o tocando el **logo/"Inicio"** desde la cabina (decisión nueva, resuelve el hueco de vuelta).
-- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · Duplicar/Archivar/Eliminar actúan en la misma vista.
+- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · **"Editar evento" → C2 en modo edición (`05-crear-evento/index.html?editar=<id>`, hito 1.2; ver "C1 → C2 en edición" más abajo)** · Duplicar/Archivar/Eliminar actúan en la misma vista.
 - **Feliz:** ve eventos por tabs (Próximos/En curso/Archivados), toca "Lanzar" en el de hoy.
 - **"Lanzar" y el validador (hito 0.3, 2026-11-17):** la lista decide con el validador único (`shared/validador-evento.js`) si el evento es lanzable y marca "No lanzable" con el motivo; la cabina vuelve a revisar al abrirse y es quien explica el bloqueo. Hueco: la card "No lanzable" aún muestra su botón "Lanzar" lima; y falta "Reabrir" para archivados (hito 1.3).
 - **Errores/bordes:**
@@ -236,6 +237,20 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Activar "punto de retiro externo" o "impresión remota" (futuro, H3/H4) → **no se muestran todavía** esas opciones, en vez de mostrarlas deshabilitadas; se agregan cuando existan H3/H4.
   - Cierre accidental a mitad de carga → *(hueco sin resolver, igual que B1: no hay autosave ni aviso de cambios sin guardar)*.
   - Storage lleno al crear → *(hueco sin resolver: `AlmacenEventos.guardar()` no distingue este caso todavía)*.
+
+### C1 → C2 en edición (`?editar=<id>`) — *Hecha (2026-11-17, hito 1.2, certificada)*
+- **Llega:** desde C1, botón de ícono "Editar evento" de la tarjeta (todas las tarjetas lo tienen, también los archivados). Es el mismo formulario de C2; solo cambia que parte del evento guardado. Abre en la misma pestaña y no suma botones lima.
+- **Sale:** "Guardar cambios" guarda en el almacén y vuelve a C1 (guardar y volver son un solo paso, igual que al crear) · "Cancelar" o "Mis eventos" del header vuelve a C1 sin guardar.
+- **Qué pasa al volver:** C1 muestra el evento con los datos nuevos (nombre, fecha, línea de entrega, plantilla por defecto), en el mismo estado que tenía: editar no cambia su estado, su id, su ritmo, su cámara, sus sesiones ni su copia congelada del último lanzamiento.
+- **Qué pasa al guardar:** se vuelve a leer el evento del almacén y se pisan solo los campos del formulario (nombre, fecha, entrega, copias, tope y plantillas), así no se pierde lo que otra pantalla haya cambiado en el intertanto. Con el evento **en curso**, un aviso ámbar dice que los cambios valen **desde la sesión siguiente**: la cabina relee el evento al empezar cada sesión y las ya tomadas no cambian (decisión del dueño, `ARQUITECTURA_FLUJO.md` §8).
+- **Aviso al salir sin guardar:** si hay cambios sin guardar, "Cancelar" y "Mis eventos" abren un cuadro modal ("Seguir editando" / "Salir sin guardar"): Escape lo cierra, el foco queda atrapado entre sus dos botones y vuelve al botón que lo abrió. Sin cambios, vuelve directo. Si se cierra la pestaña o se recarga con cambios sin guardar, el navegador muestra su propio aviso genérico (solo si ya hubo interacción).
+- **Errores/bordes:**
+  - `id` inexistente (enlace viejo, evento eliminado) → "No encontramos ese evento" con botón a C1; el formulario no se abre.
+  - Otra pestaña o la cabina cambiaron el evento mientras editabas → no se guarda en silencio: aviso ámbar con "Recargar el evento" (pierdes lo editado) o "Guardar igualmente" (se parte del evento actual).
+  - Evento ya lanzado y sin plantilla por defecto → no se guarda, con mensaje claro; si la por defecto elegida no se puede leer, aviso ámbar y la cabina seguirá con la copia guardada al lanzar.
+  - Sin espacio al guardar → cuadro de error, el botón se rehabilita y el reintento reutiliza el mismo evento (no duplica).
+  - Evento archivado → se puede editar y sigue archivado; para lanzarlo falta "Reabrir" (hito 1.3, decisión del dueño).
+  - Los enlaces de acción del validador (`DESTINOS.EDITAR_EVENTO`, "Cambiar las copias", "Cambiar la entrega") **todavía no están conectados** a `05-crear-evento?editar=<id>`; hoy esa pantalla solo se abre desde el botón de la tarjeta.
 
 ### C2b · Modo operador previo al lanzamiento — *Migrado (estructura)*
 - **Llega:** desde C1 al "Lanzar" un evento · desde modo invitado, "Operador"/ESC + PIN correcto (vuelve, no llega de cero).

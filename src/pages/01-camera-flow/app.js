@@ -159,6 +159,15 @@
     return plantillaActiva ? MotorPlantillas.contarFotos(plantillaActiva) : ajustes.fotos;
   }
 
+  function textoEntrega(c) {
+    const modos = { impresion: 'Solo impresión', digital: 'Solo digital', ambos: 'Impresión y digital' };
+    let t = modos[c.modo] || 'Entrega sin definir';
+    // Las hojas solo se nombran si la impresión es automática (si no, no hay nada que contar todavía).
+    if (c.modo !== 'digital' && c.impresionAuto) t += ` · ${c.copias} ${c.copias === 1 ? 'hoja' : 'hojas'} · impresión automática`;
+    if (c.topeHojas) t += ` · tope ${c.topeHojas} ${c.topeHojas === 1 ? 'hoja' : 'hojas'}`;
+    return t;
+  }
+
   const enPulgadas = (mm) => String(Math.round((mm / 25.4) * 10) / 10).replace('.', ',');
   const textoPapel = (p) => `${enPulgadas(p.papel.anchoMm)} × ${enPulgadas(p.papel.altoMm)} in`;
 
@@ -179,6 +188,16 @@
       if (nombrePlantilla) nombrePlantilla.textContent = 'Sin plantilla válida';
     } else {
       templateMeta.textContent = `${ajustes.fotos} fotos · 2×6 en 4×6 · cuenta ${ajustes.cuenta} s · ${pausa}`;
+    }
+
+    // Cómo entrega este evento (modo, copias, impresión automática, tope): se lee del evento, no se decide aquí.
+    // Las copias y la impresión automática todavía no imprimen solas (hito de impresión): solo se muestran.
+    const entregaEl = q('#templateEntrega');
+    if (entregaEl) {
+      const real = eventoActual.id !== 'demo' && typeof ValidadorEvento !== 'undefined';
+      const cfgEntrega = real ? configCongelada() : null;
+      entregaEl.hidden = !cfgEntrega;
+      if (cfgEntrega) entregaEl.textContent = textoEntrega(cfgEntrega);
     }
 
     // Con plantilla real, el número de fotos lo manda la plantilla: el selector manual no se ofrece.
@@ -240,6 +259,7 @@
     const notas = res
       ? [...res.bloqueos, ...res.avisos].filter((n) => (n.grupo !== 'plantilla' || n.gravedad === 'aviso') && n.codigo !== 'SIN_CAMARA' && n.codigo !== 'CAMARA_NO_COMPROBADA')
       : [];
+    if (avisoDesfase) notas.unshift({ gravedad: 'aviso', mensaje: avisoDesfase });
     notas.slice(0, 4).forEach((n) => {
       const li = document.createElement('li');
       li.className = 'launch-note launch-note--' + n.gravedad;
@@ -327,22 +347,19 @@
   // plantilla de hoy.
 
   // Lo que se congela junto con el diseño: número de fotos, papel, entrega, copias y ritmo.
+  // La configuración efectiva la calcula el validador (shared/validador-evento.js, hito 1.2): aquí solo se le
+  // entrega el evento (con el ritmo y el espejo que el operador tiene en pantalla) y la plantilla vigente.
+  // La cabina abierta sin evento (demostración) usa un evento de prueba que ofrece todas las salidas.
   function configCongelada() {
-    const evento = (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoActual.id) : null;
-    const entrega = (evento && evento.entrega) || {};
-    const papel = plantillaActiva && plantillaActiva.papel ? plantillaActiva.papel : null;
-    return {
-      fotos: numeroDeFotos(),
-      papel: papel ? { anchoMm: papel.anchoMm, altoMm: papel.altoMm, ppp: papel.ppp || 300, duplicarEnHoja: !!papel.duplicarEnHoja } : null,
-      modo: entrega.modo || null,
-      copias: entrega.copias || null,
-      impresionAuto: !!entrega.impresionAuto,
-      cuentaSeg: ajustes.cuenta,
-      pausaSeg: ajustes.pausa,
-      mensajePausa: ajustes.mensajePausa,
-      pacienciaSeg: ajustes.volver,
-      espejo: !!ajustes.espejo,
-    };
+    const real = eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined';
+    let evento = real ? AlmacenEventos.obtener(eventoActual.id) : null;
+    // Un evento real que ya no existe (eliminado desde otra pestaña) no se reemplaza por uno inventado: sin configuración.
+    if (real && !evento) return null;
+    if (!evento && typeof AlmacenEventos !== 'undefined') {
+      evento = AlmacenEventos.crear({ nombre: eventoActual.nombre, entrega: { modo: 'ambos', copias: 1, impresionAuto: false } });
+    }
+    if (evento) AlmacenEventos.aplicarAjustes(evento, ajustes);
+    return ValidadorEvento.configuracionEfectiva(evento, plantillaActiva, { fotos: numeroDeFotos() });
   }
 
   // Congela `plantilla` como la vigente de esta cabina: calcula su huella, guarda la copia y anota el
@@ -368,13 +385,17 @@
   // Al empezar cada sesión: si la plantilla vigente del editor cambió (otra huella), las sesiones
   // nuevas usan la edición y se congela. Si no se puede leer (la borraron, quedó inválida), se sigue
   // con la que ya estaba congelada: un evento en marcha no se frena delante del invitado.
+  let avisoDesfase = null; // el evento ya no apunta a una plantilla que se pueda usar: la cabina sigue con la congelada
+
   async function refrescarPlantillaVigente() {
     if (eventoActual.id === 'demo' || typeof AlmacenPlantillas === 'undefined' || typeof AlmacenEventos === 'undefined') return;
     const evento = AlmacenEventos.obtener(eventoActual.id);
     const id = evento && evento.plantillas && evento.plantillas.porDefecto;
-    if (!id) return;
+    const avisar = (texto) => { if (avisoDesfase !== texto) { avisoDesfase = texto; showNotice(texto); actualizarLanzamiento(); } };
+    if (!id) { avisar('Este evento ya no tiene una plantilla por defecto: la cabina sigue con la plantilla con que se lanzó. Revisa el evento antes de seguir.'); return; }
     const nueva = await AlmacenPlantillas.obtener(id);
-    if (!nueva || !MotorPlantillas.validarPlantilla(nueva).valida) return;
+    if (!nueva || !MotorPlantillas.validarPlantilla(nueva).valida) { avisar('La plantilla por defecto del evento no se puede leer o está dañada: la cabina sigue con la copia guardada al lanzar. Revisa el evento.'); return; }
+    if (avisoDesfase) { avisoDesfase = null; actualizarLanzamiento(); }
     if (plantillaActiva && nueva.id === plantillaActiva.id && nueva.modificada && nueva.modificada === modificadaActiva && huellaActiva) return;
     const huellaNueva = await AlmacenPlantillas.huella(nueva);
     if (huellaNueva === huellaActiva) { modificadaActiva = nueva.modificada || null; return; }
@@ -387,6 +408,10 @@
   // Empezar una sesión desde la pantalla de inicio del invitado: primero se asegura la plantilla vigente.
   async function iniciarSesionInvitado() {
     if (iniciandoSesion || sessionActive) return;
+    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined' && !AlmacenEventos.obtener(eventoActual.id)) {
+      showNotice('Este evento ya no existe (se eliminó desde otra pestaña). Vuelve a la lista de eventos.');
+      return;
+    }
     iniciandoSesion = true;
     try { await refrescarPlantillaVigente(); } catch (e) { /* se sigue con la plantilla congelada */ }
     iniciandoSesion = false;
@@ -1469,6 +1494,7 @@
     }
     composing.hidden = true;
     setResultTab('strip');
+    aplicarModoEntrega();
     result.hidden = false;
     iniciarTemporizadorInicio();
   }
@@ -1585,8 +1611,15 @@
     });
 
     await guardarSesionActual();
-    generarGif();
-    mostrarQrEntrega();
+    // Solo impresión: no hay GIF ni QR (la sesión es más rápida y el invitado no ve salidas digitales).
+    if (modoDeEntrega() === 'impresion') {
+      gifGeneracion++;
+      gifBlob = null;
+      if (qrEntregaTimeout) clearTimeout(qrEntregaTimeout);
+    } else {
+      generarGif();
+      mostrarQrEntrega();
+    }
   }
 
   // ---------- Entrega digital por QR (A8 del mapa de pantallas) ----------
@@ -1597,6 +1630,7 @@
 
   function mostrarQrEntrega() {
     if (qrEntregaTimeout) clearTimeout(qrEntregaTimeout);
+    qrCard.hidden = false;
     qrCard.dataset.state = 'waiting';
     qrCardTitle.textContent = 'Llévate tus fotos';
     qrCardSub.textContent = 'Escanea el código con tu celular';
@@ -1761,6 +1795,36 @@
       return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [prueba] }));
     } catch (e) {
       return false;
+    }
+  }
+
+  const compartirSoportado = puedeCompartirArchivos();
+
+  // ---------- Resultado según el modo de entrega (A7, hito 1.2) ----------
+  // Lo que se ofrece al invitado lo manda el modo de entrega con que se congeló SU sesión
+  // (docs/ARQUITECTURA_FLUJO.md §2.3): solo impresión = sin QR, descarga ni compartir; solo digital = sin
+  // imprimir. El operador reimprime desde la galería (no pasa por esta pantalla). Sin evento (demostración)
+  // el modo es "ambos": se ofrece todo, como siempre.
+
+  function modoDeEntrega() {
+    const c = sesionActual && sesionActual.configCongelada;
+    return (c && ['impresion', 'digital', 'ambos'].includes(c.modo)) ? c.modo : 'ambos';
+  }
+
+  function aplicarModoEntrega() {
+    const modo = modoDeEntrega();
+    const imprime = modo !== 'digital';
+    const digital = modo !== 'impresion';
+    printBtn.hidden = !imprime;
+    downloadBtn.hidden = !digital;
+    shareBtn.hidden = !(digital && compartirSoportado);
+    q('#resultTabs').hidden = !digital;
+    qrCard.hidden = !digital;
+    const sub = q('.result-sub');
+    if (sub) {
+      sub.textContent = modo === 'impresion' ? 'Tu tira ya está armada. Imprímela para llevártela.'
+        : modo === 'digital' ? 'Tu tira ya está armada. Escanea el código o descárgala para llevártela.'
+        : 'Tu tira ya está armada. Elige cómo llevártela.';
     }
   }
 
@@ -2037,7 +2101,7 @@
     }
   });
 
-  if (puedeCompartirArchivos()) {
+  if (compartirSoportado) {
     shareBtn.hidden = false;
     shareBtn.addEventListener('click', async () => {
       const files = archivosParaCompartir();

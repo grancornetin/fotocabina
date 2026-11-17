@@ -451,6 +451,12 @@ img, svg { display: block; }
 .event-card-meta {
   font-size: 0.8125rem;
   color: var(--color-fog);
+  margin: 0 0 4px;
+}
+
+.event-card-delivery {
+  font-size: 0.8125rem;
+  color: var(--color-fog);
   margin: 0 0 var(--sp-2);
 }
 

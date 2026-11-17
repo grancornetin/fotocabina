@@ -150,17 +150,22 @@ const ValidadorEvento = (() => {
 
   // ---------- Configuración efectiva ----------
 
-  function configuracionEfectiva(evento, plantilla) {
+  // `opciones.fotos` (opcional): fuerza el n.º de fotos cuando no hay plantilla (la cabina en demostración usa el
+  // ajuste manual). Con plantilla, el n.º de fotos siempre sale de la plantilla.
+  function configuracionEfectiva(evento, plantilla, opciones) {
     const e = esObjeto(evento) ? evento : {};
     const entrega = esObjeto(e.entrega) ? e.entrega : {};
     const ritmo = esObjeto(e.ritmo) ? e.ritmo : {};
+    const camara = esObjeto(e.preferenciasDeEquipo) && esObjeto(e.preferenciasDeEquipo.camara) ? e.preferenciasDeEquipo.camara : {};
+    const fotosForzadas = esObjeto(opciones) && esNumero(opciones.fotos) && opciones.fotos > 0 ? Math.round(opciones.fotos) : null;
     const modo = MODOS.includes(entrega.modo) ? entrega.modo : 'ambos';
     const imprime = modo !== 'digital';
     const tope = esNumero(entrega.topeHojas) && entrega.topeHojas > 0 ? Math.round(entrega.topeHojas) : null;
     const papel = plantilla && esObjeto(plantilla.papel)
       ? { anchoMm: plantilla.papel.anchoMm, altoMm: plantilla.papel.altoMm, ppp: plantilla.papel.ppp || 300, duplicarEnHoja: !!plantilla.papel.duplicarEnHoja }
       : null;
-    const fotos = plantilla && typeof MotorPlantillas !== 'undefined' ? MotorPlantillas.contarFotos(plantilla) : null;
+    const fotosPlantilla = plantilla && typeof MotorPlantillas !== 'undefined' ? MotorPlantillas.contarFotos(plantilla) : null;
+    const fotos = fotosPlantilla !== null ? fotosPlantilla : fotosForzadas;
     const cfg = {
       fotos,
       papel,
@@ -171,6 +176,10 @@ const ValidadorEvento = (() => {
       impresionAuto: imprime && entrega.impresionAuto === true,
       // El tope solo vale si el evento también entrega fotos digitales (respuesta del dueño, 2026-11-16).
       topeHojas: modo === 'ambos' ? tope : null,
+      // Lo que la cabina congela además del ritmo y la entrega (hito 1.2: una sola fuente, ya no se arma a mano en la cabina).
+      mensajePausa: typeof ritmo.mensajePausa === 'string' && ritmo.mensajePausa ? ritmo.mensajePausa : '¡Cambia de pose!',
+      pacienciaSeg: Math.max(0, entero(ritmo.pacienciaSeg, 30)),
+      espejo: camara.espejo !== false,
       resumen: '',
     };
     cfg.resumen = textoResumen(cfg);
@@ -189,6 +198,8 @@ const ValidadorEvento = (() => {
     }
     partes.push(`${cfg.copias} ${cfg.copias === 1 ? 'copia' : 'copias'}`);
     partes.push(cfg.modo === 'ambos' ? 'impresión y digital' : 'solo impresión');
+    if (cfg.impresionAuto) partes.push('con impresión automática');
+    if (cfg.topeHojas) partes.push(`tope de ${cfg.topeHojas} ${cfg.topeHojas === 1 ? 'hoja' : 'hojas'}`);
     return partes.join(', ');
   }
 
@@ -325,5 +336,7 @@ const ValidadorEvento = (() => {
     return { listo: bloqueos.length === 0, configuracion: cfg, bloqueos, avisos, ritmo };
   }
 
-  return { validar, ILEGIBLE, CODIGOS, DESTINOS, RITMO, UMBRALES };
+  // `configuracionEfectiva(evento, plantilla, opciones)`: solo la configuración que se congela en cada sesión,
+  // sin revisar nada más. Es la misma que devuelve validar().configuracion.
+  return { validar, configuracionEfectiva, ILEGIBLE, CODIGOS, DESTINOS, RITMO, UMBRALES };
 })();

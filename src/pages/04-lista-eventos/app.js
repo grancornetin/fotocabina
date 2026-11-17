@@ -60,7 +60,22 @@
     if (!id) return 'Sin plantilla asignada';
     if (nombresPlantilla === null) return '';
     if (nombresPlantilla === false) return 'Plantilla no disponible';
-    return nombresPlantilla[id] || 'Plantilla no encontrada';
+    var nombre = nombresPlantilla[id] || 'Plantilla no encontrada';
+    var otras = ((evento.plantillas && evento.plantillas.habilitadas) || []).filter(function (x) { return x !== id; }).length;
+    return otras > 0 ? nombre + ' (+' + otras + (otras === 1 ? ' más)' : ' más)') : nombre;
+  }
+
+  // Cómo entrega el evento, en una línea: modo, impresión automática y tope de hojas (se leen del evento).
+  function textoEntrega(evento) {
+    var e = evento.entrega || {};
+    var modos = { impresion: 'Solo impresión', digital: 'Solo digital', ambos: 'Impresión y digital' };
+    var texto = modos[e.modo] || 'Entrega sin definir';
+    if (e.modo !== 'digital' && e.impresionAuto) {
+      var n = e.copias || 1;
+      texto += ' · impresión automática de ' + n + (n === 1 ? ' hoja' : ' hojas');
+    }
+    if (e.modo === 'ambos' && e.topeHojas) texto += ' · tope ' + e.topeHojas + (e.topeHojas === 1 ? ' hoja' : ' hojas');
+    return texto;
   }
 
   function textoSesiones(evento) {
@@ -153,12 +168,16 @@
           '<span class="ds-badge ' + badgeClase + '">' + estadoLabel[evento.estado] + '</span>' +
         '</div>' +
         '<p class="event-card-meta">' + esc(formatearFecha(evento.fecha)) + ' · <span data-campo="plantilla">' + esc(textoPlantilla(evento)) + '</span></p>' +
+        '<p class="event-card-delivery" data-campo="entrega">' + esc(textoEntrega(evento)) + '</p>' +
         '<p class="event-card-block" data-campo="lanzable" hidden></p>' +
         '<p class="event-card-stats">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="7" height="7" rx="1.5"/><rect x="13" y="3" width="7" height="7" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></svg>' +
           '<span data-campo="sesiones">' + esc(textoSesiones(evento)) + '</span>' +
         '</p>' +
         '<div class="event-card-actions">' +
+          '<button class="event-action-btn" data-action="editar" title="Editar evento" aria-label="Editar evento">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>' +
+          '</button>' +
           '<button class="event-action-btn" data-action="editar-plantilla" title="Editar plantilla del evento" aria-label="Editar plantilla del evento">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg>' +
           '</button>' +
@@ -183,6 +202,10 @@
     card.querySelector('[data-action="lanzar"]').addEventListener('click', function () {
       AlmacenEventos.setActivo(evento.id);
       window.location.href = '../01-camera-flow/index.html';
+    });
+
+    card.querySelector('[data-action="editar"]').addEventListener('click', function () {
+      window.location.href = '../05-crear-evento/index.html?editar=' + encodeURIComponent(evento.id);
     });
 
     card.querySelector('[data-action="editar-plantilla"]').addEventListener('click', function () {

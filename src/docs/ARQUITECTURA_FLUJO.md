@@ -121,7 +121,7 @@ Léela así: "si el operador cambia esto, el sistema debe recalcular / habilitar
 - **Impresora:** con un problema declarado bloquea en "solo impresión" y en "impresión y digital" (respuesta D2 del dueño); en "solo digital" no se mira. Como el navegador no puede comprobarla, hoy el estado llega como "desconocido" y solo **avisa** (`IMPRESORA_NO_COMPROBABLE`): revisa papel y cinta a mano.
 - **Disco:** **bloquea** bajo 200 MB y **avisa** bajo 1000 MB. Hoy ninguna pantalla pasa el dato real (ver reservas de 7.6), así que **la regla está inactiva** hasta que se conecte.
 - **Ritmo y resumen para el operador (2.5):** el validador los calcula, pero **ninguna pantalla los muestra todavía** (llegan con C2c, hito 1.4).
-- Prueba sin dependencias: `src/pages/shared/tests-validador.html` (55 casos, pasan).
+- Prueba sin dependencias: `src/pages/shared/tests-validador.html` (64 casos, pasan).
 
 ### 2.4 El validador: una sola revisión, usada por todos
 
@@ -474,7 +474,7 @@ Encontrados el 2026-11-16 leyendo la documentación **y el código** de cada pan
 | --- | --- | --- | --- | --- |
 | 1 | **Grave** | **La cabina no dibuja la plantilla real.** El evento "tiene" una plantilla, pero es solo una etiqueta: al componer, la cabina pinta su propio diseño fijo (lienzo 1200 × 1800, título "FOTOCABINA", marcos lima, pie "Hecho con FotoCabina"), sin hoja 4 × 6 de dos tiras, y el marco de encuadre usa una proporción fija. Todo el trabajo del editor no llega todavía a la foto del invitado. Es el verdadero alcance del "punto 4 pendiente" de `DSLRBOOTH_PRODUCT_CONTEXT.md` §3.9 | `01-camera-flow/app.js`: `compose()` y `FRAME_RATIO`. El motor del editor, `03-editor-plantillas/render.js`, depende del estado interno del editor y nadie más lo usa | Hito 0.2 y 1.1 (sección 7): motor de plantillas compartido, y la cabina lo usa. **Cerrado por 1.1 (certificado 2026-11-16)** (0.2 hecho y commiteado; ver 7.4) |
 | 2 | **Grave** | **El modo de entrega y las copias se guardan y nadie los lee.** C2 los pide al crear el evento, pero la cabina siempre ofrece imprimir, descargar y QR, y ninguna pantalla muestra las copias | Búsqueda en `01-camera-flow/app.js` y `04-lista-eventos/app.js`: sin ninguna referencia a esos campos | Validador + A7 y A9 que respetan el modo (secciones 2.3 y 4) |
-| 3 | **Grave** | **No hay forma de editar un evento una vez creado** (nombre, fecha, copias, entrega, plantillas). Un error al crearlo se arregla duplicando y borrando | `05-crear-evento` solo crea; la tarjeta de `04-lista-eventos` no ofrece "Editar" | C2 en modo edición (hito 1.2) |
+| 3 | **Grave** | **No hay forma de editar un evento una vez creado** (nombre, fecha, copias, entrega, plantillas). Un error al crearlo se arregla duplicando y borrando | `05-crear-evento` solo crea; la tarjeta de `04-lista-eventos` no ofrece "Editar" | C2 en modo edición (hito 1.2). **RESUELTO (2026-11-17, hito 1.2 certificado):** botón "Editar evento" en la tarjeta de C1 y `05-crear-evento?editar=<id>`; ver 7.7 |
 | 4 | **Grave** | **Todos los datos viven solo dentro del navegador** (eventos y plantillas en `localStorage`, sesiones en IndexedDB). Borrar los datos del sitio, cambiar de navegador o de computador pierde eventos, plantillas y todas las fotos, sin aviso ni respaldo. Además las plantillas guardan fuentes e imágenes dentro de `localStorage`, que tiene un tope pequeño (unos pocos MB según el navegador): "storage lleno" es un riesgo real y hoy sin aviso. Y las páginas compartirán datos solo si el navegador trata las páginas abiertas con doble clic como el mismo origen; eso cambia según el navegador | `shared/almacen-eventos.js`; `03-editor-plantillas/estado.js` (clave `fotocabina-editor-v1`); `01-camera-flow/almacen-sesiones.js` | Respaldo y paquete de evento (hito 1.6); aviso de espacio; app de escritorio (la solución de fondo) |
 | 5 | **Grave** | **La sesión se guarda recién al componer la tira.** Las fotos tomadas antes (durante la captura y la revisión) no existen en ningún almacén: un corte de luz o un cierre en esos 30 a 60 segundos las pierde, y no existe el estado "incompleta". Contradice la regla de `DSLRBOOTH_PRODUCT_CONTEXT.md` §5.3 ("nunca debe borrar las fotos originales") | `01-camera-flow/app.js`: `guardarSesionActual()` se llama desde `compose()` | Guardar cada foto al tomarla (hito 0.1) |
 | 6 | Medio | **El PIN tiene tres problemas.** (a) Se decidió "universal" el 2026-09-22, pero se guarda copiado dentro de cada evento. (b) El valor de fábrica `1234` está en un repositorio público. (c) La pantalla del operador lo escribe en claro ("ingresa el PIN 1234") y el campo lo muestra. Sigue sin bloqueo por intentos fallidos (ya anotado en `FLUJO_NAVEGACION.md`, hueco 5) | `01-camera-flow/app.js`: `AJUSTES_BASE.pin`, texto de `connectHint`; `shared/almacen-eventos.js` | PIN al Equipo, cambio obligatorio al primer uso, bloqueo tras intentos (hito 0.1 y decisión 3) |
@@ -546,7 +546,7 @@ Tamaño: S (menos de un día de agente), M (varios días), L (una fase). "Navega
 | **0.2 (HECHO 2026-11-16, ver 7.4)** | **Motor de plantillas compartido** en `shared/`, extraído del editor sin cambiar cómo se ve ni se usa el editor | Nada | 1.1, A2, hoja 4 × 6 real | M | Sí |
 | **0.3 (HECHO 2026-11-17, ver 7.6)** | **Validador** (2.4): configuración efectiva, bloqueos, avisos, ritmo | 0.1b, 0.2 | 1.2, 1.4, A2, C5 | M | Sí |
 | **1.1 (HECHO 2026-11-16; ver 7.4)** | La cabina compone con la plantilla real: n.º de fotos, marco de encuadre, hoja 4 × 6 de dos tiras (cierra el hallazgo 1 y el punto 4 pendiente). Es lo más valioso y puede ir justo después de 0.2 | 0.2 | Todo lo que dependa del resultado | M | Sí |
-| **1.2** | **C2 crear y editar** con varias plantillas habilitadas; A7 respeta el modo de entrega; las copias se leen | 0.1, 0.3 | A2, A9 | M | Sí |
+| **1.2 (HECHO 2026-11-17, ver 7.7)** | **C2 crear y editar** con varias plantillas habilitadas; A7 respeta el modo de entrega; las copias se leen | 0.1, 0.3 | A2, A9 | M | Sí |
 | **1.3** | Ciclo de vida: "En curso" automático, **Terminar evento**, conteo real en C1, aviso al eliminar con sesiones | 0.1 | C10 | S | Sí |
 | **1.4** | **C2c Revisión previa** dentro de C2b y **Ensayo** | 0.3 | Confianza antes de lanzar | S | Sí |
 | **1.5** | Paciencia unificada en A2 a A5 y regla de abandono | Decisión 4 | A2 | S | Sí |
@@ -602,6 +602,12 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 - **Recorte de cámara 16:9 (2026-11-16): sí.** Con una cámara 16:9 la foto se recorta al marco en vez de estirarse.
 - **Foto suelta = recorte exacto del marco (bajo riesgo, 2026-11-16):** la foto individual es la región que mostraba el marco, no la imagen completa de la cámara.
 - **Edición de plantilla con el evento en marcha (bajo riesgo, 2026-11-16):** aplica a la **siguiente sesión**; las sesiones ya hechas conservan el diseño con que se tomaron.
+- **Decisiones de bajo riesgo tomadas por defecto en el hito 1.2 (2026-11-17), a confirmar por el dueño; cambiarlas es barato:**
+  - **Solo impresión no genera GIF.** La cabina deja de armar el GIF en ese modo (es más rápido y nadie lo ve). Si el dueño lo quiere para la galería del operador, es un cambio de una línea en `compose()` de `01-camera-flow/app.js`.
+  - **El tope de hojas solo existe con el modo "Ambos".** Aplica la respuesta del dueño: el tope solo se configura si el evento incluye entrega digital.
+  - **Los eventos archivados se pueden editar** (nombre, fecha, entrega, plantillas) y siguen archivados.
+  - **La demostración (cabina sin evento) se comporta como "Ambos" con 1 copia.** Antes la configuración congelada de una sesión de demostración tenía modo y copias en blanco.
+  - **El tope se conserva al cambiar de modo:** si pasas de "Ambos" a otro modo y vuelves, el número sigue ahí; mientras tanto no se aplica y el resumen avisa.
 - **Ciclo del evento (D6):** aprobado, con las pantallas nuevas A12, C2c, C8, C9, C10 y C11.
 - **Respaldo (D7):** hoy los datos son de prueba, así que baja de prioridad; se hace antes del primer evento real, no antes.
 - **Prueba técnica de escritorio (D8):** se explicó al dueño en el chat; queda pendiente su visto bueno.
@@ -667,14 +673,14 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 
 ### 7.6 Hito 0.3 construido (2026-11-17): qué quedó y reservas abiertas
 
-**Estado.** Hecho: Code Reviewer (correcciones aplicadas), Evidence Collector y Reality Checker (LISTO CON RESERVAS; su único bloqueo era esta documentación). Pruebas sin dependencias en `src/pages/shared/tests-validador.html` (55 de 55). Falta la prueba manual del dueño en el navegador.
+**Estado.** Hecho: Code Reviewer (correcciones aplicadas), Evidence Collector y Reality Checker (LISTO CON RESERVAS; su único bloqueo era esta documentación). Pruebas sin dependencias en `src/pages/shared/tests-validador.html` (64 de 64 desde el hito 1.2). Falta la prueba manual del dueño en el navegador.
 
 - **Hecho:** `src/pages/shared/validador-evento.js` recibe equipo, evento, plantilla y una foto del estado en vivo, y devuelve configuración efectiva, bloqueos, avisos (cada uno con código estable y la acción que lo arregla) y resumen de ritmo. La lista de eventos (C1) marca "No lanzable" con el motivo; la cabina (A1/C2b) bloquea "Lanzar evento" y explica el porqué en una lista breve de bloqueos y avisos. Si la lista no pudo leer las plantillas, no marca nada. Una plantilla que solo existe como copia congelada lanza con aviso (`PLANTILLA_SOLO_COPIA_CONGELADA`). Qué hace cada regla hoy: ver el recuadro bajo la tabla de 2.3.
 - **Difiere del texto:** (1) "solo digital sin servidor" avisa en vez de bloquear (decisión de bajo riesgo; el dueño puede cambiarla). (2) Ritmo y resumen están calculados pero ninguna pantalla los muestra aún. (3) Disco no recibe dato real.
 
 **Reservas abiertas (no bloquean el hito):**
 
-1. **`configCongelada()` de la cabina duplica la configuración efectiva.** Debería salir del validador (una sola fuente). Hallazgo para `@desarrollador` en el Tablero.
+1. **`configCongelada()` de la cabina duplica la configuración efectiva.** Debería salir del validador (una sola fuente). Hallazgo para `@desarrollador` en el Tablero. **RESUELTA (2026-11-17, hito 1.2):** `configCongelada()` llama a `ValidadorEvento.configuracionEfectiva`, única fuente (ver 7.7).
 2. **Estado de la impresora:** normalizar a minúsculas antes de comparar y tratar cualquier estado no reconocido como "sin dato" (hoy solo `desconocido` y `unknown` cuentan así).
 3. **Cámaras de tipo inválido** (que no sean una lista) deben tratarse como "sin dato".
 4. **Acotar el ritmo por arriba** (un cálculo con valores absurdos no debe mostrar cifras imposibles).
@@ -683,4 +689,25 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 7. **Pasar `espacioLibreMB`** a quien llame al validador, con `navigator.storage.estimate()`; hasta entonces la regla de disco está inactiva.
 8. **Una tarjeta "No lanzable" aún muestra su botón "Lanzar" lima.** Revisar en C1 y C2 (Regla del Único Verde de `DESIGN.md`, y que no invite a una acción bloqueada).
 9. **Falta el botón "Reabrir" para eventos archivados** (2.3: un evento archivado no se lanza sin reabrirlo). **Decisión pendiente del dueño;** se propone en el hito 1.3.
-10. **`entrega.topeHojas` no lo configura ninguna pantalla todavía** (llega con C2 en modo edición, hito 1.2); el validador ya lo lee.
+10. **`entrega.topeHojas` no lo configura ninguna pantalla todavía** (llega con C2 en modo edición, hito 1.2); el validador ya lo lee. **RESUELTA (2026-11-17, hito 1.2):** C2 lo configura (solo con modo "Ambos"), el almacén lo sanea y la cabina lo congela y lo muestra (ver 7.7).
+
+### 7.7 Hito 1.2 construido (2026-11-17): qué quedó y reservas abiertas
+
+**Estado: HECHO 2026-11-17, certificado.** Lo construyó el Frontend Developer; el Code Reviewer encontró 1 bloqueante y 4 importantes, ya corregidos. Evidence Collector: PASA los 9 puntos y las correcciones (con evidencia propia en Chrome real). Reality Checker: LISTO CON RESERVAS. Falta la prueba manual del dueño. Reservas nuevas: el selector de copias solo aparece con la impresión automática encendida (el dueño pidió copias accesibles al operador: se resuelve con las copias adicionales del hito de impresión); la cabina a 1366 px tiene scroll horizontal por el panel de ajustes (anterior al hito); la lista 04 tiene varios botones lima ("Crear evento" y un "Lanzar" por tarjeta; decisión de diseño pendiente); "(+N más)" cuenta también la plantilla fantasma; colores rojo y ámbar fijos en 05 en vez de tokens. Pruebas sin dependencias en `src/pages/shared/tests-validador.html` (64 casos).
+
+- **Editar un evento:** botón "Editar evento" en cada tarjeta de C1 abre `05-crear-evento?editar=<id>`. Conserva id, estado, ritmo, cámara, sesiones y copia congelada. Aviso de cambios sin guardar, aviso si otra pestaña cambió el evento y evento en curso con cambios válidos desde la sesión siguiente. Cierra el hallazgo 3 de 6.1. Navegación en `FLUJO_NAVEGACION.md` ("C1 → C2 en edición").
+- **Varias plantillas habilitadas** con una "por defecto" (`plantillas.habilitadas`, `plantillas.porDefecto`). La cabina usa solo la por defecto.
+- **Tope de hojas** (`entrega.topeHojas`): se configura solo con el modo "Ambos", se conserva al cambiar de modo y se ignora mientras no aplica. Cierra la reserva 10 de 7.6.
+- **Una sola fuente de la configuración congelada:** `ValidadorEvento.configuracionEfectiva` (ahora exportada). La cabina la usa en `configCongelada()`; el resumen de C2 también. Cierra la reserva 1 de 7.6 y el hallazgo 1 del Tablero. La nota congelada suma `topeHojas` y `resumen`.
+- **A7 según el modo de entrega congelado en la sesión:** solo impresión sin QR, descarga, compartir, pestañas ni GIF; solo digital sin "Imprimir"; ambos y demostración, todo. Cierra el hallazgo 2 de 6.1 en lo que toca a la pantalla de resultado.
+- **Difiere del texto:** el modo de la demostración pasa a ser `ambos` con 1 copia (ver las decisiones de bajo riesgo en la sección 8).
+
+**Reservas abiertas (no bloquean el hito):**
+
+1. **A2 (elegir entre plantillas habilitadas) es del hito 2.** Hoy la habilitación de varias plantillas no cambia lo que ve el invitado.
+2. **Avisos que necesitan impresora (papel distinto al de la impresora, ritmo de impresión) esperan a C4.** `vivo.impresora` sigue sin dato en el navegador.
+3. **`AlmacenEventos` sigue siendo síncrono.** Cuando pase a promesas (regla 7 de 5.1) hay que tocar `05-crear-evento` y `04-lista-eventos` (hallazgo 2 del Tablero).
+4. **Del hito de impresión (3):** conteo real de hojas, mensaje amable al llegar al tope, impresión automática real y copias adicionales pedidas por el operador. Hoy copias, impresión automática y tope se guardan, se congelan y se muestran, pero no imprimen ni cortan nada.
+5. **`DESTINOS.EDITAR_EVENTO` del validador no está conectado a `05-crear-evento?editar=<id>`.** Los avisos del validador dicen "Cambiar las copias" o "Cambiar la entrega", pero la acción aún no abre el formulario.
+6. **Botón "Reabrir" para eventos archivados,** decisión del dueño, hito 1.3 (reserva 9 de 7.6). Un archivado se puede editar, pero no lanzar.
+7. **Pruebas pendientes:** certificación independiente del hito y prueba manual del dueño en el navegador (editar un evento real, y A7 en cada modo con cámara real).

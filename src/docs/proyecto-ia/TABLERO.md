@@ -19,7 +19,7 @@
 | Agente | Rol | Estado | Sesión/cuenta | Última actividad |
 |---|---|---|---|---|
 | orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura, el hito 0.1a y los hitos 0.2, 1.1, 0.1b y 0.3 | activo | | 2026-11-17 |
-| frontend | Frontend Developer: construyó 0.2, 1.1, 0.1b y 0.3 | libre | | 2026-11-17 |
+| frontend | Frontend Developer: construyó 0.2, 1.1, 0.1b, 0.3 y 1.2 (1.2 en certificación) | libre | | 2026-11-17 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
@@ -31,6 +31,7 @@
 | 5 | Hito 1.1: la cabina compone con la plantilla real del evento | frontend | hecha | `src/pages/01-camera-flow/*` | 2026-11-16 | Certifican Evidence Collector y Reality Checker (agentes distintos de quien construye) |
 | 6 | Hito 0.1b: repositorio v2 de eventos con plantilla congelada por sesión, migración v1 a v2, recorte 16:9 de la cámara | frontend | hecha | `src/pages/shared/almacen-eventos.js`, `src/pages/shared/almacen-plantillas.js`, `src/pages/shared/README.md`, `src/pages/01-camera-flow/*`, `src/pages/04-lista-eventos/*`, `src/pages/05-crear-evento/*` (solo lo mínimo para el repositorio) | 2026-11-16 | Certificado: Code Reviewer, Evidence Collector 6/6 y Reality Checker (código aprobado). Falta prueba manual del dueño con cámara real |
 | 7 | Hito 0.3: validador único "evento listo para lanzar" | frontend | hecha | `src/pages/shared/validador-evento.js`, `src/pages/shared/tests-validador.html`, `src/pages/01-camera-flow/*` (solo el bloqueo de lanzar), `src/pages/04-lista-eventos/*` (solo marca de no lanzable) | 2026-11-17 | Certificado: Code Reviewer, Evidence Collector, Reality Checker (LISTO CON RESERVAS; documentación hecha). Falta commit y prueba del dueño. Siguen 1.2, 1.3, 1.6 en ese orden |
+| 8 | Hito 1.2: C2 crear y editar con varias plantillas y tope de hojas; el validador da la configuración congelada; A7 respeta el modo de entrega | frontend | hecha (certificada 2026-11-17) | `src/pages/shared/validador-evento.js`, `src/pages/shared/tests-validador.html`, `src/pages/shared/almacen-eventos.js` (solo `topeHojas`), `src/pages/shared/README.md`, `src/pages/05-crear-evento/*`, `src/pages/04-lista-eventos/*` (botón Editar y línea de entrega), `src/pages/01-camera-flow/*` (configCongelada y A7) | 2026-11-17 | Sin commit; pruebas en `C:/tmp/h12`: validador 64/64, editar 42/42, cabina 17/17, regresión 0.1b t1-t7 sin fallos |
 
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
@@ -46,6 +47,8 @@
 
 | src/docs/ARQUITECTURA_FLUJO.md (§2.3, §2.4, §6, §7, §7.6), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, BITACORA.md, TABLERO.md, CLAUDE.md (§5) | writer (orquestador) | 2026-11-17 | liberada | Documentación del hito 0.3 |
 | src/pages/shared/validador-evento.js, src/pages/shared/tests-validador.html, src/pages/01-camera-flow/ (bloqueo de lanzar), src/pages/04-lista-eventos/ (marca "No lanzable") | frontend (orquestador) | 2026-11-17 | liberada | Hito 0.3 hecho (falta commit y prueba del dueño) |
+| src/pages/shared/ (validador-evento.js, tests-validador.html, almacen-eventos.js, README.md), src/pages/05-crear-evento/, src/pages/04-lista-eventos/, src/pages/01-camera-flow/ | frontend | 2026-11-17 | liberada | Hito 1.2 construido (falta certificación y commit) |
+| src/docs/ARQUITECTURA_FLUJO.md (§6, §7.2, §7.6, §7.7, §8), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, proyecto-ia/BITACORA.md, proyecto-ia/TABLERO.md | writer (orquestador) | 2026-11-17 | liberada | Documentación del hito 1.2 |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |
@@ -55,7 +58,10 @@
 ## Hallazgos (para otros agentes)
 | # | Hallazgo | Detectado por | Mencionado | Estado | Resuelto por / fecha |
 |---|---|---|---|---|---|
-| 1 | `configCongelada()` de `01-camera-flow/app.js` duplica la configuración efectiva que ya calcula el validador. Debe tomarla de `shared/validador-evento.js` (una sola fuente). Detalle y demás reservas del hito 0.3 en `ARQUITECTURA_FLUJO.md` §7.6 | orquestador (Reality Checker) | @desarrollador | abierto | |
+| 1 | `configCongelada()` de `01-camera-flow/app.js` duplica la configuración efectiva que ya calcula el validador. Debe tomarla de `shared/validador-evento.js` (una sola fuente). Detalle y demás reservas del hito 0.3 en `ARQUITECTURA_FLUJO.md` §7.6 | orquestador (Reality Checker) | @desarrollador | resuelto | frontend, 2026-11-17 (hito 1.2): `configCongelada()` llama a `ValidadorEvento.configuracionEfectiva`; documentado en `ARQUITECTURA_FLUJO.md` §7.6 punto 1 y §7.7 |
+| 2 | Hito 1.2: `AlmacenEventos.guardar` sigue síncrono y la edición de evento (C2) usa `obtener` + `guardar`; cuando el almacén pase a promesas (regla 7) hay que tocar `05-crear-evento` y `04-lista-eventos` | frontend | @desarrollador | abierto | |
+| 3 | Hito 1.2: en solo impresión la cabina ya no genera el GIF (decisión de bajo riesgo según §2.3); si el dueño quiere GIF también ahí (por ejemplo para la galería del operador), es un cambio de una línea en `compose()` de `01-camera-flow/app.js` | frontend | @orquestador | abierto | |
+| 4 | Hito 1.2: `DESTINOS.EDITAR_EVENTO` del validador no está conectado a `05-crear-evento?editar=<id>`; los avisos "Cambiar las copias" y "Cambiar la entrega" aún no abren el formulario de edición (`ARQUITECTURA_FLUJO.md` §7.7, reserva 5) | escritor de docs | @desarrollador | abierto | |
 
 ## Lecciones del equipo
 <!-- Una línea por lección: fecha · qué pasó · qué regla se cambió -->

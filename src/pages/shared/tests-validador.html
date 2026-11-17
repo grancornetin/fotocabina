@@ -209,6 +209,35 @@
     function (r) { return r.ritmo.disponible && r.ritmo.impresion === null; });
   caso('Valores de ritmo ausentes en el evento: usa 3 s por defecto', function (e) { delete e.evento.ritmo; },
     function (r) { return r.configuracion.cuentaSeg === 3 && r.configuracion.pausaSeg === 3; });
+  // Hito 1.2: la configuración que se congela sale del validador (ya no se arma a mano en la cabina)
+  caso('Configuración efectiva incluye mensaje de pausa, paciencia y espejo del evento', function (e) { e.evento.ritmo.mensajePausa = 'Sonríe'; e.evento.ritmo.pacienciaSeg = 45; e.evento.preferenciasDeEquipo = { camara: { espejo: false } }; },
+    function (r) { var c = r.configuracion; return c.mensajePausa === 'Sonríe' && c.pacienciaSeg === 45 && c.espejo === false; });
+  caso('Configuración efectiva: sin preferencias de cámara el espejo es true; sin mensaje, el de siempre', function (e) { delete e.evento.preferenciasDeEquipo; e.evento.ritmo.mensajePausa = ''; delete e.evento.ritmo.pacienciaSeg; },
+    function (r) { var c = r.configuracion; return c.espejo === true && c.mensajePausa === '¡Cambia de pose!' && c.pacienciaSeg === 30; });
+  caso('configuracionEfectiva() da lo mismo que validar().configuracion', function (e) { e.evento.entrega.copias = 4; e.evento.entrega.topeHojas = 50; }, function () {
+    var ent = base(); ent.evento.entrega.copias = 4; ent.evento.entrega.topeHojas = 50;
+    return JSON.stringify(V.configuracionEfectiva(ent.evento, ent.plantilla)) === JSON.stringify(V.validar(ent).configuracion);
+  });
+  caso('configuracionEfectiva() no revienta con entradas rotas', function (e) {}, function () {
+    var a = V.configuracionEfectiva(null, null), b = V.configuracionEfectiva('x', 5), c = V.configuracionEfectiva({});
+    return a.fotos === null && b.modo === 'ambos' && c.copias === 1;
+  });
+  caso('configuracionEfectiva() con fotos forzadas (demostración sin plantilla): usa ese número y el resumen lo dice', function (e) {}, function () {
+    var c = V.configuracionEfectiva(evento(), null, { fotos: 2 });
+    return c.fotos === 2 && /2 fotos/.test(c.resumen);
+  });
+  caso('Con plantilla, las fotos salen de la plantilla aunque se fuercen otras', function (e) {}, function () {
+    return V.configuracionEfectiva(evento(), plantilla(3), { fotos: 9 }).fotos === 3;
+  });
+  caso('Tope inválido (0, negativo, texto) no cuenta como tope', function (e) {}, function () {
+    return [0, -5, 'cien', NaN, null].every(function (t) { var ev = evento(); ev.entrega.topeHojas = t; return V.configuracionEfectiva(ev, plantilla(3)).topeHojas === null; });
+  });
+  caso('Varias plantillas habilitadas: el validador revisa solo la por defecto', function (e) { e.evento.plantillas = { habilitadas: ['pl-1', 'pl-2', 'pl-3'], porDefecto: 'pl-1' }; },
+    function (r) { return r.listo && r.configuracion.fotos === 3; });
+  caso('El tope aparece en la configuración solo con entrega digital', function (e) { e.evento.entrega.topeHojas = 80; }, function () {
+    var tope = function (m) { var ev = evento(); ev.entrega.modo = m; ev.entrega.topeHojas = 80; return V.configuracionEfectiva(ev, plantilla(3)).topeHojas; };
+    return tope('impresion') === null && tope('digital') === null && tope('ambos') === 80;
+  });
   caso('Un cambio de regla es de un solo lugar: los códigos publicados existen', function (e) {},
     function () { return V.CODIGOS.length >= 18 && V.CODIGOS.every(function (c, i) { return V.CODIGOS.indexOf(c) === i; }); });
   caso('El validador no modifica lo que recibe', function (e) {}, function () {
