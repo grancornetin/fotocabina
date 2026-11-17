@@ -396,6 +396,8 @@
     copia.nombre = `${origen.nombre} (copia)`;
     copia.estado = 'proximo';
     delete copia.congelado;
+    delete copia.lanzadoEn;
+    delete copia.terminadoEn;
     copia.creadoEn = ahoraIso();
     copia.actualizadoEn = copia.creadoEn;
     return copia;
@@ -443,6 +445,80 @@
     e.actualizadoEn = ahoraIso();
     persistir(eventos);
     return vista(e);
+  }
+
+  // ---------- Ciclo de vida (hito 1.3, ARQUITECTURA_FLUJO.md §2.6) ----------
+  // proximo --lanzar--> en-curso --"Terminar evento"--> archivado --"Reabrir"--> proximo / en-curso.
+  // Cada paso lee el evento fresco del almacén (no pisa lo que otra pantalla guardó) y devuelve
+  // la copia ya actualizada, o null si el evento no existe. Si el paso no corresponde al estado
+  // actual (por ejemplo, lanzar un archivado), el evento vuelve tal cual: quien llama compara `estado`.
+
+  function cambiarEstado(id, aplicar) {
+    const eventos = leerTodos();
+    const e = eventos.find((x) => x.id === id);
+    if (!e) return null;
+    const marca = ahoraIso();
+    if (aplicar(e, marca) === false) return vista(e);
+    e.actualizadoEn = marca;
+    persistir(eventos);
+    return vista(e);
+  }
+
+  // Al lanzar: un evento "próximo" pasa a "en curso" (queda anotada la hora del primer lanzamiento).
+  // Uno que ya está en curso solo se confirma; uno archivado NO cambia (hay que reabrirlo).
+  // No toca a otros eventos que también estén en curso (decisión de bajo riesgo del hito 1.3).
+  function marcarEnCurso(id) {
+    return cambiarEstado(id, (e, marca) => {
+      if (e.estado === 'archivado') return false;
+      if (e.estado === 'en-curso' && e.lanzadoEn) return false;
+      e.estado = 'en-curso';
+      if (!e.lanzadoEn) e.lanzadoEn = marca;
+    });
+  }
+
+  // "Terminar evento" (y archivar un próximo): pasa a "archivado", anota la hora y, si era el
+  // evento activo de la cabina, lo suelta. Un archivado queda como está. Las sesiones no se tocan.
+  function terminar(id) {
+    const antes = (leerTodos().find((x) => x.id === id) || {}).estado;
+    const r = cambiarEstado(id, (e, marca) => {
+      if (e.estado === 'archivado') return false;
+      // Un evento que estaba en curso se considera lanzado (así "Reabrir" lo devuelve a "en curso").
+      if (e.estado === 'en-curso' && !e.lanzadoEn) e.lanzadoEn = marca;
+      e.estado = 'archivado';
+      e.terminadoEn = marca;
+    });
+    if (r && antes && antes !== 'archivado') {
+      try { if (localStorage.getItem(CLAVE_ACTIVO) === id) localStorage.removeItem(CLAVE_ACTIVO); } catch (e) { /* sin persistencia */ }
+    }
+    return r;
+  }
+
+  // ¿El evento llegó a lanzarse alguna vez? Solo cuenta la hora de lanzamiento: la copia congelada de la
+  // plantilla también existe en un evento que se guardó sin lanzarse, así que no sirve de prueba.
+  function fueLanzado(evento) {
+    return !!evento && !!evento.lanzadoEn;
+  }
+
+  // "Reabrir": un archivado vuelve a "en curso" si ya se había lanzado (se retoma donde quedó) o a
+  // "próximo" si nunca se lanzó. Quita la hora de término. El validador deja de bloquearlo.
+  function reabrir(id) {
+    return cambiarEstado(id, (e) => {
+      if (e.estado !== 'archivado') return false;
+      e.estado = fueLanzado(e) ? 'en-curso' : 'proximo';
+      delete e.terminadoEn;
+    });
+  }
+
+  // Cambia SOLO la plantilla del evento (la deja como "por defecto" y la habilita), leyendo el evento fresco
+  // del almacén: quien llama (03-editor-plantillas) no guarda una copia vieja y no pisa lo que otra pestaña
+  // cambió mientras tanto (por ejemplo, que el evento se terminó). Devuelve la copia nueva o null si no existe.
+  function cambiarPlantilla(id, plantillaId) {
+    const nuevo = textoONulo(plantillaId);
+    if (!nuevo) return null;
+    return cambiarEstado(id, (e) => {
+      const hab = Array.isArray(e.plantillas && e.plantillas.habilitadas) ? e.plantillas.habilitadas : [];
+      e.plantillas = { habilitadas: Array.from(new Set([...hab, nuevo])), porDefecto: nuevo };
+    });
   }
 
   // ---------- Contador de sesiones por evento (nunca repite un número) ----------
@@ -546,6 +622,11 @@
     ajustesDeEvento,
     aplicarAjustes,
     congelar,
+    marcarEnCurso,
+    terminar,
+    reabrir,
+    fueLanzado,
+    cambiarPlantilla,
     siguienteNumeroSesion,
     pinAntiguoDelRespaldo,
     limpiarPinsDelRespaldo,

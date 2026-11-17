@@ -20,7 +20,7 @@
 
 ---
 
-**Actualizado:** 2026-11-17 (hito 1.2 cerrado)  ·  **Cuenta/sesión:** sesión de /actualizar-proyecto  ·  **Rama:** main
+**Actualizado:** 2026-11-17 (hito 1.3 cerrado y commiteado)  ·  **Cuenta/sesión:** orquestador  ·  **Rama:** main
 
 ## Estado en una frase
 Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más pantallas se diseña el esqueleto completo) de pantallas: cabina del invitado, editor de plantillas, lista de eventos, crear evento y cámara ya funcionan en el navegador; falta impresora, panel en vivo, servidor local de entrega y toda la parte de hardware real. Último commit de código: `57930dd` (C3 cámara, 2026-09-25). Sin cambios pendientes de código.
@@ -36,16 +36,16 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - Hito 0.1b (2026-11-17): repositorio v2 de eventos (migración con respaldo confirmado, aviso si el navegador se queda sin espacio), plantilla congelada por sesión (las sesiones viejas conservan su diseño, las nuevas usan la edición nueva), recorte de la cámara 16:9 sin estirar, eventos sin plantilla siguen bloqueados (1A). Evidence Collector 6/6 PASA con Chrome real y cámaras simuladas; Reality Checker aprobó el código. Los arreglos finales de datos (R1-R3, recarga con copia congelada) los probó solo quien los escribió (t1-t7 pasan): sin recertificación independiente. Detalle: `ARQUITECTURA_FLUJO.md` §7.5.
 - Hito 0.3 (2026-11-17): validador único "evento listo para lanzar" (`shared/validador-evento.js`), usado por la lista (marca "No lanzable" con motivo) y la cabina (bloquea Lanzar con motivo). Solo digital sin servidor y impresora no comprobable solo AVISAN; disco bajo 200 MB bloquea (regla aún inactiva en navegador). Certificado: Evidence Collector (con recertificación de las correcciones D1 y D3, 42/42) y Reality Checker (listo con reservas); 55/55 pruebas en `shared/tests-validador.html`. Reservas abiertas: `ARQUITECTURA_FLUJO.md` §7.6.
 - Hito 1.2 (2026-11-17): editar evento (`05-crear-evento?editar=<id>`, botón "Editar evento" en la lista), varias plantillas habilitadas con "por defecto", tope de hojas (solo modo ambos), configuración congelada de una sola fuente (`ValidadorEvento.configuracionEfectiva`) y la cabina respeta el modo de entrega (solo impresión sin QR/descarga/GIF; solo digital sin Imprimir). Certificado: Evidence Collector 9/9 y Reality Checker (listo con reservas); 64/64 en `tests-validador.html`. Reservas: `ARQUITECTURA_FLUJO.md` §7.7.
+- Hito 1.3 (2026-11-17): ciclo de vida del evento (En curso automático al lanzar, Terminar evento, Reabrir, conteo real y aviso al eliminar), con correcciones de carreras entre pestañas, diálogos accesibles y editor que no pisa el estado. Certificado: Evidence Collector (todo pasa) y Reality Checker (LISTO CON RESERVAS). Reservas: `ARQUITECTURA_FLUJO.md` §7.8 (botón lima Lanzar por tarjeta y viewport móvil de la cabina ya existían; faltan pruebas automáticas de las funciones nuevas). Falta prueba manual del dueño.
 - Espacio de trabajo con agentes creado (2026-11-16) (2026-11-16): este archivo, `src/docs/proyecto-ia/`, cerebro local `cerebro-fotocabina/`, orquestador en `.claude/agents/`.
 
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
-| (nada en curso) | | | | |
 
 ## Siguiente paso exacto
 1. El dueño prueba a mano con cámara real (idealmente 16:9) y confirma que las caras no se ven estiradas.
-2. Construir según `ARQUITECTURA_FLUJO.md` §7: 1.3 (ciclo de vida: "En curso" automático, Terminar evento, conteo real, aviso al eliminar con sesiones; incluye botón "Reabrir" para archivados, opción (a) recomendada), 1.6 (respaldo y restauración); luego 3a/3 (impresión) y C5 con A12.
+2. Construir según `ARQUITECTURA_FLUJO.md` §7: 1.6 (respaldo y restauración); luego 3a/3 (impresión) y C5 con A12.
 
 ## Decisiones pendientes del dueño
 1. Visto bueno a la prueba técnica de escritorio (D8), más adelante, al llegar a impresión.

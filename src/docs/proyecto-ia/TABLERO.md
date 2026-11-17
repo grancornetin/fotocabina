@@ -19,7 +19,7 @@
 | Agente | Rol | Estado | Sesión/cuenta | Última actividad |
 |---|---|---|---|---|
 | orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura, el hito 0.1a y los hitos 0.2, 1.1, 0.1b y 0.3 | activo | | 2026-11-17 |
-| frontend | Frontend Developer: construyó 0.2, 1.1, 0.1b, 0.3 y 1.2 (1.2 en certificación) | libre | | 2026-11-17 |
+| frontend | Frontend Developer: construyó 0.2, 1.1, 0.1b, 0.3 y 1.2; 1.3 construido (en certificación independiente) | libre | | 2026-11-17 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
@@ -32,6 +32,7 @@
 | 6 | Hito 0.1b: repositorio v2 de eventos con plantilla congelada por sesión, migración v1 a v2, recorte 16:9 de la cámara | frontend | hecha | `src/pages/shared/almacen-eventos.js`, `src/pages/shared/almacen-plantillas.js`, `src/pages/shared/README.md`, `src/pages/01-camera-flow/*`, `src/pages/04-lista-eventos/*`, `src/pages/05-crear-evento/*` (solo lo mínimo para el repositorio) | 2026-11-16 | Certificado: Code Reviewer, Evidence Collector 6/6 y Reality Checker (código aprobado). Falta prueba manual del dueño con cámara real |
 | 7 | Hito 0.3: validador único "evento listo para lanzar" | frontend | hecha | `src/pages/shared/validador-evento.js`, `src/pages/shared/tests-validador.html`, `src/pages/01-camera-flow/*` (solo el bloqueo de lanzar), `src/pages/04-lista-eventos/*` (solo marca de no lanzable) | 2026-11-17 | Certificado: Code Reviewer, Evidence Collector, Reality Checker (LISTO CON RESERVAS; documentación hecha). Falta commit y prueba del dueño. Siguen 1.2, 1.3, 1.6 en ese orden |
 | 8 | Hito 1.2: C2 crear y editar con varias plantillas y tope de hojas; el validador da la configuración congelada; A7 respeta el modo de entrega | frontend | hecha (certificada 2026-11-17) | `src/pages/shared/validador-evento.js`, `src/pages/shared/tests-validador.html`, `src/pages/shared/almacen-eventos.js` (solo `topeHojas`), `src/pages/shared/README.md`, `src/pages/05-crear-evento/*`, `src/pages/04-lista-eventos/*` (botón Editar y línea de entrega), `src/pages/01-camera-flow/*` (configCongelada y A7) | 2026-11-17 | Sin commit; pruebas en `C:/tmp/h12`: validador 64/64, editar 42/42, cabina 17/17, regresión 0.1b t1-t7 sin fallos |
+| 9 | Hito 1.3: ciclo de vida del evento (en curso automático, Terminar evento, Reabrir, conteo real y aviso al eliminar) | frontend | hecha | `src/pages/shared/almacen-eventos.js`, `src/pages/shared/tests-validador.html` (solo si hace falta), `src/pages/shared/README.md`, `src/pages/04-lista-eventos/*`, `src/pages/01-camera-flow/*` (lanzar, sección Evento de Ajustes, conteo), `src/docs/proyecto-ia/PUNTO-DE-RETOMA.md` | 2026-11-17 | Certificado (Evidence Collector y Reality Checker con reservas); commiteado. Detalle en `ARQUITECTURA_FLUJO.md` §7.8 |
 
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
@@ -49,6 +50,8 @@
 | src/pages/shared/validador-evento.js, src/pages/shared/tests-validador.html, src/pages/01-camera-flow/ (bloqueo de lanzar), src/pages/04-lista-eventos/ (marca "No lanzable") | frontend (orquestador) | 2026-11-17 | liberada | Hito 0.3 hecho (falta commit y prueba del dueño) |
 | src/pages/shared/ (validador-evento.js, tests-validador.html, almacen-eventos.js, README.md), src/pages/05-crear-evento/, src/pages/04-lista-eventos/, src/pages/01-camera-flow/ | frontend | 2026-11-17 | liberada | Hito 1.2 construido (falta certificación y commit) |
 | src/docs/ARQUITECTURA_FLUJO.md (§6, §7.2, §7.6, §7.7, §8), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, proyecto-ia/BITACORA.md, proyecto-ia/TABLERO.md | writer (orquestador) | 2026-11-17 | liberada | Documentación del hito 1.2 |
+| src/pages/shared/ (almacen-eventos.js, README.md), src/pages/04-lista-eventos/, src/pages/01-camera-flow/ | frontend | 2026-11-17 | liberada | Hito 1.3 construido (falta certificación y commit) |
+| src/docs/ARQUITECTURA_FLUJO.md (§2.3, §2.6, §6, §7.2, §7.6, §7.7, §7.8, §8), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, proyecto-ia/BITACORA.md, proyecto-ia/TABLERO.md | writer (orquestador) | 2026-11-17 | liberada | Documentación del hito 1.3 |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |
@@ -62,6 +65,8 @@
 | 2 | Hito 1.2: `AlmacenEventos.guardar` sigue síncrono y la edición de evento (C2) usa `obtener` + `guardar`; cuando el almacén pase a promesas (regla 7) hay que tocar `05-crear-evento` y `04-lista-eventos` | frontend | @desarrollador | abierto | |
 | 3 | Hito 1.2: en solo impresión la cabina ya no genera el GIF (decisión de bajo riesgo según §2.3); si el dueño quiere GIF también ahí (por ejemplo para la galería del operador), es un cambio de una línea en `compose()` de `01-camera-flow/app.js` | frontend | @orquestador | abierto | |
 | 4 | Hito 1.2: `DESTINOS.EDITAR_EVENTO` del validador no está conectado a `05-crear-evento?editar=<id>`; los avisos "Cambiar las copias" y "Cambiar la entrega" aún no abren el formulario de edición (`ARQUITECTURA_FLUJO.md` §7.7, reserva 5) | escritor de docs | @desarrollador | abierto | |
+| 5 | Hito 1.3: `ARQUITECTURA_FLUJO.md` se contradice sobre cuántos eventos pueden estar "en curso" a la vez (§2.3 dice uno solo por equipo y el anterior vuelve a próximo; §2.6 dice varios, uno por equipo). El hito 1.3 NO cambia a otros eventos al lanzar uno. Hay que decidir y unificar el texto | frontend | @orquestador | resuelto (texto) | escritor de docs, 2026-11-17: texto unificado en §2.3 y §2.6 ("pueden coexistir varios En curso"); queda como decisión de bajo riesgo a confirmar por el dueño (`ARQUITECTURA_FLUJO.md` §7.8 reserva 3 y §8) |
+| 6 | Hito 1.3: navegación nueva para `FLUJO_NAVEGACION.md`: cabina (Ajustes › Evento › Terminar evento) a lista de eventos con `?terminado=<id>` (abre en Archivados con aviso); lista, tarjeta Archivados › "Reabrir" (a En curso o a Próximos según si se lanzó); lista, tarjeta En curso › "Terminar evento". Faltan además las filas de MAPA_DE_PANTALLAS (C1, C2b) y §6 hallazgo 7 (cerrado) y §7.6 reserva 9 (cerrada) | frontend | @escritor-docs | resuelto | escritor de docs, 2026-11-17: filas de `FLUJO_NAVEGACION.md` (C1 y C2b), `MAPA_DE_PANTALLAS.md` (C1 y C2b), §6 hallazgo 7 y §7.6 reserva 9 actualizados; estado del hito y reservas abiertas en `ARQUITECTURA_FLUJO.md` §7.8 |
 
 ## Lecciones del equipo
 <!-- Una línea por lección: fecha · qué pasó · qué regla se cambió -->

@@ -360,14 +360,17 @@
     return !!registro && (registro.estado === 'incompleta' || registro.estado === 'fallida');
   }
 
-  // { [eventoId]: { completas, incompletas } } leyendo solo los registros livianos.
+  // { [eventoId]: { completas, incompletas, total } } leyendo solo los registros livianos. `total` cuenta
+  // TODAS las sesiones guardadas del evento (también las que están abiertas ahora mismo): es lo que
+  // se borra al eliminar el evento, así el aviso nunca dice menos de lo que se pierde.
   async function contarPorEvento() {
     const registros = await listarRegistros();
     const cuenta = {};
     registros.forEach((r) => {
       const id = r.eventoId || r.evento;
       if (!id) return;
-      if (!cuenta[id]) cuenta[id] = { completas: 0, incompletas: 0 };
+      if (!cuenta[id]) cuenta[id] = { completas: 0, incompletas: 0, total: 0 };
+      cuenta[id].total += 1;
       if (esCompleta(r)) cuenta[id].completas += 1;
       else if (esIncompleta(r)) cuenta[id].incompletas += 1;
     });

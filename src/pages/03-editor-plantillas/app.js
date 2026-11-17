@@ -63,9 +63,8 @@ const EditorApp = (() => {
 
     E.suscribir('plantilla-abierta', (p) => {
       if (!eventoConectado) return;
-      eventoConectado.plantillaId = p.id;
-      eventoConectado.plantilla = p.nombre;
-      AlmacenEventos.guardar(eventoConectado);
+      // Solo cambia la plantilla, leyendo el evento fresco (no se guarda la copia de cuando se abrió el editor).
+      AlmacenEventos.cambiarPlantilla(eventoConectado.id, p.id);
     });
   }
 
@@ -99,9 +98,7 @@ const EditorApp = (() => {
   function lanzarEvento() {
     if (!eventoConectado) return;
     const p = E.obtener();
-    eventoConectado.plantillaId = p.id;
-    eventoConectado.plantilla = p.nombre;
-    AlmacenEventos.guardar(eventoConectado);
+    AlmacenEventos.cambiarPlantilla(eventoConectado.id, p.id);
     E.guardarAhora();
     AlmacenEventos.setActivo(eventoConectado.id);
     window.location.href = '../01-camera-flow/index.html';

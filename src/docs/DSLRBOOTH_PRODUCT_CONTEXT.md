@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-16 (hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-17 (hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -266,6 +266,18 @@ Construido y certificado (Evidence Collector 6/6; código aprobado por Reality C
 - **Las sesiones conservan el diseño con que se tomaron; las nuevas usan la edición nueva.** Al lanzar, cada sesión guarda su propia copia de la plantilla. Si el operador edita la plantilla con el evento en marcha, la edición aplica a la sesión siguiente, sin relanzar el evento, y las sesiones ya hechas no cambian.
 - **Foto suelta = recorte exacto del marco** (decisión de bajo riesgo): la foto individual que se descarga o se repite es la misma región que mostraba el marco, no la imagen completa de la cámara.
 - **Número de sesión:** sale de un contador propio de cada evento, que no repite aunque se borren sesiones.
+
+### 3.13 Hito 1.3: ciclo de vida del evento (2026-11-17)
+
+Construido; detalle técnico en `docs/ARQUITECTURA_FLUJO.md` §2.6 y §7.2 y en `pages/shared/README.md`. Decisiones que quedan firmes:
+
+- **Varios eventos "En curso" pueden coexistir.** Lanzar un evento lo pasa a "En curso" y no toca a los demás: dos eventos el mismo fin de semana (o dos cabinas) no se pisan. "En curso" lo pone el sistema al lanzar de verdad (desde la cabina), no al abrir la cabina.
+- **"Reabrir" un archivado no pide confirmación** (se puede deshacer terminándolo otra vez). Vuelve a "En curso" si ya se había lanzado (queda la hora de lanzamiento) y a "Próximos" si nunca se lanzó. Un archivado no se puede lanzar: primero se reabre.
+- **Un "Próximo" también se puede archivar** (por ejemplo, un evento cancelado antes de realizarse). Un evento en curso se cierra con "Terminar evento".
+- **"Terminar evento" desde la cabina vuelve a la lista, en la pestaña Archivados**, con un aviso, mientras no exista la pantalla de cierre del evento (C10, resumen y respaldo al terminar). Las sesiones y sus fotos se conservan; terminar no borra nada.
+- **Eliminar un archivado avisa cuántas sesiones se pierden** (todas, también las incompletas y la que estuviera abierta) y que no se puede deshacer. El número se cuenta de nuevo al abrir el aviso, y al aceptar se vuelve a leer el evento: si otra pestaña lo reabrió o lo cambió mientras tanto, no se elimina y se avisa.
+- **La cabina no entra a modo invitado con un evento terminado o eliminado desde otra pestaña**: al lanzar y al tocar la pantalla de inicio se relee el evento y se avisa al operador.
+- **Los avisos de confirmación son accesibles por teclado** (Escape, foco en Cancelar, el foco no se escapa del aviso, vuelve al botón de origen).
 
 ## 4. Requisitos del editor de layouts
 

@@ -408,9 +408,17 @@
   // Empezar una sesión desde la pantalla de inicio del invitado: primero se asegura la plantilla vigente.
   async function iniciarSesionInvitado() {
     if (iniciandoSesion || sessionActive) return;
-    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined' && !AlmacenEventos.obtener(eventoActual.id)) {
-      showNotice('Este evento ya no existe (se eliminó desde otra pestaña). Vuelve a la lista de eventos.');
-      return;
+    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') {
+      const vigente = AlmacenEventos.obtener(eventoActual.id);
+      if (!vigente) {
+        showNotice('Este evento ya no existe (se eliminó desde otra pestaña). Vuelve a la lista de eventos.');
+        return;
+      }
+      // Un evento terminado (por ejemplo desde la lista, en otra pestaña) no recibe sesiones nuevas.
+      if (vigente.estado === 'archivado') {
+        showNotice('Este evento ya se terminó. Para seguir, reábrelo desde la lista de eventos.');
+        return;
+      }
     }
     iniciandoSesion = true;
     try { await refrescarPlantillaVigente(); } catch (e) { /* se sigue con la plantilla congelada */ }
@@ -639,7 +647,7 @@
   // que si se hubiera tocado "Lanzar" en la lista de eventos.
   function cambiarEvento(id, nombre) {
     eventoActual = { id, nombre };
-    if (typeof AlmacenEventos === 'undefined' || id === 'demo') { actualizarContadorEvento(); cargarPlantilla(); return; }
+    if (typeof AlmacenEventos === 'undefined' || id === 'demo') { actualizarSeccionEvento(); actualizarContadorEvento(); cargarPlantilla(); return; }
 
     AlmacenEventos.setActivo(id);
     const evento = AlmacenEventos.obtener(id);
@@ -647,8 +655,108 @@
       Object.assign(ajustes, AlmacenEventos.ajustesDeEvento(evento));
       aplicarAjustesAControles();
     }
+    actualizarSeccionEvento();
     actualizarContadorEvento();
     cargarPlantilla();
+  }
+
+  // ---------- Ciclo de vida del evento (hito 1.3) ----------
+  // "En curso" lo pone el sistema al lanzar; "Terminar evento" lo pide el operador (Ajustes > Evento)
+  // y pasa el evento a Archivados. Los estados y sus reglas viven en AlmacenEventos (shared).
+
+  const seccionEvento = q('#seccionEvento');
+  const estadoEventoTexto = q('#eventoEstadoTexto');
+  const terminarEventoBtn = q('#terminarEventoBtn');
+  const endOverlay = q('#endOverlay');
+  const endTitle = q('#endTitle');
+  const endText = q('#endText');
+  const endAcceptBtn = q('#endAcceptBtn');
+  const endCancelBtn = q('#endCancelBtn');
+
+  function marcarEventoEnCurso() {
+    if (eventoActual.id === 'demo' || typeof AlmacenEventos === 'undefined') return;
+    try {
+      AlmacenEventos.marcarEnCurso(eventoActual.id);
+      const err = AlmacenEventos.errorDeGuardado();
+      if (err) showNotice(err.mensaje);
+    } catch (e) { /* sin persistencia disponible */ }
+    actualizarSeccionEvento();
+  }
+
+  // Sección "Evento" de Ajustes: solo con un evento real. Muestra su estado y, si no está archivado, "Terminar evento".
+  function actualizarSeccionEvento() {
+    if (!seccionEvento) return;
+    const evento = (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoActual.id) : null;
+    seccionEvento.hidden = !evento;
+    if (!evento) return;
+    const esArchivado = evento.estado === 'archivado';
+    estadoEventoTexto.textContent = {
+      proximo: 'Este evento está en Próximos. Pasa a En curso solo cuando lo lanzas.',
+      'en-curso': 'Este evento está En curso. Al terminarlo pasa a Archivados y ya no se puede lanzar.',
+      archivado: 'Este evento está Archivado y no se puede lanzar. Reábrelo desde la lista de eventos.',
+    }[evento.estado] || '';
+    terminarEventoBtn.hidden = esArchivado;
+    terminarEventoBtn.textContent = evento.estado === 'proximo' ? 'Archivar evento' : 'Terminar evento';
+  }
+
+  let focoOrigenFin = null;
+
+  async function pedirTerminarEvento() {
+    if (endOverlay.dataset.visible === 'true') return;
+    focoOrigenFin = document.activeElement;
+    const evento = (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') ? AlmacenEventos.obtener(eventoActual.id) : null;
+    if (!evento) { showNotice('Este evento ya no existe. Vuelve a la lista de eventos.'); return; }
+    if (evento.estado === 'archivado') { actualizarSeccionEvento(); showNotice('Este evento ya estaba terminado.'); return; }
+    cerrarDrawer();
+    const esProximo = evento.estado === 'proximo';
+    let cuantas = null;
+    try { cuantas = (await AlmacenSesiones.listarRegistros(evento.id)).length; } catch (e) { cuantas = null; }
+    const sesiones = cuantas === null ? 'Sus sesiones y fotos'
+      : (cuantas === 1 ? 'Su sesión y sus fotos' : `Sus ${cuantas} sesiones y sus fotos`);
+    endTitle.textContent = esProximo ? 'Archivar evento' : 'Terminar evento';
+    endText.textContent = `"${evento.nombre}" pasa a Archivados y ya no se podrá lanzar ni tomar sesiones nuevas. ` +
+      (cuantas === 0 ? 'No tiene sesiones guardadas. ' : `${sesiones} se conservan. `) +
+      'Si te arrepientes, lo reabres desde la lista de eventos.';
+    endAcceptBtn.textContent = esProximo ? 'Archivar evento' : 'Terminar evento';
+    endOverlay.dataset.visible = 'true';
+    endCancelBtn.focus();
+  }
+
+  function terminarEventoAbierto() {
+    return endOverlay.dataset.visible === 'true';
+  }
+
+  // Cierra el diálogo y devuelve el foco a donde estaba. El botón de origen vive en el panel de Ajustes, que
+  // se cerró para mostrar el diálogo: se reabre en su sección para que el foco no quede en algo invisible.
+  function cerrarTerminarEvento(devolverFoco = true) {
+    endOverlay.dataset.visible = 'false';
+    if (!devolverFoco) return;
+    if (focoOrigenFin && seccionEvento.contains(focoOrigenFin)) abrirDrawer('seccionEvento');
+    if (focoOrigenFin && focoOrigenFin.isConnected && !focoOrigenFin.hidden) { try { focoOrigenFin.focus(); } catch (e) { /* sin foco */ } }
+    focoOrigenFin = null;
+  }
+
+  // Trampa de foco: Tab y Shift+Tab giran entre los botones del diálogo.
+  function trampaFocoTerminar(e) {
+    const botones = Array.from(endOverlay.querySelectorAll('button')).filter((b) => !b.disabled && !b.hidden);
+    if (!botones.length) return;
+    const primero = botones[0];
+    const ultimo = botones[botones.length - 1];
+    const dentro = endOverlay.contains(document.activeElement);
+    if (e.shiftKey && (document.activeElement === primero || !dentro)) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && (document.activeElement === ultimo || !dentro)) { e.preventDefault(); primero.focus(); }
+  }
+
+  function confirmarTerminarEvento() {
+    cerrarTerminarEvento(false);
+    focoOrigenFin = null;
+    let r = null;
+    try { r = AlmacenEventos.terminar(eventoActual.id); } catch (e) { r = null; }
+    const err = AlmacenEventos.errorDeGuardado();
+    if (!r) { showNotice('Este evento ya no existe. Vuelve a la lista de eventos.'); return; }
+    if (err) { showNotice(err.mensaje); actualizarSeccionEvento(); return; }
+    // Vuelve a la lista, ya en la pestaña Archivados (docs/FLUJO_NAVEGACION.md).
+    window.location.href = `../04-lista-eventos/index.html?terminado=${encodeURIComponent(eventoActual.id)}`;
   }
 
   // ---------- Contador del evento (tarjeta de plantilla) ----------
@@ -912,6 +1020,14 @@
   function launchEvent() {
     cerrarDrawer();
     cerrarProximamente();
+    // Se relee el evento antes de entrar a modo invitado: si se terminó o se eliminó desde otra pestaña
+    // mientras el operador tecleaba el PIN, no se lanza y se le avisa (el aviso es para el operador).
+    if (eventoActual.id !== 'demo' && typeof AlmacenEventos !== 'undefined') {
+      const vigente = AlmacenEventos.obtener(eventoActual.id);
+      if (!vigente) { showNotice('Este evento ya no existe (se eliminó desde otra pestaña). Vuelve a la lista de eventos.'); actualizarSeccionEvento(); return; }
+      if (vigente.estado === 'archivado') { showNotice('Este evento ya se terminó, así que no se lanzó. Para seguir, reábrelo desde la lista de eventos.'); actualizarSeccionEvento(); return; }
+    }
+    marcarEventoEnCurso();
     cabin.classList.add('is-guest-mode');
     updateFrameWindow(1);
 
@@ -2015,6 +2131,15 @@
   aplicarAjustesAControles();
   cargarPlantilla();
   actualizarContadorEvento();
+  actualizarSeccionEvento();
+
+  window.addEventListener('storage', (e) => { if (e.key === null || e.key === 'fotocabina-eventos') actualizarSeccionEvento(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') actualizarSeccionEvento(); });
+
+  terminarEventoBtn.addEventListener('click', pedirTerminarEvento);
+  endCancelBtn.addEventListener('click', () => cerrarTerminarEvento());
+  endAcceptBtn.addEventListener('click', confirmarTerminarEvento);
+  endOverlay.addEventListener('click', (e) => { if (e.target === endOverlay) cerrarTerminarEvento(); });
 
   mirrorToggle.addEventListener('click', () => {
     ajustes.espejo = !ajustes.espejo;
@@ -2155,6 +2280,11 @@
   document.addEventListener('keydown', (e) => {
     if (!result.hidden) reiniciarTemporizadorInicio();
 
+    if (terminarEventoAbierto()) {
+      if (e.key === 'Escape') { e.preventDefault(); cerrarTerminarEvento(); }
+      else if (e.key === 'Tab') trampaFocoTerminar(e);
+      return;
+    }
     if (proximamenteAbierto()) {
       if (e.key === 'Escape') cerrarProximamente();
       return;

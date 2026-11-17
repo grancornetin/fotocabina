@@ -159,6 +159,28 @@
 
     var badgeClase = evento.estado === 'en-curso' ? 'ds-badge--ready' : 'ds-badge--idle';
     var esArchivado = evento.estado === 'archivado';
+    var esEnCurso = evento.estado === 'en-curso';
+
+    // Ciclo de vida: próximo se archiva (ícono), en curso se termina (botón con texto), archivado se elimina (ícono)
+    // y se reabre (botón con texto, en lugar de "Lanzar": un archivado no se lanza).
+    var iconoArchivar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 002 2h10a2 2 0 002-2V9M10 13h4"/></svg>';
+    var iconoEliminar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>';
+    var botonCierre = esEnCurso
+      ? '<span class="event-actions-break" aria-hidden="true"></span>' +
+        '<button class="event-text-btn event-text-btn--danger" data-action="terminar" title="Terminar evento" aria-label="Terminar evento">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Terminar evento' +
+        '</button>'
+      : '<button class="event-action-btn event-action-btn--danger" data-action="' + (esArchivado ? 'eliminar' : 'archivar') + '" title="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '" aria-label="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '">' +
+          (esArchivado ? iconoEliminar : iconoArchivar) +
+        '</button>';
+    var botonPrincipal = esArchivado
+      ? '<button class="event-text-btn event-text-btn--end" data-action="reabrir" title="Reabrir evento" aria-label="Reabrir evento">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 18v-6h6"/></svg>Reabrir' +
+        '</button>'
+      : '<button class="event-launch-btn" data-action="lanzar">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>' +
+          'Lanzar' +
+        '</button>';
 
     card.innerHTML =
       '<div class="event-card-thumb">' + iconoCamara() + '</div>' +
@@ -184,25 +206,23 @@
           '<button class="event-action-btn" data-action="duplicar" title="Duplicar evento" aria-label="Duplicar evento">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>' +
           '</button>' +
-          '<button class="event-action-btn event-action-btn--danger" data-action="' + (esArchivado ? 'eliminar' : 'archivar') + '" title="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '" aria-label="' + (esArchivado ? 'Eliminar evento' : 'Archivar evento') + '">' +
-            (esArchivado
-              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>'
-              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 002 2h10a2 2 0 002-2V9M10 13h4"/></svg>') +
-          '</button>' +
-          '<button class="event-launch-btn" data-action="lanzar">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>' +
-            'Lanzar' +
-          '</button>' +
+          botonCierre +
+          botonPrincipal +
         '</div>' +
       '</div>';
 
     // Cada tarjeta nueva (cambio de pestaña, duplicar, archivar) vuelve a mostrar la marca con los datos ya leidos.
     pintarLanzable(card.querySelector('[data-campo="lanzable"]'), evento);
 
-    card.querySelector('[data-action="lanzar"]').addEventListener('click', function () {
+    var lanzarBtn = card.querySelector('[data-action="lanzar"]');
+    if (lanzarBtn) lanzarBtn.addEventListener('click', function () {
+      // El evento pasa a "En curso" cuando se lanza de verdad, desde la cabina (no al abrirla).
       AlmacenEventos.setActivo(evento.id);
       window.location.href = '../01-camera-flow/index.html';
     });
+
+    var reabrirBtn = card.querySelector('[data-action="reabrir"]');
+    if (reabrirBtn) reabrirBtn.addEventListener('click', function () { reabrirEvento(evento); });
 
     card.querySelector('[data-action="editar"]').addEventListener('click', function () {
       window.location.href = '../05-crear-evento/index.html?editar=' + encodeURIComponent(evento.id);
@@ -216,8 +236,8 @@
       duplicarEvento(evento);
     });
 
-    var archivarBtn = card.querySelector('[data-action="archivar"], [data-action="eliminar"]');
-    archivarBtn.addEventListener('click', function () {
+    var cierreBtn = card.querySelector('[data-action="archivar"], [data-action="eliminar"], [data-action="terminar"]');
+    cierreBtn.addEventListener('click', function () {
       pedirConfirmacion(evento);
     });
 
@@ -237,35 +257,85 @@
     render();
   }
 
+  // Cuántas sesiones tiene el evento AHORA (se vuelve a contar al abrir el aviso, no se usa el número de cuando
+  // se dibujó la lista). Devuelve { total, incompletas } o null si no se pudo leer.
+  function contarEvento(id) {
+    if (typeof AlmacenSesiones === 'undefined') return Promise.resolve(null);
+    return AlmacenSesiones.contarPorEvento().then(function (c) {
+      conteo = c;
+      var d = c[id] || { completas: 0, incompletas: 0, total: 0 };
+      return { total: d.total !== undefined ? d.total : d.completas + d.incompletas, incompletas: d.incompletas };
+    }).catch(function () { return null; });
+  }
+
+  function textoSesiones2(n) {
+    return n === 1 ? '1 sesión' : n + ' sesiones';
+  }
+
   function pedirConfirmacion(evento) {
     eventoAConfirmar = evento;
+    focoOrigenConfirmar = document.activeElement;
     var esArchivado = evento.estado === 'archivado';
-    document.getElementById('confirmTitle').textContent = esArchivado ? 'Eliminar evento' : 'Archivar evento';
-    var texto;
-    if (esArchivado) {
-      var c = conteo && conteo[evento.id];
-      var cuantas = c ? c.completas + c.incompletas : 0;
-      if (conteo === false || conteo === null) {
-        texto = 'Esta acción no se puede deshacer. Se borran "' + evento.nombre + '" y todas sus sesiones guardadas, con sus fotos.';
-      } else if (cuantas > 0) {
-        texto = 'Esta acción no se puede deshacer. Se borran "' + evento.nombre + '" y sus ' + cuantas + (cuantas === 1 ? ' sesión guardada' : ' sesiones guardadas') + ', con todas sus fotos.';
-      } else {
-        texto = 'Esta acción no se puede deshacer. Se borra "' + evento.nombre + '". No tiene sesiones guardadas.';
-      }
-    } else {
-      texto = 'El evento "' + evento.nombre + '" se mueve a Archivados. Puedes volver a activarlo cuando quieras.';
-    }
-    document.getElementById('confirmText').textContent = texto;
-    document.getElementById('confirmAcceptBtn').textContent = esArchivado ? 'Eliminar' : 'Archivar';
+    var esEnCurso = evento.estado === 'en-curso';
+    document.getElementById('confirmTitle').textContent = esArchivado ? 'Eliminar evento' : (esEnCurso ? 'Terminar evento' : 'Archivar evento');
+    document.getElementById('confirmText').textContent = 'Contando las sesiones del evento…';
+    document.getElementById('confirmAcceptBtn').textContent = esArchivado ? 'Eliminar' : (esEnCurso ? 'Terminar evento' : 'Archivar');
+    document.getElementById('confirmAcceptBtn').disabled = true;
     document.getElementById('confirmOverlay').setAttribute('data-visible', 'true');
+    document.getElementById('confirmCancelBtn').focus();
+    contarEvento(evento.id).then(function (c) {
+      if (eventoAConfirmar !== evento) return; // el aviso se cerró o se abrió otro mientras se contaba
+      var texto;
+      if (esArchivado) {
+        if (c === null) {
+          texto = 'Esta acción no se puede deshacer. No pudimos contar las sesiones: se borran "' + evento.nombre + '" y todas las sesiones que tenga guardadas, con todas sus fotos.';
+        } else if (c.total > 0) {
+          texto = 'Esta acción no se puede deshacer. Se borran "' + evento.nombre + '" y sus ' + textoSesiones2(c.total) + ' guardadas' +
+            (c.incompletas ? ' (' + c.incompletas + (c.incompletas === 1 ? ' incompleta' : ' incompletas') + ')' : '') + ', con todas sus fotos.';
+        } else {
+          texto = 'Esta acción no se puede deshacer. Se borra "' + evento.nombre + '". No tiene sesiones guardadas.';
+        }
+      } else {
+        var guardan = c === null ? 'Sus sesiones y fotos se conservan. ' : (c.total > 0 ? (c.total === 1 ? 'Su sesión y sus fotos se conservan. ' : 'Sus ' + c.total + ' sesiones y sus fotos se conservan. ') : 'No tiene sesiones guardadas. ');
+        texto = '"' + evento.nombre + '" pasa a Archivados y ya no se podrá lanzar ni tomar sesiones nuevas. ' + guardan + 'Si te arrepientes, lo reabres desde Archivados.';
+      }
+      document.getElementById('confirmText').textContent = texto;
+      document.getElementById('confirmAcceptBtn').disabled = false;
+    });
   }
 
-  function cerrarConfirmacion() {
+  function nombreEstado(estado) {
+    return estado === 'archivado' ? 'Archivado' : (estado === 'en-curso' ? 'En curso' : 'Próximo');
+  }
+
+  var focoOrigenConfirmar = null;
+
+  // Cierra el aviso y, si se pide, devuelve el foco al botón que lo abrió (si la tarjeta sigue en pantalla).
+  function cerrarConfirmacion(devolverFoco) {
     eventoAConfirmar = null;
     document.getElementById('confirmOverlay').setAttribute('data-visible', 'false');
+    var origen = focoOrigenConfirmar;
+    focoOrigenConfirmar = null;
+    if (devolverFoco === true && origen && origen.isConnected) { try { origen.focus(); } catch (e) { /* sin foco */ } }
   }
 
-  document.getElementById('confirmCancelBtn').addEventListener('click', cerrarConfirmacion);
+  document.getElementById('confirmCancelBtn').addEventListener('click', function () { cerrarConfirmacion(true); });
+  document.getElementById('confirmOverlay').addEventListener('click', function (e) {
+    if (e.target === this) cerrarConfirmacion(true);
+  });
+
+  // Teclado del aviso: Escape lo cierra; Tab y Shift+Tab giran entre sus botones habilitados.
+  document.addEventListener('keydown', function (e) {
+    if (document.getElementById('confirmOverlay').getAttribute('data-visible') !== 'true') return;
+    if (e.key === 'Escape') { e.preventDefault(); cerrarConfirmacion(true); return; }
+    if (e.key !== 'Tab') return;
+    var botones = Array.prototype.filter.call(document.querySelectorAll('#confirmOverlay button'), function (b) { return !b.disabled; });
+    if (!botones.length) return;
+    var primero = botones[0], ultimo = botones[botones.length - 1];
+    var dentro = document.getElementById('confirmOverlay').contains(document.activeElement);
+    if (e.shiftKey && (document.activeElement === primero || !dentro)) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && (document.activeElement === ultimo || !dentro)) { e.preventDefault(); primero.focus(); }
+  });
 
   // Eliminar de verdad: primero se borran las sesiones del evento y sus archivos (en IndexedDB, en una
   // sola operación); solo si eso salió bien se borra el evento. Así no quedan fotos de invitados
@@ -282,8 +352,23 @@
   }
 
   document.getElementById('confirmAcceptBtn').addEventListener('click', function () {
-    if (!eventoAConfirmar) return;
+    if (!eventoAConfirmar || document.getElementById('confirmAcceptBtn').disabled) return;
     var evento = eventoAConfirmar;
+    // El aviso se abrió con una copia del evento que puede haber quedado vieja (otra pestaña lo reabrió, lo
+    // eliminó o lo cambió): se relee del almacén y, si ya no corresponde la acción, se cancela con aviso.
+    var vigente = AlmacenEventos.obtener(evento.id);
+    if (!vigente) {
+      cerrarConfirmacion();
+      mostrarAviso('Este evento ya no existe.');
+      refrescarLista();
+      return;
+    }
+    if (vigente.estado !== evento.estado) {
+      cerrarConfirmacion();
+      mostrarAviso('Este evento cambió en otra pestaña (ahora está ' + nombreEstado(vigente.estado) + '), así que no se hizo nada. Revisa la lista e inténtalo de nuevo.');
+      refrescarLista();
+      return;
+    }
     if (evento.estado === 'archivado') {
       cerrarConfirmacion();
       eliminarEventoYSesiones(evento).then(function (borradas) {
@@ -298,16 +383,42 @@
       });
       return;
     }
-    // Se archiva sobre la copia más reciente del almacén (no sobre la de cuando se dibujó la lista).
-    var fresco = AlmacenEventos.obtener(evento.id) || evento;
-    fresco.estado = 'archivado';
-    AlmacenEventos.guardar(fresco);
+    // Se termina (o archiva) sobre la copia más reciente del almacén (no sobre la de cuando se dibujó la lista).
+    var eraEnCurso = evento.estado === 'en-curso';
+    var terminado = AlmacenEventos.terminar(evento.id);
     var errArch = AlmacenEventos.errorDeGuardado();
-    mostrarAviso(errArch ? errArch.mensaje : 'Evento archivado.');
+    if (!terminado) mostrarAviso('Este evento ya no existe.');
+    else mostrarAviso(errArch ? errArch.mensaje : (eraEnCurso ? 'Evento terminado. Quedó en Archivados: lo puedes reabrir desde ahí.' : 'Evento archivado. Lo puedes reabrir desde Archivados.'));
     eventos = AlmacenEventos.listar();
     cerrarConfirmacion();
     render();
   });
+
+  // Reabrir un archivado: vuelve a "En curso" si ya se había lanzado, o a "Próximos" si nunca se lanzó.
+  function reabrirEvento(evento) {
+    // Se lee el estado real: si otra pestaña ya lo reabrió o lo eliminó, no se anuncia una reapertura que no ocurrió.
+    var actual = AlmacenEventos.obtener(evento.id);
+    if (!actual || actual.estado !== 'archivado') {
+      eventos = AlmacenEventos.listar();
+      mostrarAviso(!actual ? 'Este evento ya no existe.' : 'Este evento ya no estaba archivado (otra pestaña lo cambió). La lista se actualizó.');
+      render();
+      return;
+    }
+    var r = AlmacenEventos.reabrir(evento.id);
+    var err = AlmacenEventos.errorDeGuardado();
+    eventos = AlmacenEventos.listar();
+    if (!r) { mostrarAviso('Este evento ya no existe.'); render(); return; }
+    if (err) { mostrarAviso(err.mensaje); render(); return; }
+    if (r.estado === 'en-curso') {
+      mostrarAviso('Evento reabierto: está En curso, donde lo dejaste. Ya se puede lanzar.');
+      seleccionarPestana('en-curso');
+    } else if (r.estado === 'proximo') {
+      mostrarAviso('Evento reabierto: está en Próximos. Ya se puede lanzar.');
+      seleccionarPestana('proximos');
+    } else {
+      render();
+    }
+  }
 
   function mostrarAviso(texto) {
     var notice = document.getElementById('notice');
@@ -344,14 +455,18 @@
     eventsSub.textContent = totalActivos + (totalActivos === 1 ? ' evento activo' : ' eventos activos');
   }
 
+  function seleccionarPestana(filtro) {
+    Array.prototype.forEach.call(eventsTabs.querySelectorAll('.ds-tab'), function (t) {
+      t.setAttribute('aria-selected', String(t.getAttribute('data-filter') === filtro));
+    });
+    filtroActual = filtro;
+    render();
+  }
+
   eventsTabs.addEventListener('click', function (ev) {
     var tab = ev.target.closest('.ds-tab');
     if (!tab) return;
-    Array.prototype.forEach.call(eventsTabs.querySelectorAll('.ds-tab'), function (t) {
-      t.setAttribute('aria-selected', String(t === tab));
-    });
-    filtroActual = tab.getAttribute('data-filter');
-    render();
+    seleccionarPestana(tab.getAttribute('data-filter'));
   });
 
   function irACrearEvento() {
@@ -428,6 +543,43 @@
   try { temaGuardado = localStorage.getItem(STORAGE_KEY) || 'system'; } catch (e) { /* almacenamiento no disponible */ }
   aplicarTema(temaGuardado);
 
+  // Si la lista queda desactualizada (se lanzó o terminó un evento desde la cabina, que es otra página u otra pestaña, o se volvió
+  // con "atrás" y el navegador mostró la copia vieja), se vuelve a leer el estado real y las sesiones.
+  function refrescarLista() {
+    eventos = AlmacenEventos.listar();
+    // Si hay un aviso abierto sobre un evento que ya no existe o cambió de estado, se cierra con una explicación
+    // (la tarjeta de debajo se vuelve a dibujar y la acción ya no corresponde).
+    if (eventoAConfirmar) {
+      var vigente = eventos.filter(function (x) { return x.id === eventoAConfirmar.id; })[0];
+      if (!vigente || vigente.estado !== eventoAConfirmar.estado) {
+        cerrarConfirmacion(false);
+        mostrarAviso(!vigente ? 'Ese evento ya no existe.' : 'Ese evento cambió en otra pestaña, así que se cerró el aviso. Revisa la lista e inténtalo de nuevo.');
+      }
+    }
+    render();
+    cargarDerivados();
+  }
+
+  window.addEventListener('storage', function (ev) {
+    if (ev.key === null || ev.key === 'fotocabina-eventos') refrescarLista();
+  });
+  window.addEventListener('pageshow', function (ev) { if (ev.persisted) refrescarLista(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') refrescarLista(); });
+
   render();
   cargarDerivados();
+
+  // Viene de "Terminar evento" en la cabina: se abre directo en Archivados con el aviso.
+  (function () {
+    var id = null;
+    try { id = new URLSearchParams(window.location.search).get('terminado'); } catch (e) { id = null; }
+    if (!id) return;
+    try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* sin historial */ }
+    var e = eventos.filter(function (x) { return x.id === id; })[0];
+    if (!e) return;
+    if (e.estado === 'archivado') {
+      seleccionarPestana('archivados');
+      mostrarAviso('Evento terminado. Quedó en Archivados: lo puedes reabrir desde ahí.');
+    }
+  })();
 })();

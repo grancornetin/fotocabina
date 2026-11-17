@@ -423,6 +423,14 @@
         </div>
       </section>
 
+      <section class="drawer-section" id="seccionEvento" hidden>
+        <h3 class="ds-label-text">Evento</h3>
+        <div class="drawer-field">
+          <span class="drawer-help drawer-help--first" id="eventoEstadoTexto"></span>
+          <button class="ds-btn ds-btn--secondary ds-btn--compact" id="terminarEventoBtn" type="button">Terminar evento</button>
+        </div>
+      </section>
+
       <section class="drawer-section" id="seccionImpresion">
         <div class="drawer-section-head"><h3 class="ds-label-text">Impresión</h3><span class="ds-badge" data-state="idle">Próximamente</span></div>
         <p class="drawer-soon-text">Elegir impresora, tamaño de papel, copias por sesión e impresión automática al terminar.</p>
@@ -446,6 +454,18 @@
         <h2 class="soon-title" id="soonTitle">Plantillas</h2>
         <p class="soon-text" id="soonText"></p>
         <button class="ds-btn ds-btn--secondary ds-btn--compact" id="soonCloseBtn" type="button">Entendido</button>
+      </div>
+    </div>
+
+    <!-- Confirmación de "Terminar evento" -->
+    <div class="soon-overlay" id="endOverlay" data-visible="false">
+      <div class="soon-card" role="dialog" aria-modal="true" aria-labelledby="endTitle" aria-describedby="endText">
+        <h2 class="soon-title" id="endTitle">Terminar evento</h2>
+        <p class="soon-text" id="endText"></p>
+        <div class="soon-actions">
+          <button class="ds-btn ds-btn--ghost ds-btn--compact" id="endCancelBtn" type="button">Cancelar</button>
+          <button class="ds-btn ds-btn--destructive ds-btn--compact" id="endAcceptBtn" type="button">Terminar evento</button>
+        </div>
       </div>
     </div>
 
