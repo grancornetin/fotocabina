@@ -1019,6 +1019,187 @@
     igual(t.svc.impresoras().filter(function (m) { return m.actual; }).length, 1);
   });
 
+  // ----- Conteo de hojas en el respaldo (hito 3b) -----
+  async function imprimirEn(t, eventoId, hojas) { t.svc.encolar(trabajo({ sesionId: 's-' + eventoId + hojas + Math.random(), eventoId: eventoId, copias: hojas })); await t.svc.procesarTodo(); }
+  prueba('Respaldo de hojas: un equipo sin conteo exporta la estructura VACÍA (así Reemplazar la distingue de un respaldo antiguo), un evento sin hojas exporta null y nunca se escribe nada', async function () {
+    var al = I.almacenamientoEnMemoria();
+    var x = I.exportarParaRespaldo({ almacen: al }); igual(JSON.stringify(x.datos.porEvento), '{}'); igual(JSON.stringify(x.datos.porImpresora), '{}'); igual(x.ilegible, false); igual(al.getItem(I.CLAVE), null, 'escribió sin pedirlo');
+    igual(I.exportarParaRespaldo({ almacen: al, eventoId: 'ev-A' }).datos, null);
+    var t = nuevo(); await imprimirEn(t, 'ev-A', 3);
+    I.importarDesdeRespaldo(x.datos, { modo: 'reemplazar', almacen: t.almacen });
+    igual(Object.keys(I.exportarParaRespaldo({ almacen: t.almacen }).datos.porEvento).length, 0, 'Reemplazar con un respaldo sin conteos debía dejar los conteos vacíos');
+  });
+  prueba('Respaldo de hojas: ida y vuelta idéntica (conteo por evento, rollo acumulado por impresora y ajuste de rollo) con "Reemplazar"', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 100, avisoRestantes: 10 });
+    await imprimirEn(t, 'ev-A', 3); await imprimirEn(t, 'ev-B', 4);
+    var antes = I.exportarParaRespaldo({ almacen: t.almacen }).datos;
+    igual(antes.porEvento['ev-A'].impresas, 3); igual(antes.porEvento['ev-B'].impresas, 4); igual(antes.porImpresora['simulada-4x6'].desdeCambio, 7); igual(antes.rollo.hojasPorRollo, 100);
+    var otro = I.almacenamientoEnMemoria();
+    var r = I.importarDesdeRespaldo(JSON.parse(JSON.stringify(antes)), { modo: 'reemplazar', almacen: otro }); aserta(r.aplicado, 'no aplicó');
+    var despues = I.exportarParaRespaldo({ almacen: otro }).datos;
+    igual(JSON.stringify(despues), JSON.stringify(antes), 'no quedó idéntico');
+    var svc2 = I.crearServicio({ almacenamiento: otro, reloj: t.reloj });
+    igual(svc2.hojasDelEvento('ev-A', 5).restantes, 2, 'el tope del evento restaurado se reinició'); igual(svc2.restantesRollo().restantes, 93, 'el rollo se reinició');
+  });
+  prueba('Respaldo de hojas: el tope de un evento restaurado sigue contando (no empieza de cero)', async function () {
+    var t = nuevo(); await imprimirEn(t, 'ev-A', 5);
+    var datos = I.exportarParaRespaldo({ almacen: t.almacen }).datos;
+    var otro = I.almacenamientoEnMemoria(); I.importarDesdeRespaldo(datos, { modo: 'reemplazar', almacen: otro });
+    var svc2 = I.crearServicio({ almacenamiento: otro, reloj: t.reloj });
+    igual(svc2.encolar(trabajo({ eventoId: 'ev-A', copias: 1, topeHojas: 5 })).motivo, 'tope', 'el tope se reinició');
+  });
+  prueba('Respaldo de hojas, "Sumar": por evento gana el mayor, el rollo y las impresoras que ya están no se pisan y solo se trae lo que falta', async function () {
+    var local = nuevo(); local.svc.guardarPerfil({ hojasPorRollo: 50 }); await imprimirEn(local, 'ev-A', 6); await imprimirEn(local, 'ev-C', 1);
+    var otro = nuevo(); otro.svc.guardarPerfil({ hojasPorRollo: 999, avisoRestantes: 1 }); await imprimirEn(otro, 'ev-A', 2); await imprimirEn(otro, 'ev-B', 9); otro.svc.cambiarImpresora('simulada-5x7'); await imprimirEn(otro, 'ev-B', 1);
+    var datos = I.exportarParaRespaldo({ almacen: otro.almacen }).datos;
+    var r = I.importarDesdeRespaldo(datos, { modo: 'sumar', almacen: local.almacen }); aserta(r.aplicado, 'aplicó');
+    var x = I.exportarParaRespaldo({ almacen: local.almacen }).datos;
+    igual(x.porEvento['ev-A'].impresas, 6, 'gana el mayor (el de este equipo)'); igual(x.porEvento['ev-B'].impresas, 10, 'trae lo que falta'); igual(x.porEvento['ev-C'].impresas, 1, 'conserva lo suyo');
+    igual(x.porImpresora['simulada-4x6'].impresas, 7, 'pisó la impresora que ya tenía'); igual(x.porImpresora['simulada-5x7'].impresas, 1, 'no trajo la que faltaba');
+    igual(x.rollo.hojasPorRollo, 50, 'pisó el ajuste de rollo de este equipo');
+    I.importarDesdeRespaldo(datos, { modo: 'sumar', almacen: local.almacen });
+    igual(JSON.stringify(I.exportarParaRespaldo({ almacen: local.almacen }).datos), JSON.stringify(x), 'sumar dos veces cambia algo (no es idempotente)');
+  });
+  prueba('Respaldo de hojas, "Sumar" en un equipo sin ajuste de rollo: trae el del respaldo', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 80, avisoRestantes: 12 }); await imprimirEn(t, 'ev-A', 1);
+    var vacio = I.almacenamientoEnMemoria(); I.importarDesdeRespaldo(I.exportarParaRespaldo({ almacen: t.almacen }).datos, { modo: 'sumar', almacen: vacio });
+    var p = I.crearServicio({ almacenamiento: vacio }).perfil(); igual(p.hojasPorRollo, 80); igual(p.avisoRestantes, 12);
+  });
+  prueba('Respaldo de hojas: importar un evento trae SOLO el conteo de ese evento (con el id final, también si entra como copia) y nunca el rollo', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 100 }); await imprimirEn(t, 'ev-A', 4); await imprimirEn(t, 'ev-B', 2);
+    var paquete = I.exportarParaRespaldo({ almacen: t.almacen, eventoId: 'ev-A' }).datos;
+    igual(Object.keys(paquete.porEvento).join(), 'ev-A'); igual(Object.keys(paquete.porImpresora).length, 0, 'llevaba el rollo'); igual(paquete.rollo, null);
+    var otro = I.almacenamientoEnMemoria();
+    I.importarDesdeRespaldo(paquete, { eventoOrigen: 'ev-A', eventoDestino: 'ev-A-copia', almacen: otro });
+    var x = I.exportarParaRespaldo({ almacen: otro }).datos;
+    igual(x.porEvento['ev-A-copia'].impresas, 4, 'copia'); igual(Object.keys(x.porEvento).length, 1); igual(Object.keys(x.porImpresora).length, 0, 'trajo el rollo');
+    I.importarDesdeRespaldo({ version: 1, porEvento: { 'ev-A': { impresas: 1 } }, porImpresora: {}, rollo: null }, { eventoOrigen: 'ev-A', eventoDestino: 'ev-A-copia', almacen: otro });
+    igual(I.exportarParaRespaldo({ almacen: otro }).datos.porEvento['ev-A-copia'].impresas, 4, 'un conteo menor bajó el que ya hay');
+    igual(I.exportarParaRespaldo({ almacen: t.almacen, eventoId: 'ev-sin-conteo' }).datos, null, 'un evento sin hojas exporta algo');
+  });
+  prueba('Respaldo de hojas: restaurar NO toca la cola, el arriendo, la impresora elegida ni la simulación', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ sesionId: 'pendiente', copias: 2 })); t.svc.cambiarImpresora('simulada-5x7', 'retener');
+    var antes = JSON.parse(t.almacen.getItem(I.CLAVE));
+    I.importarDesdeRespaldo({ version: 1, porEvento: { 'ev-Z': { impresas: 9 } }, porImpresora: { 'simulada-5x7': { impresas: 9, desdeCambio: 9, cambioEn: null, rollos: 0 } }, rollo: { hojasPorRollo: 5, avisoRestantes: 1 } }, { modo: 'reemplazar', almacen: t.almacen });
+    var despues = JSON.parse(t.almacen.getItem(I.CLAVE));
+    igual(JSON.stringify(despues.trabajos), JSON.stringify(antes.trabajos), 'tocó la cola'); igual(despues.perfil.impresoraId, 'simulada-5x7'); igual(JSON.stringify(despues.simulacion), JSON.stringify(antes.simulacion));
+    igual(despues.contadores.porEvento['ev-Z'].impresas, 9);
+  });
+  prueba('Respaldo de hojas: la instantánea devuelve el registro exacto (también si no existía) y un registro dañado no se pisa', async function () {
+    var al = I.almacenamientoEnMemoria(); var vacia = I.tomarInstantanea(al); igual(vacia, null);
+    I.importarDesdeRespaldo({ version: 1, porEvento: { a: { impresas: 1 } }, porImpresora: {}, rollo: null }, { modo: 'reemplazar', almacen: al });
+    aserta(al.getItem(I.CLAVE) !== null, 'no escribió'); I.devolverInstantanea(vacia, al); igual(al.getItem(I.CLAVE), null, 'una clave que no existía debía borrarse');
+    var t = nuevo(); await imprimirEn(t, 'ev-A', 1); var snap = I.tomarInstantanea(t.almacen);
+    I.importarDesdeRespaldo({ version: 1, porEvento: { a: { impresas: 5 } }, porImpresora: {}, rollo: null }, { modo: 'reemplazar', almacen: t.almacen });
+    I.devolverInstantanea(snap, t.almacen); igual(t.almacen.getItem(I.CLAVE), snap, 'no volvió igual');
+    var roto = I.almacenamientoEnMemoria(); roto.setItem(I.CLAVE, '{esto no es json');
+    igual(I.exportarParaRespaldo({ almacen: roto }).ilegible, true, 'debía avisar que está dañado');
+    var res = I.importarDesdeRespaldo({ version: 1, porEvento: {}, porImpresora: {}, rollo: null }, { modo: 'reemplazar', almacen: roto });
+    igual(res.aplicado, false); igual(res.ilegible, true, 'no avisó que no se restauró'); igual(roto.getItem(I.CLAVE), '{esto no es json', 'cambió el texto dañado');
+  });
+  prueba('Respaldo de hojas: si no se puede guardar (sin espacio) importar lanza, para que la restauración se deshaga', async function () {
+    var base = I.almacenamientoEnMemoria(); var roto = { getItem: base.getItem, removeItem: base.removeItem, setItem: function () { throw new Error('cuota'); } };
+    var lanzo = false; try { I.importarDesdeRespaldo({ version: 1, porEvento: { a: { impresas: 1 } }, porImpresora: {}, rollo: null }, { modo: 'reemplazar', almacen: roto }); } catch (e) { lanzo = true; }
+    aserta(lanzo, 'no lanzó');
+  });
+  prueba('Respaldo de hojas: datos mal formados se reconocen (negativos, texto, listas) y valores raros se limpian', async function () {
+    aserta(I.datosRespaldoValidos(null) && I.datosRespaldoValidos({ porEvento: {}, porImpresora: {} }), 'lo válido');
+    [[], 'x', { porEvento: [], porImpresora: {} }, { porEvento: { a: { impresas: -1 } }, porImpresora: {} }, { porEvento: { a: { impresas: 'diez' } }, porImpresora: {} },
+      { porEvento: {}, porImpresora: { p: { impresas: 1 } } }].forEach(function (m, i) { aserta(!I.datosRespaldoValidos(m), 'aceptó el caso ' + i); });
+    var al = I.almacenamientoEnMemoria();
+    I.importarDesdeRespaldo({ porEvento: { a: { impresas: 7.6, basura: 'x' } }, porImpresora: {}, rollo: { hojasPorRollo: -4 } }, { modo: 'reemplazar', almacen: al });
+    var x = I.exportarParaRespaldo({ almacen: al }).datos; igual(x.porEvento.a.impresas, 8); igual(x.rollo.hojasPorRollo, 0); aserta(!('basura' in x.porEvento.a), 'dejó pasar un campo ajeno');
+  });
+  prueba('Respaldo de hojas: el ZIP lo lleva y lo trae idéntico; un respaldo antiguo sin ese archivo se lee igual; uno mal formado se rechaza', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 20 }); await imprimirEn(t, 'ev-A', 3);
+    var datos = I.exportarParaRespaldo({ almacen: t.almacen }).datos;
+    var manifest = JSON.stringify({ app: 'FotoCabina', formato: 1, tipo: 'respaldo', creadoEn: '2026-11-18T10:00:00.000Z', conFotos: true, conteos: { eventos: 0, plantillas: 0, sesiones: 0, archivos: 0, fotos: 0, congeladas: 0 } });
+    function entradas(extra) { return [{ nombre: 'manifest.json', datos: manifest }, { nombre: 'datos/eventos.json', datos: '[]' }, { nombre: 'datos/contadores.json', datos: '{}' }, { nombre: 'datos/plantillas.json', datos: 'null' },
+      { nombre: 'datos/sesiones.json', datos: '[]' }, { nombre: 'datos/archivos.json', datos: '[]' }, { nombre: 'datos/congeladas.json', datos: '[]' }].concat(extra || []); }
+    var p = await Respaldo.leerPaquete(new File([await Respaldo.crearZip(entradas([{ nombre: 'datos/impresion.json', datos: JSON.stringify(datos) }]))], 'r.zip'));
+    igual(JSON.stringify(p.datos.impresion), JSON.stringify(datos), 'no volvió idéntico'); igual(p.resumen.hojasContadas, 3);
+    var viejo = await Respaldo.leerPaquete(new File([await Respaldo.crearZip(entradas())], 'v.zip')); igual(viejo.datos.impresion, null); igual(viejo.resumen.hojasContadas, 0);
+    var malo = new File([await Respaldo.crearZip(entradas([{ nombre: 'datos/impresion.json', datos: JSON.stringify({ porEvento: { a: { impresas: -5 } }, porImpresora: {} }) }]))], 'm.zip');
+    var cod = ''; try { await Respaldo.leerPaquete(malo); } catch (e) { cod = e.codigo; } igual(cod, 'ESTRUCTURA');
+  });
+
+  // ----- Rollo acumulado entre eventos (hito 3b) -----
+  prueba('Rollo acumulado: se traspasa entre eventos (no se reinicia al empezar uno nuevo) y el tope de cada evento sigue siendo suyo', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 100, avisoRestantes: 10 });
+    await imprimirEn(t, 'ev-A', 30); igual(t.svc.restantesRollo().restantes, 70);
+    await imprimirEn(t, 'ev-B', 25); igual(t.svc.restantesRollo().restantes, 45, 'el evento nuevo reinició el rollo');
+    igual(t.svc.hojasDelEvento('ev-B', 40).usadas, 25, 'el tope de B cuenta lo de A'); igual(t.svc.hojasDelEvento('ev-A', 40).usadas, 30);
+    var otro = I.crearServicio({ almacenamiento: t.almacen, reloj: t.reloj }); igual(otro.restantesRollo().restantes, 45, 'no sobrevive a recargar');
+  });
+  prueba('Rollo acumulado: solo "Rollo nuevo" lo reinicia (con fecha y cuenta de rollos); el total de la impresora y los conteos de eventos no se tocan', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 20, avisoRestantes: 5 });
+    await imprimirEn(t, 'ev-A', 18); igual(t.svc.restantesRollo().aviso, 'bajo');
+    t.svc.cambiarRollo(); var r = t.svc.restantesRollo();
+    igual(r.restantes, 20); igual(r.aviso, null); aserta(!!r.cambioEn, 'sin fecha del cambio'); igual(t.svc.contadores().porImpresora['simulada-4x6'].rollos, 1, 'cuenta de rollos');
+    igual(t.svc.contadores().porImpresora['simulada-4x6'].impresas, 18); igual(t.svc.hojasDelEvento('ev-A').impresas, 18);
+    t.svc.cambiarRollo(); igual(t.svc.contadores().porImpresora['simulada-4x6'].rollos, 2);
+  });
+  prueba('Rollo acumulado: cada impresora lleva el suyo (cambiar de impresora no mezcla ni reinicia el de la otra)', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 50 }); await imprimirEn(t, 'ev-A', 10);
+    t.svc.cambiarImpresora('simulada-5x7'); igual(t.svc.restantesRollo().restantes, 50, 'la 5x7 parte con rollo propio'); await imprimirEn(t, 'ev-A', 4);
+    igual(t.svc.restantesRollo().restantes, 46); t.svc.cambiarImpresora('simulada-4x6'); igual(t.svc.restantesRollo().restantes, 40, 'la 4x6 perdió su cuenta');
+  });
+
+  // ----- Impresión automática en espera de confirmación y "Borrar y empezar de nuevo" (hito 3b) -----
+  function temporizadorManual() {
+    var t = { n: 0, vivos: {}, poner: function (f, ms) { t.n += 1; t.vivos[t.n] = { f: f, ms: ms }; return t.n; }, quitar: function (id) { delete t.vivos[id]; },
+      disparar: function () { Object.keys(t.vivos).forEach(function (k) { var x = t.vivos[k]; delete t.vivos[k]; x.f(); }); }, cuantos: function () { return Object.keys(t.vivos).length; } };
+    return t;
+  }
+  prueba('Espera de confirmación: mientras espera no hay nada en la cola (no gasta hoja ni tope) y confirmar lo entrega UNA sola vez', async function () {
+    var t = nuevo(); var tm = temporizadorManual(); var liberados = [];
+    var e = I.crearEspera({ ms: 20000, temporizador: tm, alLiberar: function (d) { liberados.push(d); t.svc.encolar(trabajo({ sesionId: d.sesionId, copias: d.copias, origen: 'auto', topeHojas: 2 })); } });
+    e.armar({ sesionId: 's-1', copias: 2 });
+    igual(t.svc.listar().length, 0, 'ya estaba en la cola'); igual(t.svc.hojasDelEvento('ev-1', 2).restantes, 2, 'gastó tope esperando'); aserta(e.enEspera('s-1') && !e.enEspera('otra'), 'enEspera');
+    aserta(e.confirmar(), 'confirmar'); igual(liberados.length, 1); igual(e.confirmar(), false, 'se liberó dos veces'); igual(t.svc.listar().length, 1); igual(tm.cuantos(), 0, 'quedó un temporizador');
+  });
+  prueba('Espera de confirmación: "Borrar y empezar de nuevo" la descarta sin rastro (nunca llega a la cola ni al tope) y el temporizador no la revive', async function () {
+    var t = nuevo(); var tm = temporizadorManual(); var liberados = 0;
+    var e = I.crearEspera({ ms: 20000, temporizador: tm, alLiberar: function () { liberados += 1; } });
+    e.armar({ sesionId: 's-1', copias: 1 }); aserta(e.descartar(), 'descartar'); tm.disparar();
+    igual(liberados, 0, 'se imprimió algo descartado'); igual(e.confirmar(), false); igual(e.descartar(), false); igual(t.svc.listar().length, 0);
+  });
+  prueba('Espera de confirmación: si nadie confirma, sale sola a los 20 s (la impresión prometida no depende del ajuste de inactividad)', async function () {
+    var tm = temporizadorManual(); var liberados = [];
+    var e = I.crearEspera({ ms: 20000, temporizador: tm, alLiberar: function (d) { liberados.push(d.sesionId); } });
+    e.armar({ sesionId: 's-1' }); igual(Object.keys(tm.vivos).map(function (k) { return tm.vivos[k].ms; })[0], 20000, 'plazo'); tm.disparar(); igual(liberados.join(), 's-1');
+    igual(I.crearEspera({}).enEspera(), false);
+  });
+  prueba('Espera de confirmación: si entregar falla no revienta (salir de la pantalla no se rompe) y la espera siguiente se arma igual', async function () {
+    var tm = temporizadorManual(); var fallos = 0; var liberados = [];
+    var e = I.crearEspera({ ms: 20000, temporizador: tm, alFallar: function () { fallos += 1; }, alLiberar: function (d) { if (d.sesionId === 'a') throw new Error('sin cola'); liberados.push(d.sesionId); } });
+    e.armar({ sesionId: 'a' }); e.confirmar(); igual(fallos, 1); e.armar({ sesionId: 'b' }); e.armar({ sesionId: 'a' }); e.armar({ sesionId: 'c' });
+    igual(liberados.join(), 'b'); aserta(e.enEspera('c'), 'no armó la nueva tras un fallo'); e.confirmar(); igual(liberados.join(), 'b,c');
+  });
+  prueba('Espera de confirmación: armar otra suelta la anterior (nunca se pierde lo prometido al invitado anterior)', async function () {
+    var tm = temporizadorManual(); var liberados = [];
+    var e = I.crearEspera({ ms: 20000, temporizador: tm, alLiberar: function (d) { liberados.push(d.sesionId); } });
+    e.armar({ sesionId: 'a' }); e.armar({ sesionId: 'b' }); igual(liberados.join(), 'a'); aserta(e.enEspera('b') && !e.enEspera('a'), 'quedó la nueva'); igual(tm.cuantos(), 1);
+  });
+  prueba('Borrar con el trabajo ya en la fila: se cancela de inmediato, no sale ninguna hoja y no cuenta para el tope ni para el rollo', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 10 });
+    var r = t.svc.encolar(trabajo({ copias: 2, origen: 'auto', topeHojas: 2 })); igual(r.restantes, 0);
+    t.svc.listar({ sesionId: 's-1', estados: ['en-cola', 'reintentando', 'fallido', 'retenido'] }).forEach(function (j) { aserta(t.svc.cancelar(j.id), 'no canceló'); });
+    await t.svc.procesarTodo();
+    igual(t.svc.listar({ estados: ['hecho'] }).length, 0, 'imprimió algo cancelado'); igual(t.svc.hojasDelEvento('ev-1', 2).usadas, 0, 'sigue contando para el tope'); igual(t.svc.restantesRollo().restantes, 10, 'gastó rollo');
+    aserta(t.svc.encolar(trabajo({ sesionId: 'otra', copias: 2, topeHojas: 2 })).ok, 'el tope no se devolvió');
+  });
+  prueba('Borrar con la hoja ya impresa o imprimiéndose: no se puede cancelar (cuenta para el tope y el rollo) y el botón se esconde por eso', async function () {
+    var t = nuevo(); var r = t.svc.encolar(trabajo({ copias: 1, origen: 'auto', topeHojas: 5 })); await t.svc.procesarTodo();
+    igual(t.svc.cancelar(r.trabajo.id), false, 'canceló una hoja que ya salió'); igual(t.svc.hojasDelEvento('ev-1', 5).usadas, 1);
+    var salio = t.svc.listar({ sesionId: 's-1' }).some(function (j) { return ['imprimiendo', 'hecho', 'retenido'].indexOf(j.estado) !== -1; }); aserta(salio, 'la regla que esconde el botón no la vio');
+    var u = nuevo(); u.svc.encolar(trabajo({ sesionId: 'x' })); aserta(!u.svc.listar({ sesionId: 'x' }).some(function (j) { return ['imprimiendo', 'hecho', 'retenido'].indexOf(j.estado) !== -1; }), 'en cola no debía esconderlo');
+  });
+  prueba('Copias adicionales sin PIN: el servicio las acepta de origen "adicional" y el tope por evento las limita igual (nota de riesgo: sin tope un invitado podría pedirlas, por eso solo se ofrecen en modo operador)', async function () {
+    var t = nuevo(); var a = t.svc.encolar(trabajo({ copias: 5, origen: 'adicional', topeHojas: 3 }));
+    aserta(a.ok && a.parcial === true && a.hojas === 3, 'el tope debía recortar: ' + JSON.stringify(a)); igual(t.svc.encolar(trabajo({ sesionId: 'y', origen: 'adicional', topeHojas: 3 })).motivo, 'tope');
+  });
+
   (async function () {
     for (var i = 0; i < pruebas.length; i++) {
       var p = pruebas[i], ok = false, error = '';

@@ -171,9 +171,10 @@
       let t = 'Se agregarían ' + plural(vista.eventos.nuevos, 'evento', 'eventos') + ', ' + plural(vista.plantillas.nuevos, 'plantilla', 'plantillas') + ' y ' + plural(vista.sesiones.nuevos, 'sesión', 'sesiones') + '.';
       const ya = vista.eventos.existentes + vista.plantillas.existentes + vista.sesiones.existentes;
       if (ya) t += ' Ya existen ' + plural(vista.eventos.existentes, 'evento', 'eventos') + ', ' + plural(vista.plantillas.existentes, 'plantilla', 'plantillas') + ' y ' + plural(vista.sesiones.existentes, 'sesión', 'sesiones') + ': se dejan como están.';
+      if (paquete.resumen.hojasContadas) t += ' Trae el conteo de hojas impresas (' + plural(paquete.resumen.hojasContadas, 'hoja', 'hojas') + ' en total): donde ya hay un conteo de evento se queda el mayor, y el rollo de este equipo se deja como está.';
       $('modoPrevio').textContent = t;
     } else {
-      $('modoPrevio').textContent = 'Se borrarían ' + plural(a.eventos, 'evento', 'eventos') + ', ' + plural(a.plantillas, 'plantilla', 'plantillas') + ' y ' + plural(a.sesiones, 'sesión', 'sesiones') + ' de este equipo, y quedaría exactamente lo del respaldo.';
+      $('modoPrevio').textContent = 'Se borrarían ' + plural(a.eventos, 'evento', 'eventos') + ', ' + plural(a.plantillas, 'plantilla', 'plantillas') + ' y ' + plural(a.sesiones, 'sesión', 'sesiones') + ' de este equipo, y quedaría exactamente lo del respaldo' + (paquete.resumen.hojasContadas ? ', incluido el conteo de hojas impresas y el del rollo.' : '.');
     }
     if (!vista.espacio.cabe) {
       mostrar($('modoEspacio'), 'No hay espacio suficiente para restaurar así: hacen falta ' + R.formatearBytes(vista.espacio.necesario) + ' y quedan ' + R.formatearBytes(vista.espacio.libre) + ' libres. Libera espacio o elige un respaldo sin fotos.');

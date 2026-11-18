@@ -620,7 +620,7 @@
       xfer.paquete = p;
       var v = Respaldo.previsualizarImportacion(p);
       var r = p.resumen;
-      xferEl('xferText').textContent = '«' + r.evento.nombre + '» · ' + textoPlural(r.sesiones, 'sesión', 'sesiones') + (r.conFotos ? (r.sesiones ? ' con sus fotos' : '') : ' (el archivo no trae fotos)') + ' · ' + textoPlural(r.plantillas, 'plantilla', 'plantillas') + ' · ' + Respaldo.formatearBytes(r.bytes) + '. ' +
+      xferEl('xferText').textContent = '«' + r.evento.nombre + '» · ' + textoPlural(r.sesiones, 'sesión', 'sesiones') + (r.conFotos ? (r.sesiones ? ' con sus fotos' : '') : ' (el archivo no trae fotos)') + ' · ' + textoPlural(r.plantillas, 'plantilla', 'plantillas') + ' · ' + Respaldo.formatearBytes(r.bytes) + (r.hojasContadas ? ' · ' + textoPlural(r.hojasContadas, 'hoja impresa', 'hojas impresas') + ' contadas para su límite' : '') + '. ' +
         (v.existe
           ? 'Ya hay un evento igual en este equipo: se agrega como copia nueva con el nombre «' + v.nombreFinal + '» y el que ya tienes no se toca.'
           : 'Se agrega a tu lista sin tocar nada de lo que ya tienes.');

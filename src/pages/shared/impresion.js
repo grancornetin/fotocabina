@@ -465,15 +465,17 @@ const Impresion = (() => {
       const desde = (c && c.desdeCambio) || 0;
       const restantes = Math.max(0, total - desde);
       const aviso = restantes <= 0 ? 'agotado' : (restantes <= r.perfil.avisoRestantes ? 'bajo' : null);
-      return { configurado: true, total, restantes, aviso, desdeCambio: desde, cambioEn: (c && c.cambioEn) || null };
+      return { configurado: true, total, restantes, aviso, desdeCambio: desde, cambioEn: (c && c.cambioEn) || null, rollos: (c && c.rollos) || 0 };
     }
 
-    // "Cambié el papel y la cinta": el conteo desde el último cambio vuelve a cero.
+    // "Rollo nuevo" (acción explícita del operador, con confirmación en C4): el conteo de ESTA impresora desde el último cambio vuelve a cero.
+    // Es lo único que lo reinicia: empezar un evento nuevo no lo toca (un rollo alcanza para varios eventos) ni el tope por evento.
     function cambiarRollo() {
       const id = leer().perfil.impresoraId;
       cambiar((r) => {
         const c = r.contadores.porImpresora[id] || { impresas: 0, desdeCambio: 0, cambioEn: null };
         c.desdeCambio = 0;
+        c.rollos = (c.rollos || 0) + 1;
         c.cambioEn = ahoraIso(reloj.ahora());
         r.contadores.porImpresora[id] = c;
         r.pausa = null;
@@ -839,8 +841,142 @@ const Impresion = (() => {
     };
   }
 
+  // ───────────── Espera de confirmación de la impresión automática (hito 3b) ─────────────
+  // Con impresión automática, el trabajo NO entra a la cola hasta que el invitado confirma su resultado. Mientras espera no gasta
+  // hoja ni cuenta para el tope; `descartar()` lo borra sin rastro (el invitado tocó "Borrar y empezar de nuevo"); `confirmar()` lo
+  // entrega a `alLiberar(datos)` (que lo encola) y también lo hace sola tras `ms` (red de seguridad: nunca depende del ajuste de
+  // inactividad). Una sola espera a la vez; armar otra suelta la anterior (no se pierde lo prometido).
+  //   opciones: { ms, alLiberar(datos), temporizador: { poner(fn, ms), quitar(id) } }  (el temporizador se pasa en las pruebas)
+  function crearEspera(opciones) {
+    const op = opciones || {};
+    const poner = (op.temporizador && op.temporizador.poner) || ((f, ms) => setTimeout(f, ms));
+    const quitar = (op.temporizador && op.temporizador.quitar) || ((id) => clearTimeout(id));
+    const ms = entero(op.ms, 20000, 0, 600000);
+    let pendiente = null;
+    function soltar() {
+      const p = pendiente;
+      if (!p) return false;
+      quitar(p.id);
+      pendiente = null;
+      // Si entregar falla, el error no puede romper la salida de la pantalla ni impedir armar la espera siguiente.
+      try { if (typeof op.alLiberar === 'function') op.alLiberar(p.datos); } catch (e) { if (typeof op.alFallar === 'function') op.alFallar(e, p.datos); }
+      return true;
+    }
+    return {
+      armar(datos) { soltar(); const p = { datos, id: null }; pendiente = p; p.id = poner(soltar, ms); },
+      confirmar: soltar,
+      descartar() { if (!pendiente) return false; quitar(pendiente.id); pendiente = null; return true; },
+      enEspera(clave) { return !!pendiente && (clave === undefined || (pendiente.datos && pendiente.datos.sesionId === clave)); },
+    };
+  }
+
+  // ───────────── Respaldo (hito 3b): los conteos de hojas viajan en el respaldo y en "Exportar evento" ─────────────
+  // Funciones sueltas (no necesitan el servicio ni la cabina abierta): `respaldo.js` las usa por su puerta y la pantalla
+  // de respaldo vive en otra página. Solo tocan `contadores` y el ajuste de rollo; NUNCA la cola, el arriendo, la impresora
+  // elegida ni la simulación. `almacen` por defecto es localStorage (las pruebas pasan uno en memoria).
+  //   Datos: { version: 1, porEvento: { eventoId: { impresas } }, porImpresora: { impresoraId: { impresas, desdeCambio, cambioEn, rollos } },
+  //            rollo: { hojasPorRollo, avisoRestantes } }
+  // Por qué existe: el tope de hojas es por evento y el rollo es por impresora y se traspasa entre eventos; si no entran al
+  // respaldo, restaurar o mover un evento a otro equipo reiniciaría el tope y el aviso de fin de rollo.
+  const almacenDe = (a) => a || (typeof localStorage !== 'undefined' ? localStorage : almacenamientoEnMemoria());
+  const nat = (x) => entero(x, 0, 0, 9999999);
+
+  function limpiarDatosRespaldo(crudo) {
+    if (!esObjeto(crudo)) return null;
+    const porEvento = {};
+    if (esObjeto(crudo.porEvento)) Object.keys(crudo.porEvento).forEach((id) => { if (id !== '__proto__' && esObjeto(crudo.porEvento[id])) porEvento[id] = { impresas: nat(crudo.porEvento[id].impresas) }; });
+    const porImpresora = {};
+    if (esObjeto(crudo.porImpresora)) Object.keys(crudo.porImpresora).forEach((id) => {
+      const c = crudo.porImpresora[id];
+      if (!esObjeto(c) || id === '__proto__') return;
+      porImpresora[id] = { impresas: nat(c.impresas), desdeCambio: nat(c.desdeCambio), cambioEn: typeof c.cambioEn === 'string' ? c.cambioEn : null, rollos: nat(c.rollos) };
+    });
+    const rollo = esObjeto(crudo.rollo) ? { hojasPorRollo: entero(crudo.rollo.hojasPorRollo, 0, 0, 9999), avisoRestantes: entero(crudo.rollo.avisoRestantes, 30, 0, 999) } : null;
+    return { version: 1, porEvento, porImpresora, rollo };
+  }
+
+  // ¿Es un bloque de datos de respaldo bien formado? (lo usa el validador del paquete: un respaldo con esto mal formado se rechaza)
+  function datosRespaldoValidos(x) {
+    if (x === null) return true;
+    if (!esObjeto(x) || !esObjeto(x.porEvento) || !esObjeto(x.porImpresora)) return false;
+    const num = (v) => typeof v === 'number' && isFinite(v) && v >= 0;
+    if (!Object.keys(x.porEvento).every((k) => esObjeto(x.porEvento[k]) && num(x.porEvento[k].impresas))) return false;
+    if (!Object.keys(x.porImpresora).every((k) => esObjeto(x.porImpresora[k]) && num(x.porImpresora[k].impresas) && num(x.porImpresora[k].desdeCambio))) return false;
+    return x.rollo === undefined || x.rollo === null || (esObjeto(x.rollo) && num(x.rollo.hojasPorRollo));
+  }
+
+  function leerRegistroParaRespaldo(a) {
+    let texto = null;
+    try { texto = a.getItem(CLAVE); } catch (e) { texto = null; }
+    if (!texto) return { registro: registroNuevo(), existe: false, ilegible: false };
+    try { return { registro: normalizarRegistro(JSON.parse(texto)), existe: true, ilegible: false }; } catch (e) { return { registro: registroNuevo(), existe: true, ilegible: true }; }
+  }
+
+  // opciones: { almacen, eventoId } — con `eventoId` solo sale el conteo de ese evento (paquete de un evento; el rollo es del equipo).
+  // El respaldo completo SIEMPRE trae la estructura (aunque vacía): así "Reemplazar" distingue un respaldo sin conteos de uno antiguo que no tiene el archivo.
+  // Con `eventoId`, `datos` es null si ese evento no tiene hojas. `ilegible: true` si el registro del equipo está dañado (el respaldo lo avisa).
+  function exportarParaRespaldo(opciones) {
+    const op = opciones || {};
+    const { registro, ilegible } = leerRegistroParaRespaldo(almacenDe(op.almacen));
+    if (ilegible) return { ilegible: true, datos: null };
+    const c = registro.contadores;
+    let datos;
+    if (op.eventoId) {
+      datos = esObjeto(c.porEvento[op.eventoId]) ? { porEvento: { [op.eventoId]: c.porEvento[op.eventoId] }, porImpresora: {}, rollo: null } : null;
+    } else {
+      datos = { porEvento: c.porEvento, porImpresora: c.porImpresora, rollo: { hojasPorRollo: registro.perfil.hojasPorRollo, avisoRestantes: registro.perfil.avisoRestantes } };
+    }
+    return { ilegible: false, datos: datos ? limpiarDatosRespaldo(datos) : null };
+  }
+
+  // Instantánea para deshacer una restauración (texto exacto del registro, o null si no existía).
+  function tomarInstantanea(a) { const al = almacenDe(a); try { return al.getItem(CLAVE); } catch (e) { return null; } }
+  function devolverInstantanea(texto, a) {
+    const al = almacenDe(a);
+    if (texto === null || texto === undefined) al.removeItem(CLAVE); else al.setItem(CLAVE, texto);
+  }
+
+  // Aplica los datos de un respaldo. opciones: { modo: 'sumar' | 'reemplazar', eventoOrigen, eventoDestino, almacen }
+  //   · 'reemplazar': los conteos (por evento y por impresora) y el ajuste de rollo quedan exactamente como el respaldo.
+  //   · 'sumar': por evento gana el MAYOR (nunca se subestima lo gastado del tope); por impresora y rollo gana lo que ya está
+  //     (el rollo es una cosa física de este equipo) y solo se trae lo que falta.
+  //   · con `eventoDestino` (importar un evento): solo el conteo de ese evento, con el id final (puede ser una copia), y gana el mayor.
+  // Lanza si no se puede leer o guardar el registro (el llamador deshace con la instantánea). No toca la cola.
+  function importarDesdeRespaldo(datos, opciones) {
+    const op = opciones || {};
+    const d = limpiarDatosRespaldo(datos);
+    if (!d) return { aplicado: false };
+    const a = almacenDe(op.almacen);
+    const { registro: r, ilegible } = leerRegistroParaRespaldo(a);
+    // Un registro dañado nunca se pisa; tampoco frena el resto de la restauración: se avisa que el conteo no se restauró.
+    if (ilegible) return { aplicado: false, ilegible: true };
+    let eventos = 0, impresoras = 0;
+    if (op.eventoDestino) {
+      const origen = d.porEvento[op.eventoOrigen || op.eventoDestino];
+      if (origen) {
+        const local = (r.contadores.porEvento[op.eventoDestino] && r.contadores.porEvento[op.eventoDestino].impresas) || 0;
+        r.contadores.porEvento[op.eventoDestino] = { ...(r.contadores.porEvento[op.eventoDestino] || {}), impresas: Math.max(local, origen.impresas) };
+        eventos = 1;
+      }
+    } else if (op.modo === 'reemplazar') {
+      r.contadores = { porEvento: copiar(d.porEvento), porImpresora: copiar(d.porImpresora) };
+      if (d.rollo) { r.perfil.hojasPorRollo = d.rollo.hojasPorRollo; r.perfil.avisoRestantes = d.rollo.avisoRestantes; }
+      eventos = Object.keys(d.porEvento).length; impresoras = Object.keys(d.porImpresora).length;
+    } else {
+      Object.keys(d.porEvento).forEach((id) => {
+        const local = (r.contadores.porEvento[id] && r.contadores.porEvento[id].impresas) || 0;
+        if (d.porEvento[id].impresas > local) { r.contadores.porEvento[id] = { ...(r.contadores.porEvento[id] || {}), impresas: d.porEvento[id].impresas }; eventos += 1; }
+      });
+      Object.keys(d.porImpresora).forEach((id) => { if (!r.contadores.porImpresora[id]) { r.contadores.porImpresora[id] = d.porImpresora[id]; impresoras += 1; } });
+      if (d.rollo && !r.perfil.hojasPorRollo) { r.perfil.hojasPorRollo = d.rollo.hojasPorRollo; r.perfil.avisoRestantes = d.rollo.avisoRestantes; }
+    }
+    a.setItem(CLAVE, JSON.stringify(r));
+    return { aplicado: true, eventos, impresoras };
+  }
+
   return {
     CLAVE, VERSION, ESTADOS_OK, ESTADOS_PROBLEMA, ESTADOS_SIMULABLES, ESTADOS_ACTIVOS, MENSAJES_ESTADO, MODELOS, ORIGENES, CONFIG_BASE,
     AdaptadorImpresora, ImpresoraSimulada, crearServicio, almacenamientoEnMemoria,
+    crearEspera, exportarParaRespaldo, importarDesdeRespaldo, datosRespaldoValidos, tomarInstantanea, devolverInstantanea,
   };
 })();

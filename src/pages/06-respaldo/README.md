@@ -34,6 +34,9 @@ Cuadro de confirmación con `role="dialog"`, `aria-modal`, `aria-describedby`; f
 
 `index.html`, `styles.css`, `app.js` (solo interfaz; toda la lógica está en `../shared/respaldo.js`). Carga `../shared/almacen-eventos.js`, `../shared/almacen-plantillas.js`, `../01-camera-flow/almacen-sesiones.js` y `../shared/respaldo.js`.
 
+## Conteo de hojas (hito 3b)
+El respaldo completo y "Exportar evento" llevan el conteo de hojas impresas (`datos/impresion.json`): por evento (para el tope) y, en el respaldo completo, por impresora (rollo acumulado) con el ajuste de rollo. La vista previa lo dice ("Trae el conteo de hojas impresas…"). Sumar: gana el mayor por evento y no pisa el rollo de este equipo; Reemplazar: queda como el respaldo; importar evento: solo el de ese evento. Un respaldo anterior sin ese archivo se restaura igual (sin tocar los conteos de este equipo). Reglas completas en `../shared/README.md`.
+
 ## Pendiente
 
 - Pasarla a C8 (hito 7) y decidir si lleva PIN allí.

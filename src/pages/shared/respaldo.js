@@ -11,6 +11,7 @@
 //   LEEME.txt                 explicación para una persona
 //   datos/eventos.json        [evento v2]
 //   datos/contadores.json     { eventoId: último n.º de sesión }
+//   datos/impresion.json      conteo de hojas (hito 3b): por evento (tope), por impresora (rollo acumulado) y ajuste de rollo; null si no hay (ver Impresion.exportarParaRespaldo). Opcional: los respaldos anteriores no lo traen
 //   datos/plantillas.json     contenedor del editor { plantillas, ultimaAbierta } (o null) — en un evento, solo las plantillas que usa
 //   datos/sesiones.json       [registro de sesión tal como está guardado]
 //   datos/archivos.json       [{ id, sesionId, tipo, tamano, creadoEn, mime, entrada }]
@@ -470,7 +471,8 @@
     'No lo abras para editarlo: para recuperar tus datos, en FotoCabina entra a «Respaldo» y elige «Restaurar desde un archivo»',
     '(si es de un solo evento, usa «Importar evento» en la lista de Eventos).',
     '',
-    'Adentro hay tus eventos, plantillas y sesiones como archivos de texto (carpeta datos) y las fotos de las sesiones',
+    'Adentro hay tus eventos, plantillas y sesiones como archivos de texto (carpeta datos), el conteo de hojas impresas',
+    '(por evento y por rollo) y las fotos de las sesiones',
     '(carpeta archivos). Si no marcaste «Incluir las fotos de los invitados» al crearlo, no trae fotos ni sesiones.',
     'Las fotos son datos personales de los invitados: guárdalo en un lugar seguro y no lo compartas sin necesidad.',
     '',
@@ -526,6 +528,7 @@
     const json = {
       'datos/eventos.json': JSON.stringify(d.eventos),
       'datos/contadores.json': JSON.stringify(d.contadores || {}),
+      'datos/impresion.json': JSON.stringify(d.impresion || null),
       'datos/plantillas.json': JSON.stringify(d.plantillas === undefined ? null : d.plantillas),
       'datos/sesiones.json': JSON.stringify(crudo.sesiones),
       'datos/archivos.json': JSON.stringify(archivosMeta),
@@ -565,11 +568,18 @@
   }
 
   // Avisos de lo que NO se pudo leer y por tanto no entra al respaldo (nunca se calla): [{ codigo, mensaje }].
-  function advertenciasDeLectura(ev, estadoPlantillas) {
+  function advertenciasDeLectura(ev, estadoPlantillas, impresionIlegible) {
     const lista = [];
+    if (impresionIlegible) lista.push({ codigo: 'IMPRESION_ILEGIBLE', mensaje: 'No se pudo leer el conteo de hojas impresas de este equipo (está dañado), así que este respaldo NO lo incluye.' });
     if (ev && ev.ilegible) lista.push({ codigo: 'EVENTOS_ILEGIBLES', mensaje: 'No se pudieron leer los eventos guardados en este equipo (están dañados), así que este respaldo NO los incluye.' });
     if (estadoPlantillas === 'danado') lista.push({ codigo: 'PLANTILLAS_ILEGIBLES', mensaje: 'No se pudieron leer las plantillas del editor (están dañadas), así que este respaldo NO las incluye.' });
     return lista;
+  }
+
+  // Conteo de hojas del equipo (o de un evento). Sin el módulo de impresión (página que no lo carga) no hay nada que guardar.
+  function leerImpresion(eventoId) {
+    if (typeof Impresion === 'undefined' || !Impresion.exportarParaRespaldo) return { datos: null, ilegible: false };
+    try { return Impresion.exportarParaRespaldo({ eventoId: eventoId || null }); } catch (e) { return { datos: null, ilegible: true }; }
   }
 
   // Respaldo completo de este equipo. Opciones: { conFotos (por defecto true), alProgresar }. Devuelve { blob, nombre, manifest, resumen }.
@@ -582,7 +592,8 @@
     const ev = AlmacenEventos.exportarCrudo();
     const contenedor = AlmacenPlantillas.leerContenedorParaRespaldo();
     const estadoPl = AlmacenPlantillas.estadoContenedorParaRespaldo();
-    const advertencias = advertenciasDeLectura(ev, estadoPl);
+    const imp = leerImpresion();
+    const advertencias = advertenciasDeLectura(ev, estadoPl, imp.ilegible);
     const total = await AlmacenSesiones.contarContenido();
     if (!ev.eventos.length && !(contenedor && contenedor.plantillas.length) && !total.sesiones && !total.congeladas) {
       if (advertencias.length) throw new ErrorRespaldo('ILEGIBLE', advertencias.map((a) => a.mensaje).join(' ') + ' No hay nada más que respaldar.');
@@ -591,7 +602,7 @@
     avanzar({ fase: 'leer', texto: conFotos ? 'Leyendo sesiones y fotos…' : 'Leyendo copias de plantillas…' });
     const crudo = await AlmacenSesiones.leerTodoCrudo({ incluirSesiones: conFotos, incluirArchivos: conFotos, huellas: 'todas' });
     const r = await empaquetar({
-      tipo: 'respaldo', conFotos, eventos: ev.eventos, contadores: ev.contadores, plantillas: contenedor, crudo, advertencias,
+      tipo: 'respaldo', conFotos, eventos: ev.eventos, contadores: ev.contadores, impresion: imp.datos, plantillas: contenedor, crudo, advertencias,
       textoIlegible: estadoPl === 'danado' ? AlmacenPlantillas.instantaneaParaRespaldo() : null,
     }, avanzar);
     return { blob: r.blob, nombre: nombreRespaldo(), manifest: r.manifest, resumen: r.resumen, advertencias: r.advertencias };
@@ -611,14 +622,15 @@
     const ids = Array.from(new Set([].concat(Array.isArray(pl.habilitadas) ? pl.habilitadas : [], pl.porDefecto ? [pl.porDefecto] : [])));
     const contenedor = AlmacenPlantillas.leerContenedorParaRespaldo();
     const estadoPl = AlmacenPlantillas.estadoContenedorParaRespaldo();
-    const advertencias = advertenciasDeLectura(null, estadoPl);
+    const imp = leerImpresion(id);
+    const advertencias = advertenciasDeLectura(null, estadoPl, imp.ilegible);
     const usadas = contenedor ? contenedor.plantillas.filter((p) => p && ids.includes(p.id)) : [];
     const huellas = evento.congelado && evento.congelado.plantilla && evento.congelado.plantilla.huella ? [evento.congelado.plantilla.huella] : [];
     avanzar({ fase: 'leer', texto: conFotos ? 'Leyendo sesiones y fotos…' : 'Leyendo copias de plantillas…' });
     const crudo = await AlmacenSesiones.leerTodoCrudo({ eventoIds: [id], incluirSesiones: conFotos, incluirArchivos: conFotos, huellas });
     const contadores = Number.isFinite(ev.contadores[id]) ? { [id]: ev.contadores[id] } : {};
     const r = await empaquetar({
-      tipo: 'evento', conFotos, eventos: [evento], contadores, plantillas: { plantillas: usadas }, crudo,
+      tipo: 'evento', conFotos, eventos: [evento], contadores, impresion: imp.datos, plantillas: { plantillas: usadas }, crudo,
       advertencias,
       extraManifest: { evento: { id: evento.id, nombre: evento.nombre }, plantillasFaltantes: estadoPl === 'valido' ? ids.length - usadas.length : 0 },
     }, avanzar);
@@ -647,6 +659,7 @@
     if (new Set(ids(datos.eventos)).size !== datos.eventos.length) throw estructura('eventos repetidos');
     if (manifest.tipo === 'evento' && datos.eventos.length !== 1) throw estructura('un paquete de evento debe traer exactamente un evento');
     if (!esObjeto(datos.contadores) || !Object.keys(datos.contadores).every((k) => Number.isFinite(datos.contadores[k]))) throw estructura('contadores');
+    if (datos.impresion !== null && !(typeof Impresion !== 'undefined' ? Impresion.datosRespaldoValidos(datos.impresion) : esObjeto(datos.impresion))) throw estructura('conteo de hojas');
     if (datos.plantillas !== null) {
       if (!esObjeto(datos.plantillas) || !Array.isArray(datos.plantillas.plantillas)) throw estructura('plantillas');
       // Se respeta lo que guardó el editor tal cual: una plantilla puede venir sin id o sin papel y aun así se respalda y se restaura.
@@ -709,6 +722,7 @@
       const datos = {
         eventos: await leerJson('datos/eventos.json'),
         contadores: await leerJson('datos/contadores.json'),
+        impresion: await leerJson('datos/impresion.json', null),
         plantillas: await leerJson('datos/plantillas.json', null),
         sesiones: await leerJson('datos/sesiones.json'),
         archivos: await leerJson('datos/archivos.json'),
@@ -717,7 +731,8 @@
       const real = validarDatos(datos, manifest, zip);
       let bytesDatos = 0;
       zip.entradas.forEach((e) => { if (e.nombre.startsWith('datos/')) bytesDatos += e.tamano; });
-      const resumen = { fecha: manifest.creadoEn, tipo: manifest.tipo, conFotos: manifest.conFotos, ...real, bytes: archivo.size };
+      const hojasContadas = datos.impresion ? Object.keys(datos.impresion.porEvento).reduce((s, k) => s + datos.impresion.porEvento[k].impresas, 0) : 0;
+      const resumen = { fecha: manifest.creadoEn, tipo: manifest.tipo, conFotos: manifest.conFotos, ...real, hojasContadas, bytes: archivo.size };
       if (manifest.tipo === 'evento') resumen.evento = { id: datos.eventos[0].id, nombre: datos.eventos[0].nombre || 'Evento sin nombre', fecha: datos.eventos[0].fecha || null, estado: datos.eventos[0].estado || null };
       return {
         tipo: manifest.tipo, manifest, resumen, datos, bytesDatos,
@@ -767,7 +782,10 @@
   async function aplicar(plan, avanzar) {
     let instEventos;
     let instPlantillas;
+    let instImpresion = null;
+    const conImpresion = !!(plan.impresion && typeof Impresion !== 'undefined');
     try {
+      if (conImpresion) instImpresion = Impresion.tomarInstantanea();
       instEventos = AlmacenEventos.tomarInstantanea();
       instPlantillas = AlmacenPlantillas.instantaneaParaRespaldo();
     } catch (e) {
@@ -777,12 +795,14 @@
       let ok = true;
       try { AlmacenEventos.devolverInstantanea(instEventos); } catch (e) { ok = false; }
       try { AlmacenPlantillas.devolverInstantaneaDeRespaldo(instPlantillas); } catch (e) { ok = false; }
+      if (conImpresion) { try { Impresion.devolverInstantanea(instImpresion); } catch (e) { ok = false; } }
       return ok;
     };
     const resultado = {};
     avanzar({ fase: 'guardar', texto: 'Guardando eventos y plantillas…' });
     try {
       resultado.eventos = AlmacenEventos.importarCrudo(plan.eventos, { modo: plan.modo, minimos: plan.minimos });
+      if (conImpresion) resultado.impresion = Impresion.importarDesdeRespaldo(plan.impresion.datos, plan.impresion.opciones);
       if (plan.modo === 'reemplazar') {
         AlmacenPlantillas.reemplazarContenedorDesdeRespaldo(plan.plantillas);
         const n = plan.plantillas && Array.isArray(plan.plantillas.plantillas) ? plan.plantillas.plantillas.length : 0;
@@ -865,6 +885,7 @@
         modo,
         eventos: { eventos: d.eventos, contadores: d.contadores },
         minimos: minimosDeContador(sesiones),
+        impresion: d.impresion ? { datos: d.impresion, opciones: { modo } } : null,
         plantillas: modo === 'reemplazar' ? d.plantillas : (d.plantillas ? d.plantillas.plantillas : []),
         ultimaAbierta: d.plantillas ? d.plantillas.ultimaAbierta : null,
         sesiones: { sesiones, archivos, congeladas: d.congeladas },
@@ -952,6 +973,7 @@
         modo: 'sumar',
         eventos: { eventos: [evento], contadores },
         minimos: {},
+        impresion: d.impresion ? { datos: d.impresion, opciones: { eventoOrigen: d.eventos[0].id, eventoDestino: evento.id } } : null,
         plantillas: aAgregar,
         ultimaAbierta: null,
         sesiones: { sesiones: rep.sesiones, archivos, congeladas: d.congeladas },
@@ -964,6 +986,7 @@
         copia,
         plantillas: { agregadas: resultado.plantillas.agregadas, reutilizadas, conIdNuevo: Object.keys(mapa).length },
         sesiones: resultado.sesiones,
+        impresion: resultado.impresion || null,
       };
     } catch (e) {
       throw normalizarError(e);
@@ -976,13 +999,14 @@
     const p = res.plantillas || { agregadas: 0, omitidas: 0 };
     const s = res.sesiones || { sesionesAgregadas: 0, sesionesOmitidas: 0 };
     if (res.modo === 'reemplazar') {
-      return 'Listo. Ahora este equipo tiene exactamente lo del respaldo: ' + plural(e.agregados, 'evento', 'eventos') + ', ' + plural(p.agregadas, 'plantilla', 'plantillas') + ' y ' + plural(s.sesionesAgregadas, 'sesión', 'sesiones') + '.';
+      return 'Listo. Ahora este equipo tiene exactamente lo del respaldo: ' + plural(e.agregados, 'evento', 'eventos') + ', ' + plural(p.agregadas, 'plantilla', 'plantillas') + ' y ' + plural(s.sesionesAgregadas, 'sesión', 'sesiones') + '.' + (res.impresion && res.impresion.aplicado ? ' Se recuperó el conteo de hojas impresas.' : (res.impresion && res.impresion.ilegible ? ' OJO: el conteo de hojas de este equipo está dañado y no se tocó, así que el conteo del respaldo NO se restauró.' : ''));
     }
+    const hojas = res.impresion && res.impresion.aplicado ? ' Se recuperó el conteo de hojas impresas.' : (res.impresion && res.impresion.ilegible ? ' OJO: el conteo de hojas de este equipo está dañado y no se tocó, así que el conteo del respaldo NO se restauró.' : '');
     let t = 'Listo. Se sumaron ' + plural(e.agregados, 'evento', 'eventos') + ', ' + plural(p.agregadas, 'plantilla', 'plantillas') + ' y ' + plural(s.sesionesAgregadas, 'sesión', 'sesiones') + '.';
     if (e.omitidos || p.omitidas || s.sesionesOmitidas) {
       t += ' Ya estaban ' + plural(e.omitidos, 'evento', 'eventos') + ', ' + plural(p.omitidas, 'plantilla', 'plantillas') + ' y ' + plural(s.sesionesOmitidas, 'sesión', 'sesiones') + ', y se dejaron como estaban.';
     }
-    return t;
+    return t + hojas;
   }
 
   raiz.Respaldo = {
