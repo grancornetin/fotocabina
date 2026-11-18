@@ -697,7 +697,7 @@
 
   var soonTextos = {
     camara: 'La cámara se elige por evento, desde la cabina: toca "Lanzar" en el evento y abre Ajustes › Cámara.',
-    impresora: 'La configuración de impresora (C4) todavía no está construida.',
+    impresora: 'La impresora se configura dentro de la cabina: abre un evento, entra a Ajustes y elige Impresora.',
     ayuda: 'La ayuda todavía no está construida.',
   };
 

@@ -93,6 +93,46 @@
 
   const notice = q('#notice');
 
+  const printStatus = q('#printStatus');
+  const printLabel = q('#printLabel');
+  const extraCopiesBtn = q('#extraCopiesBtn');
+  const printSent = q('#printSent');
+  const printSentTitle = q('#printSentTitle');
+  const printSentSub = q('#printSentSub');
+  const limitOverlay = q('#limitOverlay');
+  const limitCancelBtn = q('#limitCancelBtn');
+  const limitOkBtn = q('#limitOkBtn');
+  const copiesOverlay = q('#copiesOverlay');
+  const copiesTitle = q('#copiesTitle');
+  const copiesInfo = q('#copiesInfo');
+  const copiesValue = q('#copiesValue');
+  const copiesWarn = q('#copiesWarn');
+  const copiesMinus = q('#copiesMinus');
+  const copiesPlus = q('#copiesPlus');
+  const copiesCancelBtn = q('#copiesCancelBtn');
+  const copiesOkBtn = q('#copiesOkBtn');
+
+  // ---------- Impresión (hito 3) ----------
+  // La cabina nunca habla con la impresora: le entrega trabajos a la cola de shared/impresion.js, que los guarda
+  // antes de intentar y los manda a la impresora (hoy una SIMULADA; mañana un adaptador real con la misma interfaz).
+  // La cola pide la imagen justo antes de imprimir: la hoja ya compuesta que guarda la sesión (así una reimpresión
+  // sale idéntica a la original). La sesión actual además queda en memoria por si el guardado en disco falló.
+  const contenidoReciente = new Map();
+  function recordarContenido(sesionId, blob, medidas) {
+    if (!sesionId || !blob) return;
+    contenidoReciente.set(sesionId, { blob, medidas: medidas || null });
+    while (contenidoReciente.size > 4) contenidoReciente.delete(contenidoReciente.keys().next().value);
+  }
+  async function contenidoDeImpresion(trabajo) {
+    if (trabajo.origen === 'prueba') return { blob: await hojaDePrueba(), medidas: HOJA_4X6_MM };
+    const enMemoria = contenidoReciente.get(trabajo.sesionId);
+    if (enMemoria) return enMemoria;
+    const guardada = await AlmacenSesiones.obtener(trabajo.sesionId);
+    const blob = guardada && (guardada.hoja || guardada.tira);
+    return blob ? { blob, medidas: guardada.impresion || null } : null;
+  }
+  const impresion = (typeof Impresion !== 'undefined') ? Impresion.crearServicio({ resolverContenido: contenidoDeImpresion, topeDe: (id) => topeVigenteDe(id) }) : null;
+
   // Ajustes de sesión del operador. Si la cabina se abrió desde "Lanzar" en la lista de
   // eventos (04-lista-eventos), el evento activo del almacén compartido (shared/almacen-
   // eventos.js, formato v2) trae su propio ritmo (cuenta, pausa, mensaje, paciencia) y su
@@ -168,6 +208,16 @@
     return t;
   }
 
+  // Cuántas hojas lleva el evento y cuántas quedan del tope (el operador lo ve siempre en la tarjeta y en Ajustes).
+  function textoHojasDelEvento(c) {
+    if (!impresion || eventoActual.id === 'demo' || (c && c.modo === 'digital')) return '';
+    const h = impresion.hojasDelEvento(eventoActual.id, c && c.topeHojas);
+    if (!h.usadas && h.restantes === null) return '';
+    return h.restantes === null
+      ? ` · llevan ${h.usadas} ${h.usadas === 1 ? 'hoja' : 'hojas'}`
+      : ` · llevan ${h.usadas} de ${h.tope} (${h.restantes === 0 ? 'ya no quedan' : `quedan ${h.restantes}`})`;
+  }
+
   const enPulgadas = (mm) => String(Math.round((mm / 25.4) * 10) / 10).replace('.', ',');
   const textoPapel = (p) => `${enPulgadas(p.papel.anchoMm)} × ${enPulgadas(p.papel.altoMm)} in`;
 
@@ -198,6 +248,13 @@
       const cfgEntrega = real ? configCongelada() : null;
       entregaEl.hidden = !cfgEntrega;
       if (cfgEntrega) entregaEl.textContent = textoEntrega(cfgEntrega);
+      // Cuántas hojas lleva el evento y cuántas quedan: línea propia (no se corta en pantallas angostas).
+      const hojasEl = q('#templateHojas');
+      if (hojasEl) {
+        const th = cfgEntrega ? textoHojasDelEvento(cfgEntrega).replace(/^ · /, '') : '';
+        hojasEl.hidden = !th;
+        hojasEl.textContent = th ? th.charAt(0).toUpperCase() + th.slice(1) : '';
+      }
     }
 
     // Con plantilla real, el número de fotos lo manda la plantilla: el selector manual no se ofrece.
@@ -232,14 +289,15 @@
     return [activa, ...camarasListadas.filter((c) => c.id !== id)];
   }
 
-  // La impresora no se puede detectar desde el navegador (impresora: null) y el espacio en disco tampoco.
+  // La impresora la informa el adaptador de shared/impresion.js (hoy la simulada; sin dato = null y no marca nada).
+  // El espacio en disco no se puede detectar desde el navegador.
   function entradaValidador(evento, plantilla) {
     const pin = (typeof AjustesEquipo !== 'undefined') ? AjustesEquipo.estadoPin() : null;
     return {
       equipo: pin ? { pin: { definido: !!pin.definido } } : null,
       evento,
       plantilla,
-      vivo: { camaras: camarasVivas(), impresora: null, espacioLibreMB: null },
+      vivo: { camaras: camarasVivas(), impresora: impresion ? impresion.paraValidador() : null, espacioLibreMB: null },
     };
   }
 
@@ -421,8 +479,13 @@
       }
     }
     iniciandoSesion = true;
-    try { await refrescarPlantillaVigente(); } catch (e) { /* se sigue con la plantilla congelada */ }
-    iniciandoSesion = false;
+    try {
+      // El evento ya usó todas sus hojas: el invitado lo sabe ANTES de tomar las fotos y sigue solo con entrega digital.
+      if (topeAlcanzadoAhora() && !(await esperarAvisoDeTope())) { iniciandoSesion = false; return; }
+      try { await refrescarPlantillaVigente(); } catch (e) { /* se sigue con la plantilla congelada */ }
+    } finally {
+      iniciandoSesion = false;
+    }
     runSession();
   }
 
@@ -575,6 +638,8 @@
         if (tipo === 'return') { ajustes.volver = parseInt(opt.dataset.value, 10) || 0; guardarAjustes(); }
         if (tipo === 'event') { cambiarEvento(opt.dataset.value, opt.textContent); }
         if (tipo === 'camera') { ajustes.camaraId = opt.dataset.value || null; guardarAjustes(); connectCamera(); }
+        if (tipo === 'printer' && impresion) { cambiarImpresoraDesdePanel(opt.dataset.value); }
+        if (tipo === 'simestado' && impresion) { impresion.configurarSimulacion({ estado: opt.dataset.value }); refrescarImpresora(true); }
       });
 
       select._close = close;
@@ -820,6 +885,7 @@
   // ---------- Panel de ajustes y hojas "Próximamente" ----------
 
   function abrirDrawer(seccionId) {
+    if (impresion) refrescarImpresora(true);
     settingsDrawer.dataset.open = 'true';
     drawerBackdrop.dataset.visible = 'true';
     if (seccionId) {
@@ -1109,7 +1175,7 @@
         estado: 'capturando',
         fotosEsperadas: numeroDeFotos(),
         plantilla: { id: plantillaActiva ? plantillaActiva.id : null, copiaCongelada: !!(plantillaActiva && huellaActiva && congeladaOk), huella: plantillaActiva ? huellaActiva : null },
-        configCongelada: configCongelada(),
+        configCongelada: configSesion(),
         esEnsayo: false,
         error: null,
         fotos: [],
@@ -1385,15 +1451,17 @@
     renderPinDots();
     pinHint.dataset.bloqueo = 'false';
     pinMensaje(TEXTOS_PIN[pinFlujo.pasos[pinFlujo.paso]], false);
-    pinTitle.textContent = pinFlujo.modo === 'entrar' ? 'Acceso de operador' : (pinFlujo.modo === 'crear' ? 'Crea tu PIN de operador' : 'Cambiar PIN');
+    pinTitle.textContent = pinFlujo.modo === 'entrar' || pinFlujo.modo === 'operar' ? 'Acceso de operador' : (pinFlujo.modo === 'crear' ? 'Crea tu PIN de operador' : 'Cambiar PIN');
+    if (pinFlujo.modo === 'operar') pinMensaje('Ingresa el PIN para pedir copias adicionales.', false);
     actualizarBloqueoPin();
   }
 
-  function abrirPin(modo = 'entrar', alTerminar = null) {
+  function abrirPin(modo = 'entrar', alTerminar = null, alCerrar = null) {
     const definido = AjustesEquipo.estadoPin().definido;
     if (modo === 'entrar' && !definido) { exitEvent(); return; } // sin PIN en el equipo, nadie queda encerrado
-    const pasos = modo === 'entrar' ? ['verificar'] : (definido ? ['actual', 'nuevo', 'repetir'] : ['nuevo', 'repetir']);
-    pinFlujo = { modo: modo === 'entrar' ? 'entrar' : (definido ? 'cambiar' : 'crear'), pasos, paso: 0, nuevo: '', alTerminar };
+    if (modo === 'operar' && !definido) { alTerminar(); return; } // sin PIN en el equipo, cualquiera es operador
+    const pasos = modo === 'entrar' || modo === 'operar' ? ['verificar'] : (definido ? ['actual', 'nuevo', 'repetir'] : ['nuevo', 'repetir']);
+    pinFlujo = { modo: modo === 'entrar' || modo === 'operar' ? modo : (definido ? 'cambiar' : 'crear'), pasos, paso: 0, nuevo: '', alTerminar, alCerrar };
     pinOverlay.dataset.visible = 'true';
     mostrarPaso();
     if (sessionActive && !paused) {
@@ -1403,6 +1471,8 @@
   }
 
   function cerrarPin() {
+    const flujoCerrado = pinFlujo;
+    if (flujoCerrado && flujoCerrado.alCerrar) flujoCerrado.alCerrar(); // cancelado: quien pidió el PIN retoma lo suyo
     clearInterval(relojBloqueo);
     relojBloqueo = null;
     pinOverlay.dataset.visible = 'false';
@@ -1428,6 +1498,7 @@
         const resultado = await AjustesEquipo.verificarPin(pinBuffer);
         if (pinFlujo !== flujo) return; // se canceló mientras se verificaba
         if (resultado.ok) {
+          if (paso === 'verificar' && flujo.modo === 'operar') { flujo.alCerrar = null; cerrarPin(); if (flujo.alTerminar) flujo.alTerminar(); return; }
           if (paso === 'verificar') { pausadoPorPin = false; cerrarPin(); exitEvent(); return; }
           flujo.paso += 1;
           mostrarPaso();
@@ -1613,6 +1684,7 @@
     aplicarModoEntrega();
     result.hidden = false;
     iniciarTemporizadorInicio();
+    imprimirAutomatico();
   }
 
   function loadImage(src) {
@@ -1874,20 +1946,486 @@
   // Medidas de la hoja en milímetros; sin dato (sesiones antiguas y demostración), 4x6 pulgadas como siempre.
   const HOJA_4X6_MM = { anchoMm: 101.6, altoMm: 152.4 };
 
-  function imprimirUrl(url, medidas) {
-    const m = medidas && medidas.anchoMm > 0 && medidas.altoMm > 0 ? medidas : HOJA_4X6_MM;
-    const ancho = `${Math.round(m.anchoMm * 100) / 100}mm`, alto = `${Math.round(m.altoMm * 100) / 100}mm`;
-    const w = window.open('', '_blank');
-    if (!w) { showNotice('El navegador bloqueó la ventana de impresión.'); return; }
-    w.document.write(`<title>FotoCabina</title><style>@page{size:${ancho} ${alto};margin:0}html,body{margin:0;width:${ancho};height:${alto}}img{width:${ancho};height:${alto};display:block}</style><img src="${url}" onload="print();setTimeout(close,400)">`);
-    w.document.close();
+  // ---------- Imprimir (hito 3): cola, A9/A10, copias adicionales y tope de hojas ----------
+
+  // Hoja de prueba de C4 ("Impresión de prueba"): se dibuja al momento, no pertenece a ninguna sesión.
+  async function hojaDePrueba() {
+    const c = document.createElement('canvas');
+    c.width = 1200;
+    c.height = 1800;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#0A0A0B';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(60, 60, c.width - 120, c.height - 120);
+    ctx.fillStyle = '#0A0A0B';
+    ctx.textAlign = 'center';
+    ctx.font = '800 96px Inter, system-ui';
+    ctx.fillText('FotoCabina', 600, 330);
+    ctx.font = '600 52px Inter, system-ui';
+    ctx.fillText('Impresión de prueba', 600, 430);
+    ctx.font = '500 38px Inter, system-ui';
+    ctx.fillText(new Date().toLocaleString('es-CL'), 600, 520);
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) ctx.strokeRect(150 + i * 25, 650 + i * 25, 900 - i * 50, 900 - i * 50);
+    return aBlob(c);
   }
 
-  function imprimirBlob(blob, medidas) {
-    const url = URL.createObjectURL(blob);
-    imprimirUrl(url, medidas);
-    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  // Tope de hojas VIGENTE del evento (lo que el operador tiene guardado ahora). Solo existe con el modo "Ambos".
+  function topeVigenteDe(eventoId) {
+    if (typeof AlmacenEventos === 'undefined' || typeof ValidadorEvento === 'undefined' || !eventoId || eventoId === 'demo') return null;
+    const ev = AlmacenEventos.obtener(eventoId);
+    return ev ? ValidadorEvento.configuracionEfectiva(ev, null).topeHojas : null;
   }
+
+  // El evento ya usó todas sus hojas (impresas, en cola o por revisar).
+  function topeAlcanzadoAhora() {
+    if (!impresion) return false;
+    const tope = topeVigenteDe(eventoActual.id);
+    return !!tope && impresion.hojasDelEvento(eventoActual.id, tope).restantes === 0;
+  }
+
+  // Configuración congelada de la sesión que empieza. Si el tope ya se alcanzó, la sesión nace "solo digital":
+  // no ofrece imprimir y lo dice (el invitado ya vio el aviso antes de tomar las fotos).
+  function configSesion() {
+    const cfg = configCongelada();
+    if (!cfg || cfg.modo !== 'ambos' || !cfg.topeHojas || !impresion || eventoActual.id === 'demo') return cfg;
+    if (impresion.hojasDelEvento(eventoActual.id, cfg.topeHojas).restantes > 0) return cfg;
+    return { ...cfg, modoOriginal: 'ambos', modo: 'digital', impresionAuto: false, topeAlcanzado: true, resumen: cfg.resumen + ' · tope de hojas alcanzado: solo entrega digital' };
+  }
+
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+
+  function problemaDeImpresora() {
+    if (!impresion) return false;
+    const e = impresion.estado('ambos');
+    return e.semaforo === 'error' || e.cola.pausada;
+  }
+
+  // Manda una sesión a la cola. Devuelve el resultado de encolar (ver shared/impresion.js) o null si no hay cola.
+  function enviarAImprimir({ sesion, copias, origen, topeHojas }) {
+    if (!impresion || !sesion) { showNotice('No se pudo preparar la impresión en este equipo.'); return null; }
+    recordarContenido(sesion.id, sesion.hoja || sesion.tira, sesion.impresion);
+    const res = impresion.encolar({ sesionId: sesion.id, eventoId: sesion.eventoId || sesion.evento, eventoNombre: sesion.eventoNombre, copias, origen, topeHojas });
+    refrescarImpresora(true);
+    return res;
+  }
+
+  let temporizadorEnviado = null;
+  // A9 (Enviado a imprimir) y A10 (variante impresora): una tarjeta breve que no bloquea nada.
+  function mostrarEnviado({ tono, titulo, sub }) {
+    printSent.dataset.tono = tono;
+    printSentTitle.textContent = titulo;
+    printSentSub.textContent = sub || '';
+    printSent.dataset.visible = 'true';
+    clearTimeout(temporizadorEnviado);
+    temporizadorEnviado = setTimeout(() => { printSent.dataset.visible = 'false'; }, tono === 'aviso' ? 6000 : 2600);
+  }
+
+  // Cuenta lo que pasó con el pedido de impresión (para el invitado y para quien lo pidió).
+  function avisarEnvio(res, paraInvitado) {
+    if (!res) return;
+    if (!res.ok) {
+      mostrarEnviado({ tono: 'aviso', titulo: 'No se imprimió', sub: paraInvitado
+        ? 'Las impresiones de este evento llegaron a su límite, pero puedes llevarte tus fotos de forma digital.'
+        : 'Este evento ya usó todas sus hojas. Sube el tope en "Editar evento" para seguir imprimiendo.' });
+      return;
+    }
+    if (problemaDeImpresora()) {
+      mostrarEnviado({ tono: 'aviso', titulo: 'Un momento, por favor', sub: result.hidden ? impresion.mensajeInvitado(modoDeEntrega()) : '' });
+      return;
+    }
+    mostrarEnviado({
+      tono: 'ok',
+      titulo: 'Enviado a imprimir',
+      sub: res.parcial
+        ? `Se imprime ${plural(res.hojas, 'hoja', 'hojas')} de ${res.pedidas}: era lo que quedaba del límite del evento.`
+        : plural(res.hojas, 'hoja', 'hojas'),
+    });
+  }
+
+  // Lo que ve el invitado sobre su impresión (sin términos técnicos).
+  function resumenImpresionSesion(sesionId) {
+    if (!impresion || !sesionId) return null;
+    const trabajos = impresion.listar({ sesionId }).filter((t) => t.estado !== 'cancelado');
+    if (!trabajos.length) return null;
+    const hojas = trabajos.reduce((s, t) => s + t.hojas, 0);
+    const conProblema = trabajos.some((t) => ['fallido', 'reintentando', 'retenido'].includes(t.estado))
+      || (trabajos.some((t) => t.estado === 'en-cola') && problemaDeImpresora());
+    if (conProblema) return { tono: 'aviso', texto: impresion.mensajeInvitado(modoDeEntrega()) };
+    if (trabajos.some((t) => t.estado === 'en-cola' || t.estado === 'imprimiendo')) return { tono: 'ok', texto: `Imprimiendo tu tira (${plural(hojas, 'hoja', 'hojas')})…` };
+    return { tono: 'ok', texto: `Tu tira fue enviada a la impresora (${plural(hojas, 'hoja', 'hojas')}).` };
+  }
+
+  function actualizarEstadoImpresionResultado() {
+    const cfg = sesionActual && sesionActual.configCongelada;
+    let r = result.hidden || !sesionActual ? null : resumenImpresionSesion(sesionActual.id);
+    if (!r && !result.hidden && cfg && cfg.topeAlcanzado) {
+      r = { tono: 'aviso', texto: 'Las impresiones de este evento llegaron a su límite, pero puedes llevarte tus fotos de forma digital.' };
+    }
+    printStatus.hidden = !r;
+    if (r) { printStatus.textContent = r.texto; printStatus.dataset.tono = r.tono; }
+  }
+
+  const sesionesImpresasSolas = new Set();
+  // Impresión automática al terminar la sesión: según el evento (`impresionAuto` y `copias`, ya congelados en la sesión).
+  function imprimirAutomatico() {
+    const sesion = sesionActual;
+    const cfg = sesion && sesion.configCongelada;
+    if (sesion && cfg && cfg.modo !== 'digital' && cfg.impresionAuto && !sesionesImpresasSolas.has(sesion.id)) {
+      sesionesImpresasSolas.add(sesion.id);
+      avisarEnvio(enviarAImprimir({ sesion, copias: cfg.copias, origen: 'auto', topeHojas: cfg.topeHojas }), true);
+    }
+    actualizarEstadoImpresionResultado();
+  }
+
+  // Si el invitado borra su sesión, lo que aún no salió de la cola no debe imprimirse (ni gastar hojas del tope).
+  function cancelarImpresionesPendientesDe(sesionId) {
+    if (!impresion || !sesionId) return;
+    contenidoReciente.delete(sesionId);
+    impresion.listar({ sesionId, estados: ['en-cola', 'reintentando', 'fallido', 'retenido'] }).forEach((t) => impresion.cancelar(t.id));
+    refrescarImpresora(true);
+  }
+
+  // ----- Copias adicionales y reimpresión (solo operador) -----
+  let copiasCtx = null;
+  let copiasFoco = null; // quién abrió el diálogo: a él vuelve el foco al cerrarlo
+  const COPIAS_MAX = 20;
+
+  function copiasAbierto() { return copiesOverlay.dataset.visible === 'true'; }
+
+  function pintarCopias() {
+    const c = copiasCtx;
+    const quedan = c.restantes;
+    copiesValue.textContent = String(c.copias);
+    copiesMinus.disabled = c.copias <= 1;
+    copiesPlus.disabled = c.copias >= COPIAS_MAX;
+    let aviso = '';
+    if (quedan === 0) aviso = 'Este evento ya usó todas sus hojas. Sube el tope en "Editar evento" para seguir imprimiendo.';
+    else if (quedan !== null && c.copias > quedan) aviso = `Solo quedan ${plural(quedan, 'hoja', 'hojas')} del límite del evento: se imprimirán ${quedan}.`;
+    copiesWarn.hidden = !aviso;
+    copiesWarn.textContent = aviso;
+    copiesOkBtn.disabled = quedan === 0;
+  }
+
+  function abrirCopias(ctx) {
+    if (!impresion) { showNotice('No se pudo preparar la impresión en este equipo.'); return; }
+    detenerTemporizadorInicio();
+    const h = impresion.hojasDelEvento(ctx.eventoId, ctx.topeHojas);
+    copiasCtx = { ...ctx, restantes: h.restantes, copias: 1 };
+    copiasFoco = ctx.foco || null;
+    copiesTitle.textContent = ctx.titulo;
+    copiesInfo.textContent = h.tope
+      ? `Cada hoja cuenta para el límite del evento: llevan ${h.usadas} de ${h.tope} (${h.restantes === 0 ? 'ya no quedan' : `quedan ${h.restantes}`}).`
+      : `Elige cuántas hojas imprimir de esta sesión. Este evento lleva ${plural(h.usadas, 'hoja', 'hojas')}.`;
+    pintarCopias();
+    copiesOverlay.dataset.visible = 'true';
+    cabin.classList.add('has-dialog');
+    (copiesOkBtn.disabled ? copiesCancelBtn : copiesOkBtn).focus();
+  }
+
+  function cerrarCopias() {
+    copiesOverlay.dataset.visible = 'false';
+    cabin.classList.remove('has-dialog');
+    copiasCtx = null;
+    if (copiasFoco && copiasFoco.isConnected && !copiasFoco.hidden) { try { copiasFoco.focus(); } catch (e) { /* sin foco */ } }
+    copiasFoco = null;
+    if (!result.hidden) iniciarTemporizadorInicio();
+  }
+
+  function confirmarCopias() {
+    const c = copiasCtx;
+    if (!c || copiesOkBtn.disabled) return;
+    const res = enviarAImprimir({ sesion: c.sesion, copias: c.copias, origen: c.origen, topeHojas: c.topeHojas });
+    cerrarCopias();
+    avisarEnvio(res, false);
+    actualizarEstadoImpresionResultado();
+  }
+
+  function cambiarCopias(delta) {
+    if (!copiasCtx) return;
+    copiasCtx.copias = Math.min(COPIAS_MAX, Math.max(1, copiasCtx.copias + delta));
+    pintarCopias();
+  }
+
+  // Aviso ANTES de tomar las fotos cuando el evento ya llegó a su tope: resuelve true si el invitado quiere seguir solo digital.
+  let cerrarAvisoTope = null;
+  function limiteAbierto() { return limitOverlay.dataset.visible === 'true'; }
+  function esperarAvisoDeTope() {
+    return new Promise((resolver) => {
+      cerrarAvisoTope = (seguir) => { limitOverlay.dataset.visible = 'false'; cerrarAvisoTope = null; resolver(seguir); };
+      limitOverlay.dataset.visible = 'true';
+      limitOkBtn.focus();
+    });
+  }
+
+  // Trampa de foco simple para los diálogos nuevos (Tab no sale de la tarjeta).
+  function trampaFocoEn(overlay, e) {
+    const foco = Array.from(overlay.querySelectorAll('button:not([disabled])'));
+    if (!foco.length) return;
+    const primero = foco[0], ultimo = foco[foco.length - 1];
+    if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+    else if (!overlay.contains(document.activeElement)) { e.preventDefault(); primero.focus(); }
+  }
+
+  // ----- Semáforo, aviso al operador y refresco -----
+  // Lo que importa para pintar la cabina se resume en una firma: solo se redibuja cuando cambia.
+  let firmaImpresion = '';
+
+  function modoDelEventoActual() {
+    if (eventoActual.id === 'demo' || typeof AlmacenEventos === 'undefined') return 'ambos';
+    const ev = AlmacenEventos.obtener(eventoActual.id);
+    return ev && ev.entrega && ev.entrega.modo ? ev.entrega.modo : 'ambos';
+  }
+
+  function refrescarImpresora(forzar) {
+    if (!impresion) return;
+    const modo = modoDelEventoActual();
+    const e = impresion.estado(modo);
+    printerStatusBadge.dataset.state = e.semaforo;
+    printerStatusBadge.textContent = e.texto;
+    const alerta = modo !== 'digital' && (e.semaforo === 'error' || e.semaforo === 'warn');
+    lockBtn.dataset.alerta = String(alerta);
+    lockBtn.setAttribute('aria-label', alerta ? 'Acceso de operador: hay un aviso de impresión' : 'Acceso de operador');
+    actualizarEstadoImpresionResultado();
+    const firma = JSON.stringify([modo, e.impresora.estado, e.impresora.lenta, e.impresora.nombre, e.cola, e.rollo, e.semaforo]);
+    if (forzar !== true && firma === firmaImpresion) return;
+    firmaImpresion = firma;
+    actualizarResumenPlantilla();
+    actualizarContadorEvento();
+    pintarPanelImpresora(e);
+  }
+
+  // ---------- C4 Impresora: panel dentro de Ajustes (hito 3) ----------
+  // Elegir impresora, papel contra el de la plantilla, copias del evento, consumo de papel, hoja de prueba, trabajos
+  // pendientes y el control "Simulación". Lo que persiste vive en shared/impresion.js (perfil del equipo) y en el evento
+  // (copias e impresión automática, como en "Editar evento").
+  const c4 = {
+    badge: q('#c4Badge'), guardado: q('#c4Guardado'), medios: q('#c4Medios'), papelAviso: q('#c4PapelAviso'),
+    decision: q('#c4Decision'), decisionTitulo: q('#c4DecisionTitulo'),
+    auto: q('#c4AutoToggle'), autoAyuda: q('#c4AutoAyuda'),
+    copiasMenos: q('#c4CopiasMenos'), copiasMas: q('#c4CopiasMas'), copiasValor: q('#c4CopiasValor'), copiasAyuda: q('#c4CopiasAyuda'), hojasEvento: q('#c4HojasEvento'),
+    hojasRollo: q('#c4HojasRollo'), avisoRollo: q('#c4AvisoRollo'), rolloEstado: q('#c4RolloEstado'), cambioRollo: q('#c4CambioRollo'), totales: q('#c4Totales'),
+    colaResumen: q('#c4ColaResumen'), cola: q('#c4Cola'), prueba: q('#c4Prueba'), reintentarTodos: q('#c4ReintentarTodos'),
+    sim: q('#c4Sim'), simLenta: q('#c4SimLenta'), simRollo: q('#c4SimRollo'),
+  };
+  let decisionImpresora = null;
+  let temporizadorPanel = null;
+
+  function eventoDelPanel() {
+    if (eventoActual.id === 'demo' || typeof AlmacenEventos === 'undefined') return null;
+    return AlmacenEventos.obtener(eventoActual.id);
+  }
+
+  function avisarEnPanel(texto) {
+    const p = q('#c4Feedback');
+    if (!p) return;
+    p.textContent = texto;
+    clearTimeout(temporizadorPanel);
+    temporizadorPanel = setTimeout(() => { p.textContent = ''; }, 6000);
+  }
+
+  const textoMedio = (m) => `${enPulgadas(m.anchoMm)} × ${enPulgadas(m.altoMm)} in`;
+  const MOTIVOS_TRABAJO = { 'en-cola': 'en fila', imprimiendo: 'imprimiendo', reintentando: 'reintentando', fallido: 'sin imprimir', retenido: 'por revisar' };
+
+  function guardarEntregaDelEvento(cambio) {
+    const ev = eventoDelPanel();
+    if (!ev) return false;
+    ev.entrega = { ...ev.entrega, ...cambio };
+    AlmacenEventos.guardar(ev);
+    const err = AlmacenEventos.errorDeGuardado();
+    if (err) showNotice(err.mensaje);
+    refrescarImpresora(true);
+    return true;
+  }
+
+  function pintarTrabajosDelPanel() {
+    const trabajos = impresion.listar({ estados: ['en-cola', 'imprimiendo', 'reintentando', 'fallido', 'retenido'] });
+    c4.cola.textContent = '';
+    const cola = impresion.resumenCola();
+    const atraso = cola.atrasoSeg >= 60 ? `≈ ${Math.round(cola.atrasoSeg / 60)} min` : `≈ ${cola.atrasoSeg} s`;
+    const partes = [];
+    if (cola.pendientes) partes.push(`${plural(cola.pendientes, 'trabajo', 'trabajos')} en fila (${plural(cola.hojasPendientes, 'hoja', 'hojas')}, ${atraso})`);
+    if (cola.fallidos) partes.push(`${plural(cola.fallidos, 'sin imprimir', 'sin imprimir')}`);
+    if (cola.retenidos) partes.push(`${plural(cola.retenidos, 'por revisar', 'por revisar')}`);
+    c4.colaResumen.textContent = partes.length ? partes.join(' · ') : 'No hay nada pendiente.';
+    c4.reintentarTodos.hidden = cola.fallidos < 2;
+    trabajos.slice(0, 6).forEach((t) => {
+      const li = document.createElement('li');
+      li.className = 'c4-job' + (t.estado === 'fallido' ? ' c4-job--error' : '');
+      const info = document.createElement('span');
+      info.className = 'c4-job-text';
+      const hora = new Date(t.creadoEn).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      const motivo = t.estado === 'reintentando' ? `reintentando (intento ${t.intentos} de ${Impresion.CONFIG_BASE.maxIntentos})` : MOTIVOS_TRABAJO[t.estado];
+      info.textContent = `${hora} · ${plural(t.hojas, 'hoja', 'hojas')} · ${motivo}${t.ultimoError && (t.estado === 'fallido' || t.estado === 'retenido') ? ': ' + t.ultimoError.mensaje : ''}`;
+      li.appendChild(info);
+      const acciones = document.createElement('span');
+      acciones.className = 'c4-job-actions';
+      const boton = (texto, accion) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ds-btn ds-btn--secondary ds-btn--compact';
+        b.textContent = texto;
+        b.addEventListener('click', accion);
+        acciones.appendChild(b);
+      };
+      if (t.estado === 'fallido' || t.estado === 'retenido') {
+        boton(t.estado === 'fallido' ? 'Reintentar' : 'Imprimir de nuevo', () => {
+          const r = impresion.reintentar(t.id, { topeHojas: topeVigenteDe(t.eventoId) });
+          if (!r.ok && r.motivo === 'tope') avisarEnPanel('Ese evento ya usó todas sus hojas: sube el tope en "Editar evento" para imprimirlo.');
+          else if (r.ok && r.recortado) avisarEnPanel(`Quedaban pocas hojas del tope: se reintenta con ${plural(r.trabajo.hojas, 'hoja', 'hojas')}.`);
+          refrescarImpresora(true);
+        });
+      }
+      if (t.estado !== 'imprimiendo') boton(t.estado === 'fallido' || t.estado === 'retenido' ? 'Descartar' : 'Cancelar', () => {
+        impresion.cancelar(t.id);
+        if (t.estado === 'retenido') avisarEnPanel('Descartado. Ojo: puede que esa hoja ya haya salido de la impresora.');
+        refrescarImpresora(true);
+      });
+      li.appendChild(acciones);
+      c4.cola.appendChild(li);
+    });
+    if (trabajos.length > 6) {
+      const li = document.createElement('li');
+      li.className = 'c4-job c4-job--mas';
+      li.textContent = `Y ${trabajos.length - 6} más.`;
+      c4.cola.appendChild(li);
+    }
+  }
+
+  function pintarPanelImpresora(e) {
+    if (!impresion || !c4.badge) return;
+    c4.badge.dataset.state = e.semaforo;
+    c4.badge.textContent = e.texto;
+
+    // Impresoras disponibles (se arma una vez) y la elegida.
+    const select = q('.ds-select[data-select="printer"]');
+    const menu = select.querySelector('.ds-select-menu');
+    const lista = impresion.impresoras();
+    if (menu.children.length !== lista.length) {
+      menu.textContent = '';
+      lista.forEach((m) => {
+        const li = document.createElement('li');
+        li.className = 'ds-select-option';
+        li.setAttribute('role', 'option');
+        li.dataset.value = m.id;
+        li.textContent = m.nombre;
+        menu.appendChild(li);
+      });
+    }
+    const actual = lista.find((m) => m.actual) || lista[0];
+    Array.from(menu.children).forEach((li) => li.setAttribute('aria-selected', String(li.dataset.value === actual.id)));
+    select.querySelector('.ds-select-value').textContent = actual.nombre;
+    c4.medios.textContent = `Papel que admite: ${actual.medios.map(textoMedio).join(', ')}`;
+
+    // Papel de la plantilla contra el de la impresora: el aviso lo redacta el validador.
+    const res = evaluarEvento();
+    const avisoPapel = res && res.avisos.find((a) => a.codigo === 'PAPEL_DISTINTO');
+    const guardado = e.errorDeGuardado ? e.errorDeGuardado.mensaje : (e.ilegible ? 'La fila de impresión guardada estaba dañada: se empezó de cero y se guardó una copia aparte del registro dañado.' : '');
+    c4.guardado.hidden = !guardado;
+    c4.guardado.textContent = guardado;
+    c4.papelAviso.hidden = !avisoPapel;
+    c4.papelAviso.textContent = avisoPapel ? avisoPapel.mensaje : '';
+
+    // Decisión pendiente al cambiar de impresora.
+    c4.decision.hidden = !decisionImpresora;
+
+    // Copias e impresión automática (son del evento).
+    const ev = eventoDelPanel();
+    const imprime = !!ev && ev.entrega && ev.entrega.modo !== 'digital';
+    c4.auto.disabled = !imprime;
+    c4.copiasMenos.disabled = !imprime || ev.entrega.copias <= 1;
+    c4.copiasMas.disabled = !imprime || ev.entrega.copias >= COPIAS_MAX;
+    c4.auto.setAttribute('aria-checked', String(!!(imprime && ev.entrega.impresionAuto)));
+    c4.copiasValor.textContent = imprime ? String(ev.entrega.copias) : '–';
+    c4.copiasAyuda.textContent = !ev ? 'Sin evento: las copias se cambian en "Editar evento".'
+      : !imprime ? 'Este evento es solo digital: no imprime.'
+      : 'Cada hoja 4×6 (con dos tiras) cuenta como una hoja. Se aplica desde la próxima sesión.';
+    if (ev) {
+      const cfg = ValidadorEvento.configuracionEfectiva(ev, null);
+      const h = impresion.hojasDelEvento(ev.id, cfg.topeHojas);
+      c4.hojasEvento.textContent = `Este evento lleva ${plural(h.usadas, 'hoja', 'hojas')}${h.enCurso ? ` (${h.enCurso} en fila)` : ''}. `
+        + (h.tope ? `Tope: ${h.tope}, ${h.restantes === 0 ? 'ya no quedan' : `quedan ${h.restantes}`}.` : (ev.entrega.modo === 'ambos' ? 'Sin tope de hojas.' : 'El tope de hojas solo existe con "Impresión y digital".'));
+    } else {
+      c4.hojasEvento.textContent = 'Sin evento: el conteo de hojas aparece al abrir un evento.';
+    }
+
+    // Consumo de papel.
+    const perfil = impresion.perfil();
+    if (document.activeElement !== c4.hojasRollo) c4.hojasRollo.value = perfil.hojasPorRollo ? String(perfil.hojasPorRollo) : '';
+    if (document.activeElement !== c4.avisoRollo) c4.avisoRollo.value = String(perfil.avisoRestantes);
+    const rollo = e.rollo;
+    c4.rolloEstado.textContent = !rollo.configurado ? 'Configura cuántas hojas trae el rollo para recibir un aviso antes de que se acabe.'
+      : rollo.aviso === 'agotado' ? `El rollo ya llegó a sus ${rollo.total} hojas según el conteo: cámbialo y toca "Cambié el papel y la cinta".`
+      : rollo.aviso === 'bajo' ? `Quedan unas ${rollo.restantes} hojas del rollo: ten papel y cinta a mano.`
+      : `Quedan unas ${rollo.restantes} de ${rollo.total} hojas del rollo (según el conteo).`;
+    c4.rolloEstado.dataset.tono = rollo.aviso ? 'aviso' : '';
+    const cont = impresion.contadores().porImpresora[perfil.impresoraId];
+    c4.totales.textContent = cont ? `Esta impresora lleva ${plural(cont.impresas, 'hoja', 'hojas')} en total${cont.cambioEn ? `; último cambio de rollo: ${formatearFecha(cont.cambioEn).replace(/\.$/, '')}` : ''}.` : 'Esta impresora todavía no imprimió nada.';
+
+    pintarTrabajosDelPanel();
+
+    // Simulación (solo con la impresora simulada).
+    const sim = impresion.simulacion();
+    c4.sim.hidden = !sim.disponible;
+    if (sim.disponible) {
+      const selSim = q('.ds-select[data-select="simestado"]');
+      const opcion = Array.from(selSim.querySelectorAll('.ds-select-option')).find((o) => o.dataset.value === sim.estado);
+      Array.from(selSim.querySelectorAll('.ds-select-option')).forEach((o) => o.setAttribute('aria-selected', String(o === opcion)));
+      if (opcion) selSim.querySelector('.ds-select-value').textContent = opcion.textContent;
+      c4.simLenta.setAttribute('aria-checked', String(!!sim.lenta));
+      if (document.activeElement !== c4.simRollo) c4.simRollo.value = sim.rolloRestante === null ? '' : String(sim.rolloRestante);
+    }
+  }
+
+  function cambiarImpresoraDesdePanel(id) {
+    const r = impresion.cambiarImpresora(id);
+    if (r.ok) { decisionImpresora = null; refrescarImpresora(true); return; }
+    if (r.motivo === 'decision') {
+      decisionImpresora = id;
+      c4.decisionTitulo.textContent = `Hay ${plural(r.pendientes, 'trabajo', 'trabajos')} sin imprimir (${plural(r.hojas, 'hoja', 'hojas')}). ¿Qué hacemos con ${r.pendientes === 1 ? 'él' : 'ellos'}?`;
+    }
+    refrescarImpresora(true);
+  }
+
+  c4.decision.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-decision]');
+    if (!b || !decisionImpresora) return;
+    const id = decisionImpresora;
+    decisionImpresora = null;
+    if (b.dataset.decision !== 'no') impresion.cambiarImpresora(id, b.dataset.decision);
+    refrescarImpresora(true);
+  });
+  c4.auto.addEventListener('click', () => {
+    const ev = eventoDelPanel();
+    if (ev && ev.entrega.modo !== 'digital') guardarEntregaDelEvento({ impresionAuto: !ev.entrega.impresionAuto });
+  });
+  const cambiarCopiasDelEvento = (delta) => {
+    const ev = eventoDelPanel();
+    if (ev && ev.entrega.modo !== 'digital') guardarEntregaDelEvento({ copias: Math.min(COPIAS_MAX, Math.max(1, ev.entrega.copias + delta)) });
+  };
+  c4.copiasMenos.addEventListener('click', () => cambiarCopiasDelEvento(-1));
+  c4.copiasMas.addEventListener('click', () => cambiarCopiasDelEvento(1));
+  c4.hojasRollo.addEventListener('change', () => { impresion.guardarPerfil({ hojasPorRollo: c4.hojasRollo.value }); refrescarImpresora(true); });
+  c4.avisoRollo.addEventListener('change', () => { impresion.guardarPerfil({ avisoRestantes: c4.avisoRollo.value }); refrescarImpresora(true); });
+  c4.cambioRollo.addEventListener('click', () => { impresion.cambiarRollo(); avisarEnPanel('Listo: el conteo del rollo volvió a cero.'); refrescarImpresora(true); });
+  c4.prueba.addEventListener('click', () => {
+    impresion.encolar({ sesionId: null, eventoId: null, eventoNombre: 'Prueba', copias: 1, origen: 'prueba' });
+    avisarEnPanel('Hoja de prueba enviada a la fila.');
+    refrescarImpresora(true);
+  });
+  c4.reintentarTodos.addEventListener('click', () => {
+    const r = impresion.reintentarFallidos();
+    if (r.sinTope) avisarEnPanel(`${plural(r.sinTope, 'trabajo no se reintentó', 'trabajos no se reintentaron')}: el evento ya usó todas sus hojas.`);
+    else if (r.recortados) avisarEnPanel(`${plural(r.recortados, 'trabajo se reintenta', 'trabajos se reintentan')} con menos hojas, por el tope del evento.`);
+    refrescarImpresora(true);
+  });
+  c4.simLenta.addEventListener('click', () => { impresion.configurarSimulacion({ lenta: c4.simLenta.getAttribute('aria-checked') !== 'true' }); refrescarImpresora(true); });
+  c4.simRollo.addEventListener('change', () => { impresion.configurarSimulacion({ rolloRestante: c4.simRollo.value.trim() === '' ? null : Number(c4.simRollo.value) }); refrescarImpresora(true); });
+
+
 
   function dataUrlAFile(dataUrl, nombre) {
     const [cabecera, base64] = dataUrl.split(',');
@@ -1931,7 +2469,12 @@
     const modo = modoDeEntrega();
     const imprime = modo !== 'digital';
     const digital = modo !== 'impresion';
-    printBtn.hidden = !imprime;
+    const cfgSesion = (sesionActual && sesionActual.configCongelada) || {};
+    // Con impresión automática el invitado no pide nada: imprime sola. Sin ella, un solo pedido por sesión.
+    printBtn.hidden = !imprime || !!cfgSesion.impresionAuto;
+    printBtn.disabled = false;
+    printLabel.textContent = 'Imprimir';
+    extraCopiesBtn.hidden = !imprime || !impresion;
     downloadBtn.hidden = !digital;
     shareBtn.hidden = !(digital && compartirSoportado);
     q('#resultTabs').hidden = !digital;
@@ -1942,6 +2485,7 @@
         : modo === 'digital' ? 'Tu tira ya está armada. Escanea el código o descárgala para llevártela.'
         : 'Tu tira ya está armada. Elige cómo llevártela.';
     }
+    actualizarEstadoImpresionResultado();
   }
 
   // ---------- Galería de sesiones ----------
@@ -2133,6 +2677,16 @@
   actualizarContadorEvento();
   actualizarSeccionEvento();
 
+  // Cola de impresión: arranca con la cabina (lo que quedó "imprimiendo" pasa a "por revisar"), avisa a esta pantalla
+  // de cada cambio y se vuelve a mirar cada segundo (el estado de la impresora y los semáforos dependen de ella).
+  if (impresion) {
+    impresion.suscribir(() => refrescarImpresora(true));
+    impresion.iniciar();
+    refrescarImpresora(true);
+    setInterval(() => refrescarImpresora(false), 1000);
+    window.addEventListener('storage', (e) => { if (e.key === null || e.key === impresion.CLAVE) refrescarImpresora(true); });
+  }
+
   window.addEventListener('storage', (e) => { if (e.key === null || e.key === 'fotocabina-eventos') actualizarSeccionEvento(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') actualizarSeccionEvento(); });
 
@@ -2197,6 +2751,7 @@
     if (sesionActual) {
       const sesion = sesionActual;
       sesionActual = null;
+      cancelarImpresionesPendientesDe(sesion.id);
       try { await encolarGuardado(() => AlmacenSesiones.borrar(sesion.id)); } catch (e) { /* si falla, quedará en la galería */ }
       actualizarContadorEvento();
     }
@@ -2239,11 +2794,30 @@
     });
   }
 
+  // El invitado pide su impresión una sola vez (las copias extra las pide el operador).
   printBtn.addEventListener('click', () => {
-    if (!finalBlob) return;
-    if (hojaBlob) imprimirBlob(hojaBlob, hojaMedidas);
-    else imprimirBlob(finalBlob, hojaMedidas);
+    if (!finalBlob || !sesionActual || printBtn.disabled) return;
+    const cfg = sesionActual.configCongelada || {};
+    printBtn.disabled = true;
+    printLabel.textContent = 'Enviado';
+    avisarEnvio(enviarAImprimir({ sesion: sesionActual, copias: cfg.copias || 1, origen: 'invitado', topeHojas: cfg.topeHojas }), true);
+    actualizarEstadoImpresionResultado();
   });
+
+  extraCopiesBtn.addEventListener('click', () => {
+    if (!sesionActual || !finalBlob) return;
+    const sesion = sesionActual;
+    detenerTemporizadorInicio();
+    abrirPin('operar', () => abrirCopias({ titulo: 'Copias adicionales', foco: extraCopiesBtn, sesion, origen: 'adicional', eventoId: eventoActual.id, topeHojas: topeVigenteDe(eventoActual.id) || null }),
+      () => { if (!result.hidden) iniciarTemporizadorInicio(); });
+  });
+  copiesMinus.addEventListener('click', () => cambiarCopias(-1));
+  copiesPlus.addEventListener('click', () => cambiarCopias(1));
+  copiesCancelBtn.addEventListener('click', cerrarCopias);
+  copiesOkBtn.addEventListener('click', confirmarCopias);
+  copiesOverlay.addEventListener('click', (e) => { if (e.target === copiesOverlay) cerrarCopias(); });
+  limitOkBtn.addEventListener('click', () => { if (cerrarAvisoTope) cerrarAvisoTope(true); });
+  limitCancelBtn.addEventListener('click', () => { if (cerrarAvisoTope) cerrarAvisoTope(false); });
 
   galleryCloseBtn.addEventListener('click', cerrarGaleria);
   detailBackBtn.addEventListener('click', volverAGaleria);
@@ -2255,7 +2829,13 @@
     });
   });
 
-  detailPrintBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) imprimirBlob(sesionDetalle.hoja || sesionDetalle.tira, sesionDetalle.impresion); });
+  // Reimprimir desde la galería usa la misma cola (y cuenta para el tope), con la hoja ya compuesta de la sesión.
+  detailPrintBtn.addEventListener('click', () => {
+    if (!sesionDetalle || !sesionDetalle.tira) return;
+    const sesion = sesionDetalle;
+    const eventoId = sesion.eventoId || sesion.evento;
+    abrirCopias({ titulo: 'Reimprimir', foco: detailPrintBtn, sesion, origen: 'reimpresion', eventoId, topeHojas: topeVigenteDe(eventoId) });
+  });
   detailDownloadBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) descargarBlob(sesionDetalle.tira, 'fotocabina-tira.png'); });
   detailGifBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.gif) descargarBlob(sesionDetalle.gif, 'fotocabina.gif'); });
   detailDeleteBtn.addEventListener('click', async () => {
@@ -2265,6 +2845,7 @@
       detailDeleteBtn.textContent = 'Toca de nuevo para eliminar';
       return;
     }
+    cancelarImpresionesPendientesDe(sesionDetalle.id);
     try {
       await AlmacenSesiones.borrar(sesionDetalle.id);
     } catch (e) {
@@ -2283,6 +2864,16 @@
     if (terminarEventoAbierto()) {
       if (e.key === 'Escape') { e.preventDefault(); cerrarTerminarEvento(); }
       else if (e.key === 'Tab') trampaFocoTerminar(e);
+      return;
+    }
+    if (limiteAbierto()) {
+      if (e.key === 'Escape') { e.preventDefault(); if (cerrarAvisoTope) cerrarAvisoTope(false); }
+      else if (e.key === 'Tab') trampaFocoEn(limitOverlay, e);
+      return;
+    }
+    if (copiasAbierto()) {
+      if (e.key === 'Escape') { e.preventDefault(); cerrarCopias(); }
+      else if (e.key === 'Tab') trampaFocoEn(copiesOverlay, e);
       return;
     }
     if (proximamenteAbierto()) {

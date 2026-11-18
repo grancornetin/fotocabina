@@ -158,3 +158,8 @@
 - **Quién:** orquestador (construyó), Code Reviewer (sin bloqueantes), Evidence Collector (PASA 8 de 8 en Chrome real, 390 y 1366 px, claro y oscuro, consola limpia, un solo lima, 104/104 pruebas).
 - **Qué:** decisión del dueño (opción B): en la lista 04, el botón "Lanzar" de una tarjeta que el validador marca "No lanzable" queda deshabilitado y el motivo se lee en la propia tarjeta (mismo validador, sin lógica duplicada). Tras la revisión se agregó una guarda (sin motor de plantillas no se deshabilita nada) y la opacidad pasó a 0,4 (DESIGN.md); esos dos retoques mínimos no se volvieron a probar en navegador.
 - **Observación cerrada:** la del hito B ("No lanzable" con Lanzar habilitado).
+
+## 2026-11-18 · Hito 3: impresión de punta a punta con impresora simulada
+- **Quién:** orquestador, Frontend Developer (construyó y corrigió), Code Reviewer (2 bloqueantes y 6 importantes, corregidos; revisión final sin bloqueantes), Evidence Collector (recertificación en Chrome real, 390 y 1366 px, 146/146), Reality Checker (LISTO CON RESERVAS).
+- **Qué:** `shared/impresion.js` (adaptador simulado, cola persistente, conteo y tope de hojas), A9, A10 de impresora, impresión automática, copias adicionales solo del operador con PIN, reimpresión desde la galería, panel C4 en Ajustes, validador D2 conectado. Tras la certificación se corrigieron 3 detalles más (la impresora que cuenta al reintentar, un fallo tardío que revivía un trabajo retenido, un segundo botón lima en el detalle de galería); pruebas 146/146, casos 1, 3, 4 y 6 repetidos.
+- **Pendiente:** adaptador real (prueba técnica de escritorio D8, preparada en `src/docs/PRUEBA_TECNICA_ESCRITORIO.md`, no ejecutada), C5/C6/C7, conteo en el respaldo. Reservas en `ARQUITECTURA_FLUJO.md` §7.10.

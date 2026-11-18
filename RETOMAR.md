@@ -20,7 +20,7 @@
 
 ---
 
-**Actualizado:** 2026-11-17 (hito 1.3 cerrado y commiteado)  ·  **Cuenta/sesión:** orquestador  ·  **Rama:** main
+**Actualizado:** 2026-11-18 (mini-hito A y hito 3 cerrados y commiteados)  ·  **Cuenta/sesión:** orquestador  ·  **Rama:** main
 
 ## Estado en una frase
 Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más pantallas se diseña el esqueleto completo) de pantallas: cabina del invitado, editor de plantillas, lista de eventos, crear evento y cámara ya funcionan en el navegador; falta impresora, panel en vivo, servidor local de entrega y toda la parte de hardware real. Último commit de código: `57930dd` (C3 cámara, 2026-09-25). Sin cambios pendientes de código.
@@ -41,16 +41,20 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - Hito 1.3 (2026-11-17): ciclo de vida del evento (En curso automático al lanzar, Terminar evento, Reabrir, conteo real y aviso al eliminar), con correcciones de carreras entre pestañas, diálogos accesibles y editor que no pisa el estado. Certificado: Evidence Collector (todo pasa) y Reality Checker (LISTO CON RESERVAS). Reservas: `ARQUITECTURA_FLUJO.md` §7.8 (botón lima Lanzar por tarjeta y viewport móvil de la cabina ya existían; faltan pruebas automáticas de las funciones nuevas). Falta prueba manual del dueño.
 - Espacio de trabajo con agentes creado (2026-11-16) (2026-11-16): este archivo, `src/docs/proyecto-ia/`, cerebro local `cerebro-fotocabina/`, orquestador en `.claude/agents/`.
 
+- Mini-hito A (2026-11-18, `d25655d`): en la lista 04, "Lanzar" queda deshabilitado en eventos "No lanzable", con el motivo en la tarjeta. Code Reviewer y Evidence Collector (8 de 8 en Chrome real).
+- Hito 3 (2026-11-18): impresión de punta a punta con impresora SIMULADA (`shared/impresion.js`, cola persistente, A9, A10 de impresora, conteo y tope de hojas, impresión automática, copias adicionales solo del operador, panel C4 en Ajustes de la cabina, D2 conectada). Certificado con reservas: Code Reviewer, Evidence Collector (146/146), Reality Checker. Detalle y reservas: `ARQUITECTURA_FLUJO.md` §7.10. La prueba técnica de escritorio (D8) está preparada en `src/docs/PRUEBA_TECNICA_ESCRITORIO.md`, NO ejecutada. Falta la prueba manual del dueño.
+
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
 
 ## Siguiente paso exacto
 1. El dueño prueba a mano con cámara real (idealmente 16:9) y confirma que las caras no se ven estiradas.
-2. 3a/3 (impresión) y C5 con A12.
+2. Decidir con el dueño la prueba técnica de escritorio (3a/D8) y las 4 decisiones del hito 3 (ver abajo). Después C5 con A12 (panel en vivo). No iniciar C5 sin pedirlo.
 
 ## Decisiones pendientes del dueño
-1. Visto bueno a la prueba técnica de escritorio (D8), más adelante, al llegar a impresión.
+1. Visto bueno a la prueba técnica de escritorio (D8): ya preparada, esperando respuesta.
+1b. Hito 3: (i) el tope vigente manda siempre al reintentar (recomendado sí); (ii) botón "Copias adicionales (operador)" visible con PIN; (iii) "Borrar y repetir" tras impresión automática; (iv) el conteo de hojas debe viajar en el respaldo (recomendado sí, antes del primer evento real). Ver el informe del orquestador.
 2. Redacción final del aviso de uso de fotos (se propone un texto al construir la pantalla de bienvenida).
 Todas las demás decisiones del esqueleto están respondidas (2026-11-16). Ver `src/docs/ARQUITECTURA_FLUJO.md` §8.
 

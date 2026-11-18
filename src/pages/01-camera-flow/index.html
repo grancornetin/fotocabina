@@ -76,6 +76,7 @@
           <p class="template-name">Tira clásica 2×6</p>
           <p class="template-meta" id="templateMeta">3 fotos · 2×6 en 4×6 · cuenta 3 s · pausa 3 s</p>
           <p class="template-meta" id="templateEntrega" hidden></p>
+          <p class="template-meta" id="templateHojas" hidden></p>
           <p class="template-stats" id="templateStats">Sin sesiones todavía</p>
         </div>
         <button class="thumb-chip" id="templateChangeBtn" type="button">Cambiar</button>
@@ -164,6 +165,52 @@
       <p class="composing-text">Armando tu tira…</p>
     </section>
 
+    <!-- A9 Imprimiendo / A10 (variante impresora): aviso breve que no bloquea; vuelve solo a la pantalla de resultado -->
+    <div class="print-sent" id="printSent" role="status" aria-live="polite" data-visible="false" data-tono="ok">
+      <span class="print-sent-icon" aria-hidden="true">
+        <svg class="print-sent-icon-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
+        <svg class="print-sent-icon-aviso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </span>
+      <div class="print-sent-copy">
+        <p class="print-sent-title" id="printSentTitle">Enviado a imprimir</p>
+        <p class="print-sent-sub" id="printSentSub"></p>
+      </div>
+    </div>
+
+    <!-- Aviso ANTES de tomar las fotos cuando el evento ya llegó a su tope de hojas -->
+    <div class="soon-overlay" id="limitOverlay" data-visible="false">
+      <div class="soon-card" role="dialog" aria-modal="true" aria-labelledby="limitTitle" aria-describedby="limitText">
+        <h2 class="soon-title" id="limitTitle">Ya no quedan impresiones</h2>
+        <p class="soon-text" id="limitText">Las impresiones de este evento llegaron a su límite, pero aún puedes llevarte tus fotos de forma digital.</p>
+        <div class="soon-actions">
+          <button class="ds-btn ds-btn--ghost ds-btn--compact" id="limitCancelBtn" type="button">Volver</button>
+          <button class="ds-btn ds-btn--primary ds-btn--compact" id="limitOkBtn" type="button">Continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Copias adicionales (operador): sirve para el resultado y para reimprimir desde la galería -->
+    <div class="soon-overlay" id="copiesOverlay" data-visible="false">
+      <div class="soon-card copies-card" role="dialog" aria-modal="true" aria-labelledby="copiesTitle" aria-describedby="copiesInfo">
+        <h2 class="soon-title" id="copiesTitle">Copias adicionales</h2>
+        <p class="soon-text" id="copiesInfo"></p>
+        <div class="copies-stepper" role="group" aria-label="Cantidad de hojas">
+          <button class="copies-step" id="copiesMinus" type="button" aria-label="Una hoja menos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          </button>
+          <output class="copies-value" id="copiesValue" aria-live="polite">1</output>
+          <button class="copies-step" id="copiesPlus" type="button" aria-label="Una hoja más">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <p class="copies-warn" id="copiesWarn" role="alert" hidden></p>
+        <div class="soon-actions">
+          <button class="ds-btn ds-btn--ghost ds-btn--compact" id="copiesCancelBtn" type="button">Cancelar</button>
+          <button class="ds-btn ds-btn--primary ds-btn--compact" id="copiesOkBtn" type="button">Imprimir</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Resultado final -->
     <!--
       Dos zonas que siempre entran en la pantalla, sin scroll: la pieza (tira / fotos / GIF) ocupa el
@@ -224,7 +271,7 @@
         <div class="result-actions">
           <button class="ds-btn ds-btn--secondary result-action" id="printBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
-            <span>Imprimir</span>
+            <span id="printLabel">Imprimir</span>
           </button>
           <button class="ds-btn ds-btn--secondary result-action" id="downloadBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
@@ -235,6 +282,15 @@
             <span>Compartir</span>
           </button>
         </div>
+
+        <!-- Estado de la impresión de esta sesión (lenguaje simple, nada técnico para el invitado) -->
+        <p class="print-status" id="printStatus" role="status" aria-live="polite" hidden></p>
+
+        <!-- Copias adicionales: solo el operador las pide (pide el PIN). Visible y con nombre, no escondido. -->
+        <button class="ds-btn ds-btn--ghost ds-btn--compact extra-copies-btn" id="extraCopiesBtn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+          <span>Copias adicionales (operador)</span>
+        </button>
 
         <div class="result-footer">
           <p class="idle-hint" id="idleHint" hidden></p>
@@ -432,8 +488,109 @@
       </section>
 
       <section class="drawer-section" id="seccionImpresion">
-        <div class="drawer-section-head"><h3 class="ds-label-text">Impresión</h3><span class="ds-badge" data-state="idle">Próximamente</span></div>
-        <p class="drawer-soon-text">Elegir impresora, tamaño de papel, copias por sesión e impresión automática al terminar.</p>
+        <div class="drawer-section-head"><h3 class="ds-label-text">Impresora</h3><span class="ds-badge" id="c4Badge" data-state="idle">Sin datos</span></div>
+
+        <div class="ds-select" data-select="printer">
+          <span class="ds-select-label">Impresora</span>
+          <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span class="ds-select-value">Impresora simulada 4×6</span>
+            <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <ul class="ds-select-menu" role="listbox" hidden></ul>
+        </div>
+        <p class="drawer-help drawer-help--first" id="c4Medios">Papel que admite: 4 × 6 in</p>
+        <p class="c4-aviso" id="c4PapelAviso" role="status" hidden></p>
+        <p class="c4-aviso c4-aviso--error" id="c4Guardado" role="alert" hidden></p>
+
+        <!-- Qué hacer con lo pendiente al cambiar de impresora -->
+        <div class="c4-decision" id="c4Decision" role="group" aria-labelledby="c4DecisionTitulo" hidden>
+          <p class="c4-decision-title" id="c4DecisionTitulo"></p>
+          <div class="c4-decision-actions">
+            <button class="ds-btn ds-btn--secondary ds-btn--compact" type="button" data-decision="trasladar">Pasarlos a la nueva impresora</button>
+            <button class="ds-btn ds-btn--secondary ds-btn--compact" type="button" data-decision="retener">Dejarlos en espera</button>
+            <button class="ds-btn ds-btn--secondary ds-btn--compact" type="button" data-decision="cancelar">Descartarlos</button>
+            <button class="ds-btn ds-btn--ghost ds-btn--compact" type="button" data-decision="no">No cambiar</button>
+          </div>
+        </div>
+
+        <h4 class="c4-sub">Copias de este evento</h4>
+        <div class="drawer-toggle-row">
+          <div class="drawer-toggle-text">
+            <span class="drawer-toggle-title">Imprimir sola al terminar la sesión</span>
+            <span class="drawer-help" id="c4AutoAyuda">Sin esto, el invitado pide su impresión en la pantalla de resultado.</span>
+          </div>
+          <button class="ds-toggle" id="c4AutoToggle" type="button" role="switch" aria-checked="false" aria-label="Imprimir sola al terminar la sesión"></button>
+        </div>
+        <div class="c4-copies">
+          <div class="drawer-toggle-text">
+            <span class="drawer-toggle-title" id="c4CopiasTitulo">Hojas por sesión</span>
+            <span class="drawer-help" id="c4CopiasAyuda">Cada hoja 4×6 (con dos tiras) cuenta como una hoja.</span>
+          </div>
+          <div class="c4-stepper" role="group" aria-labelledby="c4CopiasTitulo">
+            <button class="copies-step copies-step--compact" id="c4CopiasMenos" type="button" aria-label="Una hoja menos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+            <output class="c4-stepper-value" id="c4CopiasValor" aria-live="polite">1</output>
+            <button class="copies-step copies-step--compact" id="c4CopiasMas" type="button" aria-label="Una hoja más"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+        </div>
+        <p class="drawer-help" id="c4HojasEvento">Sin evento: las copias se cambian en "Editar evento".</p>
+
+        <h4 class="c4-sub">Papel y cinta</h4>
+        <div class="drawer-row">
+          <label class="drawer-field">
+            <span class="ds-select-label">Hojas por rollo</span>
+            <input class="ds-input" id="c4HojasRollo" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="Sin configurar" />
+          </label>
+          <label class="drawer-field">
+            <span class="ds-select-label">Avisar cuando queden</span>
+            <input class="ds-input" id="c4AvisoRollo" type="number" min="0" max="999" step="1" inputmode="numeric" />
+          </label>
+        </div>
+        <p class="drawer-help drawer-help--first" id="c4RolloEstado">Configura cuántas hojas trae el rollo para recibir un aviso antes de que se acabe.</p>
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4CambioRollo" type="button">Cambié el papel y la cinta</button>
+        <p class="drawer-help drawer-help--first" id="c4Totales"></p>
+
+        <h4 class="c4-sub">Trabajos de impresión</h4>
+        <p class="drawer-help drawer-help--first" id="c4ColaResumen">No hay nada pendiente.</p>
+        <ul class="c4-cola" id="c4Cola" aria-live="polite"></ul>
+        <div class="c4-acciones">
+          <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4Prueba" type="button">Imprimir hoja de prueba</button>
+          <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4ReintentarTodos" type="button" hidden>Reintentar todos</button>
+        </div>
+        <p class="drawer-help drawer-help--first" id="c4Feedback" role="status" aria-live="polite"></p>
+
+        <!-- Control de simulación: solo existe mientras la impresora es simulada -->
+        <div class="c4-sim" id="c4Sim" role="group" aria-labelledby="c4SimTitulo">
+          <div class="c4-sim-head"><h4 class="c4-sub c4-sub--sim" id="c4SimTitulo">Simulación</h4><span class="ds-badge" data-state="warn">Solo pruebas</span></div>
+          <p class="drawer-help drawer-help--first">Estos controles no existen con una impresora real: sirven para ensayar qué pasa si algo falla.</p>
+          <div class="ds-select" data-select="simestado">
+            <span class="ds-select-label">Estado de la impresora</span>
+            <button class="ds-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ds-select-value">Lista</span>
+              <svg class="ds-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <ul class="ds-select-menu" role="listbox" hidden>
+              <li class="ds-select-option" role="option" data-value="lista" aria-selected="true">Lista</li>
+              <li class="ds-select-option" role="option" data-value="sin-papel">Sin papel</li>
+              <li class="ds-select-option" role="option" data-value="sin-cinta">Sin cinta</li>
+              <li class="ds-select-option" role="option" data-value="atascada">Papel atascado</li>
+              <li class="ds-select-option" role="option" data-value="desconectada">Desconectada</li>
+              <li class="ds-select-option" role="option" data-value="tapa-abierta">Tapa abierta</li>
+              <li class="ds-select-option" role="option" data-value="error">Error</li>
+            </ul>
+          </div>
+          <div class="drawer-toggle-row">
+            <div class="drawer-toggle-text">
+              <span class="drawer-toggle-title">Impresora lenta</span>
+              <span class="drawer-help">Tarda 45 s por hoja (normal: 8 s). Sirve para ver cómo crece la fila.</span>
+            </div>
+            <button class="ds-toggle" id="c4SimLenta" type="button" role="switch" aria-checked="false" aria-label="Simular impresora lenta"></button>
+          </div>
+          <label class="drawer-field">
+            <span class="ds-select-label">Hojas que quedan en el rollo simulado</span>
+            <input class="ds-input" id="c4SimRollo" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="Sin límite" />
+            <span class="drawer-help">Al llegar a cero la impresora informa "sin papel". Déjalo vacío para no limitarlo.</span>
+          </label>
+        </div>
       </section>
 
       <section class="drawer-section" id="seccionCompartir">
@@ -479,6 +636,7 @@
   <script src="../shared/validador-evento.js"></script>
   <script src="../shared/almacen-plantillas.js"></script>
   <script src="../shared/equipo.js"></script>
+  <script src="../shared/impresion.js"></script>
   <script src="almacen-sesiones.js"></script>
   <script src="codificador-gif.js"></script>
   <script src="qrcode.min.js"></script>

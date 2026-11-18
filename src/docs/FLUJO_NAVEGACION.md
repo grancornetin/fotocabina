@@ -23,7 +23,7 @@ Una pantalla **de destino** (lista de eventos, la cabina antes de lanzar) es don
 1. **Editor de plantillas → "Lanzar evento".** *(Decidido 2026-09-21, implementado recién 2026-09-22 — quedó anotado como hecho en esta ronda anterior sin construirse de verdad; el dueño del proyecto lo detectó probando el flujo real: entraba al editor desde un evento y no había forma de terminar y volver.)* Cuando el editor se abre desde un evento (lista o cabina), el botón principal de la barra deja de decir "Exportar" y pasa a decir **"Lanzar evento"** (mismo verde lima, mismo lugar): guarda la plantilla activa en el evento y devuelve directo a la cabina con ese diseño ya puesto — mismo gesto, no dos pasos separados. La flechita de al lado (ahora un botón propio) sigue abriendo el mismo menú de exportar de siempre, con "Lanzar evento" como primer ítem. Si el editor se abre suelto (sin evento), sigue exactamente igual que siempre.
 2. **"Editor" y "Plantillas" se fusionan en un solo acceso.** *(Implementado 2026-09-22.)* Eran dos íconos separados en el riel de la cabina que hacían exactamente lo mismo (abrir el editor con el evento activo). Ahora son un único ícono "Plantilla".
 3. **El logo de FotoCabina se vuelve el botón "Inicio", en toda pantalla del panel de operador.** *(Implementado 2026-09-22 en `01-camera-flow`; el mismo criterio en `03-editor-plantillas` se detectó faltante y se implementó por separado el mismo día.)* Tocarlo lleva siempre a la lista de eventos — resuelve el hueco de "no hay forma de volver a mis eventos", sin agregar un ícono nuevo a ninguna barra.
-4. **"Lanzar evento" se bloquea sin cámara, advierte sin impresora.** *(Parcial: el bloqueo por cámara ya existía desde antes de esta ronda de decisiones — el botón nace deshabilitado y se habilita recién cuando la cámara conecta con éxito. La advertencia por impresora queda pendiente de que exista C4, configuración de impresora — hoy no hay ningún semáforo de impresora real, es un placeholder fijo.)*
+4. **"Lanzar evento" se bloquea sin cámara, advierte sin impresora.** *(Parcial: el bloqueo por cámara ya existía desde antes de esta ronda de decisiones — el botón nace deshabilitado y se habilita recién cuando la cámara conecta con éxito. La advertencia por impresora queda pendiente de que exista C4, configuración de impresora — hoy no hay ningún semáforo de impresora real, es un placeholder fijo. **Actualizado 2026-11-18 (hito 3, respuesta D2 del dueño):** ya hay semáforo real de la impresora (simulada hasta que exista el adaptador real) y "Lanzar evento" se BLOQUEA con un problema de impresora en los modos "Solo impresión" e "Impresión y digital"; "Solo digital" no la mira; la lista de eventos no tiene dato de impresora y no marca nada.)*
 5. **El "evento activo" vive en el dispositivo, no en la cuenta.** Dos cabinas físicas distintas (dos salones, dos equipos) pueden tener cada una su propio evento activo en simultáneo sin pisarse — es una propiedad del equipo que corre esa cabina, no un límite global del operador. *(Ya es así hoy: `almacen-eventos.js` guarda el evento activo en el `localStorage` de cada equipo, no en una cuenta compartida — coherente sin cambios de código.)*
 
 ## El viaje completo, en palabras simples
@@ -53,6 +53,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Sin internet / licencia vencida → sigue funcionando igual (offline-first); aviso solo al operador, nunca al invitado.
   - Fallo de guardado local → no impide A1; si falla leer el evento activo, cae a "Sesión de prueba" con aviso al operador.
   - Toques repetidos (rebote táctil) → un solo toque inicia sesión, ignora el resto mientras transiciona.
+  - **Tope de hojas alcanzado (hito 3, respuesta del dueño 2026-11-16):** al tocar para empezar, ANTES de la cuenta regresiva, aparece un aviso amable: "Las impresiones de este evento llegaron a su límite, pero aún puedes llevarte tus fotos de forma digital." con "Continuar" (la sesión sigue solo con entrega digital, congelada así en la sesión) y "Volver" (la cabina queda en A1 sin iniciar nada). El tope solo existe con el modo "Impresión y digital". El operador sube el tope desde "Editar evento" y la siguiente sesión ya imprime.
 
 ### A2 · Selección de plantilla — *Falta*
 - **Llega:** desde A1, solo si el evento tiene ≥2 plantillas habilitadas (config en C2, no existe todavía).
@@ -109,11 +110,12 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### A7 · Resultado final
 - **Llega:** desde A6, al terminar la composición.
-- **Sale:** "Borrar y repetir sesión" → A3/A1 · "Finalizar" → A1 (marca finalizada) · timeout de inactividad (nunca/30/60/90 s, aviso en últimos 10 s) → A1 sola, sesión ya guardada · Imprimir → A9 (falta; hoy abre el diálogo del sistema directo).
+- **Sale:** "Borrar y repetir sesión" → A3/A1 · "Finalizar" → A1 (marca finalizada) · timeout de inactividad (nunca/30/60/90 s, aviso en últimos 10 s) → A1 sola, sesión ya guardada · **Imprimir → A9** (hito 3: ya no abre el diálogo del navegador; el pedido va a la cola de impresión) · **"Copias adicionales (operador)" → PIN → diálogo de cantidad → A9** (el invitado no las pide).
+- **Impresión en A7 (hito 3, 2026-11-18):** con **impresión automática** (`impresionAuto` del evento) la hoja se manda sola al terminar la tira y el invitado no ve "Imprimir": ve una línea de estado ("Imprimiendo tu tira…", "Tu tira fue enviada a la impresora"). Sin impresión automática, "Imprimir" manda una sola vez las copias del evento (después queda "Enviado"). El botón "Copias adicionales (operador)" está siempre a la vista en los modos que imprimen, pide el PIN del equipo y abre un diálogo con la cantidad; muestra cuántas hojas lleva el evento y cuántas quedan del tope. Si el evento ya llegó a su tope, A7 no ofrece imprimir ni copias y lo explica; el invitado ya vio el aviso antes de tomar las fotos (ver A1 → A3 abajo).
 - **Según el modo de entrega (hito 1.2, 2026-11-17):** lo que ofrece A7 sale del modo congelado en **esa** sesión. Solo impresión: tira e "Imprimir", sin QR, descarga, compartir, pestañas ni GIF. Solo digital: sin "Imprimir". Ambos y demostración sin evento: todo. Editar el evento después no cambia las sesiones ya tomadas.
 - **Feliz:** tabs Tira/Fotos/GIF, imprime y/o descarga, escanea QR, toca "Finalizar" o se va.
 - **Errores/bordes:**
-  - Impresora sin papel / sin tinta / atascada / desconectada → interrumpe el envío sin perder el trabajo en cola; falta el paso intermedio A9 que hoy no existe.
+  - Impresora sin papel / sin tinta / atascada / desconectada → el trabajo queda en la cola persistente (se reintenta solo 2, 4 y 8 s y luego escala al operador); el invitado ve A10 variante impresora y la línea de estado en lenguaje simple. **Construido (hito 3).**
   - Descarga falla (espacio insuficiente, bloqueo del navegador) → mensaje claro, reintentar o usar QR en su lugar.
   - "Compartir" no soportado por el dispositivo → el botón directamente no aparece (ya resuelto).
   - QR falla → ver A8.
@@ -132,23 +134,25 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Enlace vencido (token temporal expirado) → mensaje de enlace vencido, opción de regenerar desde el punto de retiro (H3) si el evento lo tiene.
   - Doble escaneo/descarga repetida → no duplica ni bloquea, "Descargado" es idempotente.
 
-### A9 · Imprimiendo (carga) — *Falta*
-- **Llega:** desde A7 al tocar "Imprimir" (hoy no existe como paso propio).
-- **Sale:** automático al confirmar que entró a la cola → vuelve a A7, sin bloquear al siguiente invitado.
-- **Feliz:** "Enviado a imprimir", vuelve al resultado sin fricción.
+### A9 · Imprimiendo (carga) — *Construido en el navegador con impresora simulada (hito 3, 2026-11-18)*
+- **Llega:** desde A7 al tocar "Imprimir", al terminar la tira si el evento imprime solo (impresión automática), desde el diálogo de copias adicionales (operador, con PIN) o desde "Reimprimir" de la galería (A11).
+- **Sale:** automático al confirmar que el trabajo entró a la cola → vuelve a A7 sin esperar (la tarjeta "Enviado a imprimir" dura unos 2,6 s, deja pasar los toques y no bloquea al siguiente invitado). Con una impresora que no está lista, la tarjeta pasa a la variante amable de A10 (ver abajo).
+- **Feliz:** "Enviado a imprimir · N hojas". Si el tope dejó imprimir menos hojas que las pedidas: "Se imprime 1 de 3 hojas: era lo que quedaba del límite del evento".
+- **Qué hace de verdad:** `encolar` guarda el trabajo (síncrono, antes de intentar nada) y la cola lo manda a la impresora aparte. Hoy la impresora es **simulada** (`shared/impresion.js`); el adaptador real se enchufa después sin tocar esta pantalla.
 - **Errores/bordes:**
-  - Sin impresora configurada → error inmediato, mensaje simple al invitado, detalle completo en C7.
-  - Sin papel / sin tinta / atascada / desconectada → el trabajo queda en cola persistente, se reintenta sin repetir la sesión.
-  - Cola llena o con fallos acumulados → informa posición o error agregado, nunca cuelga la interfaz (principio DSLRBooth §3.1).
-  - Reintento automático falla repetidamente → tras N intentos, escala a alerta persistente para el operador (C5/C7).
+  - Sin papel / sin cinta / atascada / desconectada / tapa abierta → el trabajo queda en cola persistente y se reintenta solo (2, 4 y 8 s) sin repetir la sesión. Tras 4 intentos queda "sin imprimir" con alerta para el operador (el botón "Operador" de la cabina muestra un punto ámbar; el detalle y "Reintentar" están en C4); el resto de la fila espera sin gastar intentos y se reanuda sola al arreglarse la impresora.
+  - La cabina se cierra imprimiendo → al volver, ese trabajo queda "por revisar" (no se sabe si la hoja salió) y **nunca se reimprime solo**; el operador decide en C4.
+  - El invitado borra su sesión → lo que aún no salió de la cola se cancela (y libera sus hojas del tope).
+  - Tope de hojas alcanzado → el pedido no se acepta; ver A1 → A3.
+  - Pendiente: sin impresora configurada (hoy siempre hay una simulada); pantalla de diagnóstico C7; panel en vivo C5 con la cola.
 
-### A10 · Error de sesión — *Parcial, hoy solo cubre cámara*
+### A10 · Error de sesión — *Parcial: cámara y, desde el hito 3, variante impresora*
 - **Llega:** desde cualquier paso A3-A9 donde falle cámara, impresora, guardado local, red local, o el motor de composición.
 - **Sale:** reintentar → vuelve al paso donde ocurrió · operador cancela → A1 · escala con PIN → C2b/C7.
 - **Feliz:** N/A — es la pantalla de error; el camino bueno es que un reintento la resuelva rápido.
 - **Variantes que debe cubrir (hoy solo cubre cámara de forma simple):**
   - Error de cámara → mensaje simple "Estamos resolviendo un problema técnico", nunca detalle técnico; reintento automático breve, luego escala.
-  - Error de impresora (las 4 variantes) → mismo criterio: sesión y fotos nunca se pierden, mensaje genérico y amable.
+  - Error de impresora (las 4 variantes) → mismo criterio: sesión y fotos nunca se pierden, mensaje genérico y amable. **Construido (hito 3):** no es una pantalla aparte sino la tarjeta de A9 en tono ámbar ("Un momento, por favor") más una línea de estado en A7, con un texto sin términos técnicos que cambia según el modo ("...mientras tanto puedes llevarte tus fotos de forma digital" en Impresión y digital). El invitado no hace nada: el reintento es automático y el aviso al operador es un punto ámbar en su botón. Los demás errores de impresora no usan A10: el detalle técnico va al operador (C4).
   - Fallo del motor de composición o recurso corrupto → mensaje genérico, log detallado solo en C7.
   - Sin internet → no debería aparecer nunca acá (offline-first); si aparece, es un bug de diseño.
   - Fallo de guardado local → distinguir de errores de hardware; probablemente no frena al invitado.
@@ -156,11 +160,11 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### A11 · Galería / historial de sesiones
 - **Llega:** botón "Galería" en el header de operador (C2b), en cualquier momento.
-- **Sale:** cerrar → vuelve a C2b · reimprimir → flujo de A9 · eliminar (con confirmación).
+- **Sale:** cerrar → vuelve a C2b · **reimprimir → diálogo de cantidad (hito 3, 1 hoja por defecto) → A9 por la misma cola** (cuenta para el tope del evento al que pertenece la sesión; usa la hoja ya compuesta de la sesión) · eliminar (con confirmación; cancela lo que esa sesión tenga sin imprimir).
 - **Feliz:** filtra por evento o todos, ve sesiones recientes primero, reimprime una tira pedida de nuevo.
 - **Errores/bordes:**
   - IndexedDB corrupta/llena/bloqueada → distinguir "no hay sesiones" de "error leyendo el almacén".
-  - Reimprimir dispara los mismos errores de impresora que A9.
+  - Reimprimir dispara los mismos errores de impresora que A9. Si el evento ya usó su tope de hojas, el diálogo lo dice y no deja imprimir hasta que el operador suba el tope.
   - Eliminar falla → avisar, no fingir éxito.
   - Operador con varios eventos el mismo día → filtro "todos" debe distinguir claramente a qué evento pertenece cada sesión.
   - Storage lleno impide guardar nuevas sesiones mientras la galería muestra las viejas → falta alerta proactiva de espacio bajo.
@@ -307,16 +311,22 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Se desconecta **en plena sesión del invitado** → *pendiente*, es A10 (error de sesión).
   - Bluetooth desconectado (trigger/flash) → *pendiente*, no aplica hasta que exista control de DSLR/flash (app de escritorio).
 
-### C4 · Configuración de impresora — *Falta*
-- **Llega:** desde C2b (semáforo de impresora) o C1 (navegación lateral "Impresora").
-- **Sale:** guardar/probar → vuelve a la pantalla de origen.
-- **Feliz:** elige impresora, papel/media, orientación, copias por defecto, prueba exitosa.
+### C4 · Configuración de impresora — *Construida como panel de Ajustes, con impresora simulada (hito 3, 2026-11-18)*
+- **Llega:** desde C2b (semáforo de impresora, o Ajustes › Impresora). Desde C1 (navegación lateral "Impresora") **todavía no**: esa entrada sigue abriendo la hoja "Próximamente" porque la impresora vive dentro de la cabina, como la cámara (C3).
+- **Sale:** no tiene "guardar": cada cambio se aplica al instante (patrón de C3). Cerrar Ajustes vuelve a C2b.
+- **Feliz:** elige impresora (hoy dos modelos simulados: 4×6 y 5×7), ve el papel que admite y un aviso si no coincide con el de la plantilla, cambia las **copias por defecto** y la **impresión automática** del evento (las mismas del formulario de C2), configura las **hojas por rollo** y el aviso previo, toca "Cambié el papel y la cinta", manda una **hoja de prueba**, ve los trabajos pendientes con "Reintentar" / "Descartar", y dispone del control **"Simulación"** (rotulado "Solo pruebas") para forzar estados de la impresora.
+- **Qué no existe con hardware real:** el bloque "Simulación" y los dos modelos. Con el adaptador real el panel muestra la impresora detectada y el resto sigue igual.
 - **Errores/bordes:**
+  - **Cambiar de impresora con trabajos pendientes (resuelto):** el panel pregunta qué hacer: pasarlos a la nueva, dejarlos en espera ("por revisar") o descartarlos; "No cambiar" cancela. Un trabajo que estaba imprimiendo siempre queda "por revisar".
+  - **Fin de rollo:** aviso ámbar en el semáforo y en el panel cuando quedan pocas hojas (según el conteo, no según la impresora); la impresora real es la que avisa si de verdad no hay papel.
+  - **Evento solo digital o sin evento:** copias e impresión automática quedan deshabilitadas con una explicación.
+  - Pendiente (impresora real): detección de la impresora, medios reales del driver, orientación, diagnóstico detallado (C7).
+  - (Lo siguiente es la lista de bordes original, sigue vigente para la impresora real:)
   - Impresora no detectada por el driver → diagnóstico detallado (§3.4: coincidencia del tamaño de papel del layout con el material del driver).
   - Sin papel/tinta/atascada durante la prueba → mismo patrón de error + reintento, sin afectar ningún evento en curso.
   - Tamaño de papel configurado no coincide con el material físico → mostrar el error del driver traducido a lenguaje claro.
   - Impresora por red (futuro, H4) no responde → error de conectividad de red, distinto del error físico.
-  - Cambiar de impresora con cola pendiente de la anterior → falta definir qué pasa con esos trabajos.
+  - Cambiar de impresora con cola pendiente de la anterior → resuelto en el hito 3 (ver arriba).
 
 ### C5 · Panel "en vivo" del evento — *Falta*
 - **Llega:** desde C2b durante el evento en curso (acceso rápido sin definir todavía).

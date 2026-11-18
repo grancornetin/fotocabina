@@ -1498,3 +1498,162 @@ button { font-family: inherit; }
   .gallery-detail-actions .ds-btn { flex: 1 1 45%; }
   .gallery-detail-actions .ds-btn--destructive { margin-left: 0; }
 }
+
+/* ---------- Impresión (hito 3): estado en el resultado, A9/A10, copias adicionales y aviso de tope ---------- */
+
+.print-status {
+  margin: 0;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-bone);
+  background: var(--color-surface-high);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.print-status[data-tono="aviso"] { color: var(--color-amber); border-color: rgba(255, 177, 61, 0.35); background: rgba(255, 177, 61, 0.08); }
+
+.extra-copies-btn { align-self: flex-start; }
+.extra-copies-btn svg { width: 16px; height: 16px; flex: none; }
+
+/* A9: tarjeta breve centrada en la parte baja; deja pasar los toques para no frenar a nadie */
+.print-sent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
+  bottom: var(--sp-4);
+  transform: translateY(16px);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: min(460px, calc(100% - var(--sp-4)));
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--color-surface-high);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 200ms var(--ease-out-expo), transform 200ms var(--ease-out-expo), visibility 0s linear 200ms;
+}
+.print-sent[data-visible="true"] { opacity: 1; transform: translateY(0); visibility: visible; transition-delay: 0s; }
+/* En vertical o angosto el botón de cierre queda abajo: la tarjeta va al medio para no taparlo */
+@media (max-width: 899px), (orientation: portrait) {
+  .print-sent { bottom: auto; top: 124px; }
+}
+.print-sent-icon { flex: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--color-surface); color: var(--color-bone); border: 1px solid var(--color-border); }
+.print-sent-icon svg { width: 22px; height: 22px; }
+.print-sent[data-tono="ok"] .print-sent-icon-aviso, .print-sent[data-tono="aviso"] .print-sent-icon-ok { display: none; }
+.print-sent[data-tono="aviso"] .print-sent-icon { color: var(--color-amber); border-color: rgba(255, 177, 61, 0.4); }
+.print-sent-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.print-sent-title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-bone); }
+.print-sent-sub { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--color-fog); }
+.print-sent-sub:empty { display: none; }
+
+/* Aviso en el botón de operador cuando la cola tiene un problema (sin texto técnico para el invitado) */
+.lock-btn { position: relative; }
+.lock-btn[data-alerta="true"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-amber);
+  border: 2px solid var(--color-bg);
+}
+
+/* Cantidad de copias */
+.copies-card { align-items: stretch; }
+.copies-card .soon-actions { align-self: flex-end; }
+.copies-stepper { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); }
+.copies-step {
+  width: 56px; height: 56px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-surface-high); color: var(--color-bone);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.copies-step:hover { border-color: var(--color-fog); }
+.copies-step:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+.copies-step:disabled { opacity: 0.4; cursor: not-allowed; }
+.copies-step svg { width: 24px; height: 24px; }
+.copies-value { min-width: 3ch; text-align: center; font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.copies-warn { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--color-amber); }
+
+@media (prefers-reduced-motion: reduce) {
+  .print-sent { transition: none; }
+}
+
+/* ---------- C4 Impresora (panel dentro de Ajustes) ---------- */
+
+.c4-sub {
+  margin: var(--sp-1) 0 0;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fog);
+}
+.c4-aviso.c4-aviso--error { color: var(--color-red); }
+.c4-aviso { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--color-amber); }
+#c4RolloEstado[data-tono="aviso"] { color: var(--color-amber); }
+
+.c4-decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  background: var(--color-surface-high);
+  border: 1px solid rgba(255, 177, 61, 0.35);
+  border-radius: var(--radius-sm);
+}
+.c4-decision-title { margin: 0; font-size: 0.875rem; line-height: 1.4; color: var(--color-bone); }
+.c4-decision-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+
+.c4-copies { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.c4-stepper { display: flex; align-items: center; gap: var(--sp-1); flex: none; }
+.c4-stepper-value { min-width: 2ch; text-align: center; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.copies-step--compact { width: 44px; height: 44px; border-radius: var(--radius-sm); }
+.copies-step--compact svg { width: 20px; height: 20px; }
+
+.c4-acciones { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.c4-cola { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.c4-job {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--color-surface-high);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.c4-job--error { border-color: rgba(255, 77, 77, 0.4); }
+.c4-job--mas { color: var(--color-fog); font-size: 0.8125rem; }
+.c4-job-text { font-size: 0.8125rem; line-height: 1.4; color: var(--color-bone); overflow-wrap: anywhere; }
+.c4-job-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.c4-job-actions:empty { display: none; }
+
+.c4-sim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px dashed rgba(255, 177, 61, 0.55);
+  border-radius: var(--radius-md);
+}
+.c4-sim[hidden] { display: none; }
+.c4-sim-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); }
+.c4-sub--sim { margin: 0; padding: 0; border: 0; color: var(--color-amber); }
+
+/* Con un diálogo con botón lima abierto, el botón lima de la pantalla de atrás se apaga: un solo lima por vista */
+.cabin.has-dialog #detailPrintBtn,
+.cabin.has-dialog .result-finish { background: var(--color-surface-high); color: var(--color-fog); box-shadow: none; border: 1px solid var(--color-border); }

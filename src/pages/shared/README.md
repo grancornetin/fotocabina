@@ -111,7 +111,45 @@ Los umbrales de disco y la tolerancia al comparar papeles están en `ValidadorEv
 
 ## Congelado de plantilla (hito 0.1b)
 
+- **`impresion.js`** (hito 3) — global `Impresion`: adaptador de impresora, cola de trabajos persistente y conteo de hojas (`docs/ARQUITECTURA_FLUJO.md` §5.3, §5.5, §7.10). Sin dependencias y sin pantalla. Hoy solo existe la impresora **simulada**; el adaptador real se escribe después con la misma interfaz. Ver "Impresión (hito 3)" más abajo.
+
 Dónde vive cada cosa: la **copia completa** de la plantilla (con fuentes e imágenes incrustadas) en IndexedDB `fotocabina`, almacén `plantillasCongeladas`, clave = huella (`01-camera-flow/almacen-sesiones.js`: `congelarPlantilla`, `obtenerCongelada`, `limpiarCongeladas`); una copia por diseño, no por sesión. La **sesión** guarda `plantilla: { id, copiaCongelada, huella }` y `configCongelada`. El **evento** guarda `congelado` (liviano). La cabina congela al lanzar y al **iniciar cada sesión** relee la plantilla vigente del editor: si su huella cambió, las sesiones nuevas usan la edición y se congela; si no se puede leer (borrada o inválida) sigue con la ya congelada. Las sesiones antiguas conservan su tira/hoja ya compuesta y, si hay que recomponer, su copia congelada. Al borrar un evento se limpian las copias que ninguna sesión ni evento usa.
+
+## Impresión (hito 3)
+
+`shared/impresion.js`, global `Impresion`. Las pantallas (hoy `01-camera-flow`) hablan con el **servicio** (`Impresion.crearServicio(opciones)`) y este con un **adaptador**. Cambiar a una impresora real es escribir otro adaptador: ninguna pantalla cambia.
+
+### Interfaz del adaptador (`AdaptadorImpresora`)
+
+| Miembro | Qué hace |
+| --- | --- |
+| `id`, `nombre`, `simulada`, `medios` | Identidad y papeles que admite (`[{ id, anchoMm, altoMm }]`) |
+| `instantanea()` **síncrona** | Último estado conocido: `{ id, nombre, simulada, estado, detalle, segundosPorHoja, lenta, medios }`. Síncrona porque el validador y los semáforos necesitan respuesta inmediata (un adaptador real devuelve lo último que consultó) |
+| `consultar()` async | Pregunta de nuevo a la impresora y devuelve la instantánea |
+| `enviar(trabajo, contenido)` async | Imprime `trabajo.hojas` hojas físicas; `contenido` = `{ blob, medidas }`. Resuelve `{ ok: true }` o **rechaza** con un `Error` con `codigo` (`impresora-sin-papel`, `sin-contenido`…) y `definitivo: true` si reintentar no sirve |
+| `cancelar(trabajoId)` | Pide cortar un trabajo (la simulada lo ignora) |
+
+Estados de impresora: `lista`, `ocupada`, `imprimiendo`, `sin-papel`, `sin-cinta`, `atascada`, `desconectada`, `tapa-abierta`, `error` y `desconocido` (el adaptador no sabe: el validador lo trata como "no comprobable", nunca como bloqueo). "Lenta" no es un estado: es una impresora `lista` con muchos segundos por hoja. `AdaptadorImpresora.cumple(obj)` revisa que un objeto cumple la interfaz.
+
+**`ImpresoraSimulada`** (dos modelos: `simulada-4x6`, `simulada-5x7`): su estado lo fija el operador con el control "Simulación" de C4 y se guarda en el registro (sobrevive a recargar). Estados: lista, sin papel, sin cinta, atascada, desconectada, tapa abierta, error; "lenta" (45 s por hoja, normal 8 s); `rolloRestante` (cada hoja lo baja y en cero informa "sin papel"); `escalaTiempo` (0 a 1, solo para pruebas). Si el operador "rompe" la impresora mientras imprime, esa hoja no cuenta y se reintenta.
+
+### Servicio (`crearServicio({ almacenamiento, reloj, resolverContenido, adaptador, config })`)
+
+- **Cola:** `encolar({ sesionId, eventoId, eventoNombre, copias, origen, topeHojas })` es **síncrono**, guarda el trabajo antes de intentar nada y devuelve `{ ok, trabajo, hojas, pedidas, parcial, restantes }` o `{ ok: false, motivo: 'tope' }`. `origen`: `auto`, `invitado`, `adicional`, `reimpresion`, `prueba`. Otras: `reintentar(id, { topeHojas })`, `reintentarFallidos`, `cancelar`, `listar({ eventoId, sesionId, estados })`, `resumenCola`, `suscribir(fn)` (eventos `impresion.encolada | iniciada | ok | error`, `alerta.abierta`, `impresora.estado`; mismos nombres que `docs/ARQUITECTURA_FLUJO.md` §5.4), `iniciar` / `detener` (pulso de 1 s), `procesar` / `procesarTodo` (un paso a mano, para pruebas).
+- **Estados de un trabajo:** `en-cola → imprimiendo → hecho`; `reintentando` (falló: reintenta a los 2, 4 y 8 s); `fallido` (4 intentos agotados, o falta la imagen: no se reintenta solo, queda para el operador); `retenido` (la cabina se cerró imprimiendo, o cambió la impresora: espera una decisión; nunca se reimprime solo para no gastar dos hojas); `cancelado`.
+- **Escalada:** al fallar el último intento por un problema de la impresora, la cola queda **en pausa** (el resto espera sin gastar intentos) y se reanuda sola cuando la impresora vuelve; el trabajo fallido espera "Reintentar". Abre una `alerta.abierta`.
+- **Una sola pestaña procesa** (arriendo de 15 s en el registro): dos cabinas abiertas no imprimen doble.
+- **El archivo no se guarda en el trabajo:** `resolverContenido(trabajo)` (lo da la pantalla) devuelve `{ blob, medidas }` justo antes de enviar (la hoja ya compuesta de la sesión).
+- **Tope de hojas:** `hojasDelEvento(eventoId, tope)` = `{ impresas, enCurso, usadas, tope, restantes }`. Se descuenta **al encolar**, de forma atómica; en cola, imprimiendo, reintentando y retenido cuentan; fallido y cancelado no. Con menos hojas que las pedidas se encolan las que quedan (`parcial`). El tope lo calcula el validador (`configuracionEfectiva().topeHojas`, solo con el modo "ambos"); la cola solo recibe el número.
+- **Conteo:** `contadores()` = `{ porEvento: { id: { impresas } }, porImpresora: { id: { impresas, desdeCambio, cambioEn } } }`. Cuenta hojas físicas (una hoja 4×6 con dos tiras = 1). Las hojas de prueba suman a la impresora, no a ningún evento. No depende de los trabajos (que se podan a 200 terminados).
+- **Rollo:** `guardarPerfil({ hojasPorRollo, avisoRestantes })`, `restantesRollo()` (aviso `bajo` / `agotado`; sin configurar no inventa nada), `cambiarRollo()`.
+- **Impresoras:** `impresoras()`, `cambiarImpresora(id, decision)`: con trabajos pendientes devuelve `{ ok: false, motivo: 'decision' }` hasta recibir `'trasladar' | 'retener' | 'cancelar'`.
+- **Semáforo y validador:** `estado(modo)` → `{ semaforo: ready | warn | error | idle, texto, impresora, cola, rollo }` (en modo `digital`, `idle`: "Este evento no imprime"). `paraValidador()` → `{ estado, segundosPorHoja, medios }` para `vivo.impresora`, o **null si no hay dato** (nunca bloquea por falta de dato). `mensajeInvitado(modo)` → texto sin términos técnicos.
+- **Simulación:** `simulacion()`, `configurarSimulacion({ estado, lenta, rolloRestante, escalaTiempo })` (solo con adaptador simulado).
+- **Persistencia:** `localStorage`, clave `fotocabina-impresion` (`{ version, perfil, simulacion, trabajos, contadores, pausa, arriendo }`), un solo registro leído y escrito en cada operación (síncrono y atómico dentro de una pestaña). Si el guardado falla (sin espacio) la cola sigue desde memoria y `errorDeGuardado()` lo informa. Elegido por simplicidad y coherencia con `AlmacenEventos`; para el escritorio basta otro `almacenamiento` con `getItem`/`setItem`.
+- **Pruebas:** 42 casos de impresión en `tests-validador.html` (146 en total con los anteriores): interfaz del adaptador, estados simulados, persistencia, orden, reintentos y escalada, trabajo "retenido" al reiniciar, arriendo entre pestañas, almacenamiento lleno, poda del historial, tope (descuento, parcial, copias adicionales, cancelar, reintentar), rollo, cambio de impresora, semáforo, mensaje sin tecnicismos y la conexión con el validador (D2, sin dato = no bloquea, lenta, papel distinto). Usan un almacenamiento en memoria y un reloj manual: no tocan el `localStorage` real ni esperan de verdad.
+- **Correcciones de la certificación (2026-11-18):** `crearServicio({ topeDe })` recibe una función que da el tope VIGENTE de un evento y manda siempre (encolar, reintentar, reintentarFallidos y trasladar lo usan; el `topeHojas` que pase quien llama solo vale si no hay `topeDe`). `reintentar` devuelve `recortado` y `reintentarFallidos` `recortados`. Cada trabajo `imprimiendo` guarda `dueno` (la instancia que lo tomó); al ganar el arriendo todo "imprimiendo" ajeno pasa a "retenido". El arriendo se renueva con un latido durante `enviar` y se suelta en `pagehide`. Reclamar un trabajo comprueba en un solo cambio que sigue pendiente y que el arriendo es mío (si no, devuelve `perdido`). Un registro ilegible se copia a `fotocabina-impresion-ilegible` y `estado().ilegible` avisa; `estado()` pasa a rojo si la fila no se puede guardar. Reserva: el mensaje de cada estado de impresora está duplicado en `validador-evento.js` y `impresion.js` (una sola fuente queda pendiente).
+- **Fuera del respaldo:** `06-respaldo` no incluye todavía `fotocabina-impresion` (cola, conteos, perfil): restaurar un respaldo no restaura las hojas impresas. Pendiente (ver `docs/ARQUITECTURA_FLUJO.md` §7.10).
 
 ## Hallazgos abiertos
 

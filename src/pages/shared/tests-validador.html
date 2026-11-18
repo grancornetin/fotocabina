@@ -25,8 +25,8 @@
 </head>
 <body>
 <main>
-  <h1>Pruebas del validador de evento</h1>
-  <p class="sub">shared/validador-evento.js · función pura, sin hardware. Cada fila es una regla o un caso borde.</p>
+  <h1>Pruebas del validador de evento, del respaldo y de la impresión</h1>
+  <p class="sub">shared/validador-evento.js (función pura, sin hardware), shared/respaldo.js y shared/impresion.js (impresora simulada). Cada fila es una regla o un caso borde.</p>
   <div id="total" role="status">Ejecutando…</div>
   <table>
     <thead><tr><th>Resultado</th><th>Caso</th></tr></thead>
@@ -39,6 +39,7 @@
 <script src="almacen-eventos.js"></script>
 <script src="almacen-plantillas.js"></script>
 <script src="respaldo.js"></script>
+<script src="impresion.js"></script>
 <script>
 (function () {
   'use strict';
@@ -623,6 +624,407 @@
     var igual = true;
     try { if (original) Object.defineProperty(window, 'localStorage', original); igual = window.localStorage.getItem('fotocabina-eventos') === realAntes; } catch (e) { igual = false; }
     window.registrarCaso('Respaldo · el localStorage real no se tocó (los casos usaron un doble en memoria)', igual && aislado, aislado ? '' : 'no se pudo sustituir localStorage');
+  })();
+})();
+</script>
+<script>
+// ---------- Impresión (hito 3): adaptador simulado, cola persistente, conteo de hojas, tope, reintentos ----------
+// Sin dependencias. Cada caso usa su propio almacenamiento en memoria y un reloj manual (no se espera nada de verdad)
+// y NO toca el localStorage real.
+(function () {
+  'use strict';
+  var I = Impresion;
+  var pruebas = [];
+  function prueba(nombre, fn) { pruebas.push({ nombre: nombre, fn: fn }); }
+  function aserta(c, msg) { if (!c) throw new Error(msg || 'no se cumple'); }
+  function igual(a, b, msg) { if (a !== b) throw new Error((msg || 'distinto') + ': esperaba ' + JSON.stringify(b) + ' y hay ' + JSON.stringify(a)); }
+
+  function relojManual() {
+    var r = { t: 1700000000000, ahora: function () { return r.t; }, esperar: function (ms) { r.t += ms; return Promise.resolve(); } };
+    return r;
+  }
+  function nuevo(extra) {
+    var o = extra || {};
+    var reloj = o.reloj || relojManual();
+    var almacen = o.almacen || I.almacenamientoEnMemoria();
+    var svc = I.crearServicio({
+      almacenamiento: almacen, reloj: reloj, config: o.config,
+      resolverContenido: o.resolver || (async function () { return { blob: new Blob(['hoja']), medidas: { anchoMm: 101.6, altoMm: 152.4 } }; }),
+    });
+    svc.configurarSimulacion({ escalaTiempo: 0 });
+    return { svc: svc, reloj: reloj, almacen: almacen };
+  }
+  function trabajo(extra) { var d = { sesionId: 's-1', eventoId: 'ev-1', eventoNombre: 'Boda', copias: 1, origen: 'invitado' }; for (var k in (extra || {})) d[k] = extra[k]; return d; }
+  function cuantos(svc, estado) { return svc.listar({ estados: [estado] }).length; }
+
+  // ----- Adaptador -----
+  prueba('Adaptador: la impresora simulada cumple la interfaz y la clase base no se puede usar sola', async function () {
+    var t = nuevo();
+    aserta(I.AdaptadorImpresora.cumple(new I.ImpresoraSimulada(I.MODELOS['simulada-4x6'], { leer: function () { return {}; }, escribir: function () {} }, relojManual())), 'no cumple');
+    aserta(!I.AdaptadorImpresora.cumple({ id: 'x' }), 'un objeto cualquiera cumple');
+    var base = new I.AdaptadorImpresora({ id: 'b' });
+    var lanzo = false; try { base.instantanea(); } catch (e) { lanzo = true; }
+    aserta(lanzo, 'la base debía lanzar');
+    aserta(t.svc.esSimulada(), 'debía ser simulada');
+  });
+  prueba('Simulada: estados configurables (lista, sin papel, sin cinta, atascada, desconectada) y lenta', async function () {
+    var t = nuevo();
+    ['lista', 'sin-papel', 'sin-cinta', 'atascada', 'desconectada', 'tapa-abierta', 'error'].forEach(function (e) {
+      t.svc.configurarSimulacion({ estado: e });
+      igual(t.svc.instantanea().estado, e, 'estado ' + e);
+    });
+    t.svc.configurarSimulacion({ estado: 'lista', lenta: true });
+    var s = t.svc.instantanea();
+    igual(s.estado, 'lista', 'lenta sigue lista'); aserta(s.segundosPorHoja >= 30, 'lenta debía tardar mucho: ' + s.segundosPorHoja);
+    t.svc.configurarSimulacion({ estado: 'inventado' }); igual(t.svc.instantanea().estado, 'lista', 'aceptó un estado inventado');
+  });
+  prueba('Simulada: el estado elegido sobrevive a recargar (otro servicio sobre el mismo almacenamiento)', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'atascada' });
+    var otro = I.crearServicio({ almacenamiento: t.almacen, reloj: t.reloj });
+    igual(otro.instantanea().estado, 'atascada');
+  });
+  prueba('Para el validador: devuelve estado, segundos y medios; sin dato devuelve null (nunca marca)', async function () {
+    var t = nuevo(); var v = t.svc.paraValidador();
+    igual(v.estado, 'lista'); aserta(v.segundosPorHoja > 0 && v.medios.length === 1, 'forma'); igual(v.medios[0].anchoMm, 101.6);
+    var sinDato = I.crearServicio({ almacenamiento: I.almacenamientoEnMemoria(), adaptador: {
+      id: 'real', nombre: 'Real', instantanea: function () { return { estado: 'desconocido', medios: [] }; }, consultar: async function () { return { estado: 'desconocido' }; }, enviar: async function () {}, cancelar: function () {} } });
+    igual(sinDato.paraValidador(), null, 'sin dato debía ser null');
+  });
+
+  // ----- Cola: persistencia, impresión, conteo -----
+  prueba('Encolar es síncrono, no espera a la impresora y deja el trabajo guardado (otro servicio lo ve)', async function () {
+    var t = nuevo(); var res = t.svc.encolar(trabajo({ copias: 2 }));
+    aserta(res && res.ok === true && typeof res.then === 'undefined', 'no devolvió un resultado inmediato');
+    igual(res.trabajo.estado, 'en-cola'); igual(res.hojas, 2);
+    var otro = I.crearServicio({ almacenamiento: t.almacen, reloj: t.reloj });
+    igual(otro.listar().length, 1, 'el trabajo no persistió'); igual(otro.listar()[0].hojas, 2);
+  });
+  prueba('Imprimir un trabajo: pasa a hecho y suma al conteo por evento y por impresora', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 3 }));
+    var r = await t.svc.procesar(); igual(r.estado, 'hecho'); igual(r.trabajo.hojasImpresas, 3);
+    var c = t.svc.contadores();
+    igual(c.porEvento['ev-1'].impresas, 3, 'por evento'); igual(c.porImpresora['simulada-4x6'].impresas, 3, 'por impresora'); igual(c.porImpresora['simulada-4x6'].desdeCambio, 3, 'desde el cambio');
+    igual((await t.svc.procesar()).estado, 'vacia');
+  });
+  prueba('Una hoja 4x6 con dos tiras cuenta como 1 hoja (el trabajo pide hojas físicas, no tiras)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 1 })); await t.svc.procesar();
+    igual(t.svc.hojasDelEvento('ev-1').impresas, 1); igual(t.svc.contadores().porImpresora['simulada-4x6'].impresas, 1);
+  });
+  prueba('Varios eventos e impresoras llevan su propia cuenta; la impresión de prueba no cuenta para ningún evento ni tope', async function () {
+    var t = nuevo();
+    t.svc.encolar(trabajo({ eventoId: 'ev-A', copias: 2 })); t.svc.encolar(trabajo({ eventoId: 'ev-B', copias: 1 }));
+    t.svc.encolar({ sesionId: null, eventoId: null, copias: 1, origen: 'prueba' });
+    await t.svc.procesarTodo();
+    igual(t.svc.hojasDelEvento('ev-A').impresas, 2); igual(t.svc.hojasDelEvento('ev-B').impresas, 1);
+    igual(t.svc.contadores().porImpresora['simulada-4x6'].impresas, 4, 'la prueba sí gasta una hoja de la impresora');
+  });
+  prueba('Orden: se imprime en el orden en que se pidió', async function () {
+    var t = nuevo(); var orden = [];
+    t.svc.suscribir(function (e) { if (e.tipo === 'impresion.ok') orden.push(e.trabajo.sesionId); });
+    t.svc.encolar(trabajo({ sesionId: 'a' })); t.svc.encolar(trabajo({ sesionId: 'b' })); t.svc.encolar(trabajo({ sesionId: 'c' }));
+    await t.svc.procesarTodo(); igual(orden.join(''), 'abc');
+  });
+
+  // ----- Fallos, reintentos y escalada -----
+  prueba('Falla la impresora: el trabajo no se pierde, queda "reintentando" y espera su turno (2 s)', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'sin-papel' });
+    t.svc.encolar(trabajo()); var r = await t.svc.procesar();
+    igual(r.estado, 'reintentando'); igual(r.trabajo.intentos, 1); aserta(r.trabajo.ultimoError.codigo === 'impresora-sin-papel', 'código del error');
+    var esp = await t.svc.procesar(); igual(esp.estado, 'espera'); igual(esp.esperaMs, 2000);
+    igual(cuantos(t.svc, 'reintentando'), 1, 'se perdió');
+  });
+  prueba('Reintento automático: al volver la impresora y pasar la espera, el mismo trabajo sale', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'atascada' });
+    t.svc.encolar(trabajo({ copias: 2 })); await t.svc.procesar();
+    t.svc.configurarSimulacion({ estado: 'lista' }); t.reloj.t += 2500;
+    var r = await t.svc.procesar(); igual(r.estado, 'hecho'); igual(r.trabajo.intentos, 2); igual(t.svc.hojasDelEvento('ev-1').impresas, 2);
+  });
+  prueba('Escalada: tras 4 intentos fallidos el trabajo queda "fallido" (alerta) y no se pierde', async function () {
+    var t = nuevo(); var alertas = []; t.svc.suscribir(function (e) { if (e.tipo === 'alerta.abierta') alertas.push(e); });
+    t.svc.configurarSimulacion({ estado: 'sin-cinta' }); t.svc.encolar(trabajo());
+    var ultimo;
+    for (var i = 0; i < 4; i++) { ultimo = await t.svc.procesar(); t.reloj.t += 9000; }
+    igual(ultimo.estado, 'fallido'); igual(ultimo.trabajo.intentos, 4); igual(cuantos(t.svc, 'fallido'), 1);
+    aserta(t.svc.resumenCola().pausada, 'la cola debía quedar en pausa');
+    aserta(alertas.length === 1 && alertas[0].gravedad === 'alta', 'debía abrir una alerta');
+    igual(t.svc.hojasDelEvento('ev-1').impresas, 0, 'no imprimió nada');
+  });
+  prueba('Con la impresora rota, el resto de la cola espera SIN gastar intentos y se reanuda sola al arreglarla', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'desconectada' });
+    t.svc.encolar(trabajo({ sesionId: 'a' }));
+    for (var i = 0; i < 4; i++) { await t.svc.procesar(); t.reloj.t += 9000; }
+    t.svc.encolar(trabajo({ sesionId: 'b' })); t.svc.encolar(trabajo({ sesionId: 'c' }));
+    var r = await t.svc.procesar(); igual(r.estado, 'pausada');
+    igual(t.svc.listar({ sesionId: 'b' })[0].intentos, 0, 'gastó intentos de b');
+    t.svc.configurarSimulacion({ estado: 'lista' }); await t.svc.procesarTodo();
+    igual(t.svc.listar({ sesionId: 'b' })[0].estado, 'hecho'); igual(t.svc.listar({ sesionId: 'c' })[0].estado, 'hecho');
+    igual(t.svc.listar({ sesionId: 'a' })[0].estado, 'fallido', 'el fallido espera al operador');
+    var rr = t.svc.reintentar(t.svc.listar({ sesionId: 'a' })[0].id); aserta(rr.ok, 'reintentar');
+    await t.svc.procesarTodo(); igual(t.svc.listar({ sesionId: 'a' })[0].estado, 'hecho'); igual(t.svc.hojasDelEvento('ev-1').impresas, 3);
+  });
+  prueba('Falla a mitad de impresión (se atasca mientras imprime): esa hoja no cuenta y se reintenta', async function () {
+    var reloj = relojManual(); var t = nuevo({ reloj: reloj });
+    t.svc.configurarSimulacion({ escalaTiempo: 1 });
+    var original = reloj.esperar; reloj.esperar = function (ms) { t.svc.configurarSimulacion({ estado: 'atascada' }); return original(ms); };
+    t.svc.encolar(trabajo()); var r = await t.svc.procesar();
+    igual(r.estado, 'reintentando'); igual(t.svc.hojasDelEvento('ev-1').impresas, 0, 'contó una hoja que no salió');
+  });
+  prueba('Si falta la imagen de la sesión, el trabajo falla de una vez (reintentar no sirve) y queda a la vista', async function () {
+    var t = nuevo({ resolver: async function () { return null; } }); t.svc.encolar(trabajo());
+    var r = await t.svc.procesar(); igual(r.estado, 'fallido'); igual(r.trabajo.intentos, 1); igual(r.trabajo.ultimoError.codigo, 'sin-contenido');
+  });
+  prueba('Si la página se cerró imprimiendo, al volver el trabajo queda "retenido" y NO se reimprime solo', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 2 }));
+    var reg = JSON.parse(t.almacen.getItem(I.CLAVE)); reg.trabajos[0].estado = 'imprimiendo'; reg.trabajos[0].intentos = 1; t.almacen.setItem(I.CLAVE, JSON.stringify(reg));
+    var otra = nuevo({ almacen: t.almacen, reloj: t.reloj }); igual(otra.svc.recuperar(), 1);
+    igual(otra.svc.listar()[0].estado, 'retenido'); igual((await otra.svc.procesar()).estado, 'vacia', 'lo reimprimió solo');
+    igual(otra.svc.hojasDelEvento('ev-1').enCurso, 2, 'un retenido sigue contando para el tope (puede haber salido)');
+    aserta(otra.svc.reintentar(otra.svc.listar()[0].id).ok, 'el operador decide volver a imprimir');
+    await otra.svc.procesarTodo(); igual(otra.svc.listar()[0].estado, 'hecho');
+  });
+  prueba('Solo una pestaña procesa la cola a la vez (arriendo); otra toma el relevo cuando vence', async function () {
+    var t = nuevo(); var otra = nuevo({ almacen: t.almacen, reloj: t.reloj });
+    t.svc.encolar(trabajo({ sesionId: 'a' })); t.svc.encolar(trabajo({ sesionId: 'b' }));
+    igual((await t.svc.procesar()).estado, 'hecho');
+    igual((await otra.svc.procesar()).estado, 'otra-pestana', 'imprimió doble');
+    t.reloj.t += 20000; igual((await otra.svc.procesar()).estado, 'hecho');
+    igual(t.svc.hojasDelEvento('ev-1').impresas, 2, 'cada sesión una sola vez');
+  });
+  prueba('Si el almacenamiento falla (sin espacio), la cola sigue desde memoria y avisa', async function () {
+    var base = I.almacenamientoEnMemoria(); var roto = { getItem: base.getItem, removeItem: base.removeItem, setItem: function () { throw new Error('cuota'); } };
+    var t = nuevo({ almacen: roto }); var res = t.svc.encolar(trabajo({ copias: 2 }));
+    aserta(res.ok, 'no encoló'); aserta(t.svc.errorDeGuardado(), 'no avisó del error de guardado');
+    igual((await t.svc.procesar()).estado, 'hecho'); igual(t.svc.hojasDelEvento('ev-1').impresas, 2);
+  });
+  prueba('Historial: los trabajos terminados se podan, pero el conteo de hojas no se pierde', async function () {
+    var t = nuevo({ config: { maxHistorial: 3 } });
+    for (var i = 0; i < 8; i++) t.svc.encolar(trabajo({ sesionId: 's' + i }));
+    await t.svc.procesarTodo(); aserta(t.svc.listar().length <= 3, 'no podó: ' + t.svc.listar().length);
+    igual(t.svc.hojasDelEvento('ev-1').impresas, 8);
+  });
+
+  // ----- Tope de hojas -----
+  prueba('Tope: se descuenta al encolar; al llegar a cero ya no se acepta nada (motivo "tope")', async function () {
+    var t = nuevo(); var a = t.svc.encolar(trabajo({ copias: 2, topeHojas: 3 })); aserta(a.ok && !a.parcial && a.restantes === 1, 'primero');
+    var b = t.svc.encolar(trabajo({ sesionId: 's-2', copias: 1, topeHojas: 3 })); aserta(b.ok && b.restantes === 0, 'segundo');
+    var c = t.svc.encolar(trabajo({ sesionId: 's-3', copias: 1, topeHojas: 3 }));
+    igual(c.ok, false); igual(c.motivo, 'tope'); igual(t.svc.listar().length, 2, 'encoló igual');
+    igual(t.svc.hojasDelEvento('ev-1', 3).restantes, 0);
+  });
+  prueba('Tope: si quedan menos hojas que las pedidas se encolan las que quedan y se avisa (parcial)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 4, topeHojas: 5 }));
+    var r = t.svc.encolar(trabajo({ sesionId: 's-2', copias: 3, topeHojas: 5 }));
+    aserta(r.ok && r.parcial === true, 'debía ser parcial'); igual(r.hojas, 1); igual(r.pedidas, 3); igual(r.trabajo.hojas, 1);
+  });
+  prueba('Tope: las copias adicionales y la reimpresión también cuentan (cada hoja física cuenta)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 1, origen: 'auto', topeHojas: 4 }));
+    t.svc.encolar(trabajo({ copias: 2, origen: 'adicional', topeHojas: 4 })); t.svc.encolar(trabajo({ copias: 1, origen: 'reimpresion', topeHojas: 4 }));
+    await t.svc.procesarTodo(); igual(t.svc.hojasDelEvento('ev-1', 4).restantes, 0); igual(t.svc.encolar(trabajo({ topeHojas: 4 })).motivo, 'tope');
+  });
+  prueba('Tope: cancelar libera las hojas; un trabajo fallido no gasta tope y al reintentarlo se vuelve a medir', async function () {
+    var t = nuevo(); var a = t.svc.encolar(trabajo({ copias: 3, topeHojas: 3 }));
+    aserta(t.svc.cancelar(a.trabajo.id), 'no canceló'); igual(t.svc.hojasDelEvento('ev-1', 3).restantes, 3);
+    var b = t.svc.encolar(trabajo({ copias: 2, topeHojas: 3 })); t.svc.configurarSimulacion({ estado: 'sin-papel' });
+    for (var i = 0; i < 4; i++) { await t.svc.procesar(); t.reloj.t += 9000; }
+    igual(t.svc.listar({ estados: ['fallido'] }).length, 1); igual(t.svc.hojasDelEvento('ev-1', 3).restantes, 3, 'el fallido gastaba tope');
+    t.svc.configurarSimulacion({ estado: 'lista' });
+    t.svc.encolar(trabajo({ sesionId: 'otra', copias: 3, topeHojas: 3 }));
+    var rr = t.svc.reintentar(b.trabajo.id, { topeHojas: 3 }); igual(rr.ok, false); igual(rr.motivo, 'tope');
+  });
+  prueba('Tope: sin topeHojas no hay límite; y la configuración efectiva solo lo deja con el modo "ambos"', async function () {
+    var t = nuevo(); for (var i = 0; i < 5; i++) aserta(t.svc.encolar(trabajo({ sesionId: 'x' + i, copias: 20 })).ok, 'cortó sin tope');
+    function ev(modo) { return { version: 2, id: 'e', nombre: 'x', estado: 'proximo', entrega: { modo: modo, copias: 1, impresionAuto: true, topeHojas: 100 }, plantillas: {}, ritmo: {} }; }
+    igual(ValidadorEvento.configuracionEfectiva(ev('ambos'), null).topeHojas, 100);
+    igual(ValidadorEvento.configuracionEfectiva(ev('impresion'), null).topeHojas, null);
+    igual(ValidadorEvento.configuracionEfectiva(ev('digital'), null).topeHojas, null);
+  });
+
+  // ----- Rollo, impresoras y semáforo -----
+  prueba('Rollo: aviso "bajo" antes de acabarse, "agotado" al llegar a cero y "Cambié el papel" lo reinicia', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 10, avisoRestantes: 3 });
+    igual(t.svc.restantesRollo().aviso, null); t.svc.encolar(trabajo({ copias: 6 })); await t.svc.procesarTodo();
+    igual(t.svc.restantesRollo().restantes, 4); igual(t.svc.restantesRollo().aviso, null);
+    t.svc.encolar(trabajo({ sesionId: 'b', copias: 2 })); await t.svc.procesarTodo();
+    igual(t.svc.restantesRollo().restantes, 2); igual(t.svc.restantesRollo().aviso, 'bajo');
+    igual(t.svc.estado('ambos').semaforo, 'warn');
+    t.svc.encolar(trabajo({ sesionId: 'c', copias: 2 })); await t.svc.procesarTodo(); igual(t.svc.restantesRollo().aviso, 'agotado');
+    t.svc.cambiarRollo(); igual(t.svc.restantesRollo().restantes, 10); igual(t.svc.restantesRollo().aviso, null);
+    igual(t.svc.contadores().porImpresora['simulada-4x6'].impresas, 10, 'el total de la impresora no se borra');
+  });
+  prueba('Rollo sin configurar: no avisa nada (no se inventa un dato)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 50 })); await t.svc.procesarTodo();
+    var r = t.svc.restantesRollo(); igual(r.configurado, false); igual(r.aviso, null);
+  });
+  prueba('Rollo simulado: se acaba de verdad (la impresora informa sin papel) y cambiarlo la recarga', async function () {
+    var t = nuevo(); t.svc.guardarPerfil({ hojasPorRollo: 5 }); t.svc.configurarSimulacion({ rolloRestante: 2 });
+    t.svc.encolar(trabajo({ copias: 2 })); await t.svc.procesarTodo();
+    igual(t.svc.instantanea().estado, 'sin-papel'); igual(t.svc.paraValidador().estado, 'sin-papel');
+    t.svc.cambiarRollo(); igual(t.svc.instantanea().estado, 'lista');
+  });
+  prueba('Cambiar de impresora con trabajos pendientes pide decidir; "retener", "trasladar" y "cancelar" hacen lo que dicen', async function () {
+    ['retener', 'trasladar', 'cancelar'].forEach(function () {});
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'sin-papel' }); t.svc.encolar(trabajo({ copias: 2 }));
+    var pide = t.svc.cambiarImpresora('simulada-5x7'); igual(pide.ok, false); igual(pide.motivo, 'decision'); igual(pide.pendientes, 1);
+    igual(t.svc.perfil().impresoraId, 'simulada-4x6', 'cambió sin preguntar');
+    igual(t.svc.cambiarImpresora('simulada-5x7', 'retener').ok, true); igual(t.svc.perfil().impresoraId, 'simulada-5x7');
+    igual(t.svc.listar()[0].estado, 'retenido'); igual(t.svc.paraValidador().medios[0].anchoMm, 127, 'medios de la nueva');
+    var u = nuevo(); u.svc.encolar(trabajo({ copias: 1 })); u.svc.cambiarImpresora('simulada-5x7', 'trasladar');
+    igual(u.svc.listar()[0].estado, 'en-cola'); igual(u.svc.listar()[0].impresoraId, 'simulada-5x7'); await u.svc.procesarTodo(); igual(u.svc.contadores().porImpresora['simulada-5x7'].impresas, 1);
+    var v = nuevo(); v.svc.encolar(trabajo({ copias: 1 })); v.svc.cambiarImpresora('simulada-5x7', 'cancelar'); igual(v.svc.listar()[0].estado, 'cancelado');
+    var w = nuevo(); igual(w.svc.cambiarImpresora('simulada-5x7').ok, true, 'sin pendientes cambia directo');
+  });
+  prueba('Semáforo: lista, error de impresora, fallidos, "solo digital" no aplica, lenta', async function () {
+    var t = nuevo(); igual(t.svc.estado('ambos').semaforo, 'ready'); aserta(/Simulación/.test(t.svc.estado('ambos').texto), 'debe decir que es simulación');
+    igual(t.svc.estado('digital').semaforo, 'idle');
+    t.svc.configurarSimulacion({ lenta: true }); igual(t.svc.estado('impresion').semaforo, 'warn'); t.svc.configurarSimulacion({ lenta: false });
+    t.svc.configurarSimulacion({ estado: 'sin-papel' }); igual(t.svc.estado('ambos').semaforo, 'error'); aserta(/sin papel/.test(t.svc.estado('ambos').texto), 'texto');
+    t.svc.configurarSimulacion({ estado: 'lista' });
+    t.svc.configurarSimulacion({ estado: 'atascada' }); t.svc.encolar(trabajo());
+    for (var i = 0; i < 4; i++) { await t.svc.procesar(); t.reloj.t += 9000; }
+    t.svc.configurarSimulacion({ estado: 'lista' }); igual(t.svc.estado('ambos').semaforo, 'error', 'con un fallido sigue en error'); aserta(/sin imprimir/.test(t.svc.estado('ambos').texto), 'texto fallido');
+  });
+  prueba('Mensaje para el invitado: sin términos técnicos (papel, cinta, atasco, error, cola, impresora)', async function () {
+    var t = nuevo();
+    ['ambos', 'impresion'].forEach(function (m) {
+      var x = t.svc.mensajeInvitado(m);
+      aserta(x.length > 20 && !/papel|cinta|atasc|error|cola|driver|impresora|desconect/i.test(x), 'texto técnico: ' + x);
+    });
+    aserta(/digital/.test(t.svc.mensajeInvitado('ambos')), 'en "ambos" debe ofrecer lo digital');
+  });
+
+  // ----- Correcciones de la certificación: recargas, tope vigente, registro dañado -----
+  function nuevoConTope(tope, extra) {
+    var o = extra || {}; var reloj = o.reloj || relojManual(); var almacen = o.almacen || I.almacenamientoEnMemoria();
+    var svc = I.crearServicio({ almacenamiento: almacen, reloj: reloj, topeDe: function () { return tope.valor; },
+      resolverContenido: async function () { return { blob: new Blob(['h']), medidas: null }; } });
+    svc.configurarSimulacion({ escalaTiempo: 0 });
+    return { svc: svc, reloj: reloj, almacen: almacen };
+  }
+  function dejarImprimiendo(almacen, duenoViejo) {
+    var reg = JSON.parse(almacen.getItem(I.CLAVE)); reg.trabajos[0].estado = 'imprimiendo'; reg.trabajos[0].intentos = 1; reg.trabajos[0].dueno = duenoViejo || 'pt-viejo';
+    almacen.setItem(I.CLAVE, JSON.stringify(reg)); return reg;
+  }
+  prueba('Recarga rápida: el arriendo de la carga anterior no deja el trabajo "imprimiendo" para siempre (pasa a "retenido" al ganar el arriendo)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 2 })); await t.svc.procesar();
+    t.svc.encolar(trabajo({ sesionId: 'b' }));
+    var reg = dejarImprimiendo(t.almacen); reg.trabajos[1].estado = 'hecho'; t.almacen.setItem(I.CLAVE, JSON.stringify(reg));
+    var recarga = nuevo({ almacen: t.almacen, reloj: t.reloj });
+    igual(recarga.svc.recuperar(), 0, 'con el arriendo vivo de la carga anterior no puede tocar nada todavía');
+    igual((await recarga.svc.procesar()).estado, 'otra-pestana', 'no debía procesar con arriendo ajeno vivo');
+    t.reloj.t += 16000; // vence el arriendo viejo
+    await recarga.svc.procesar();
+    igual(recarga.svc.listar({ sesionId: 's-1' })[0].estado, 'retenido', 'quedó imprimiendo');
+    igual(recarga.svc.hojasDelEvento('ev-1').enCurso, 2, 'un retenido sigue contando');
+    var segunda = nuevo({ almacen: t.almacen, reloj: t.reloj }); t.reloj.t += 16000; await segunda.svc.procesar();
+    igual(segunda.svc.listar({ sesionId: 's-1' })[0].estado, 'retenido', 'la segunda recarga lo cambió');
+    aserta(segunda.svc.reintentar(segunda.svc.listar({ sesionId: 's-1' })[0].id).ok, 'el operador puede reintentarlo');
+  });
+  prueba('Recarga rápida: al cerrar la página se suelta el arriendo y la carga siguiente trabaja de inmediato (y retiene al huérfano)', async function () {
+    var t = nuevo(); t.svc.encolar(trabajo({ copias: 1 })); await t.svc.procesar(); t.svc.encolar(trabajo({ sesionId: 'b' }));
+    var reg = dejarImprimiendo(t.almacen); reg.arriendo = null; t.almacen.setItem(I.CLAVE, JSON.stringify(reg)); // lo que deja pagehide
+    var recarga = nuevo({ almacen: t.almacen, reloj: t.reloj });
+    igual(recarga.svc.recuperar(), 1, 'debía retener al huérfano de inmediato'); igual(recarga.svc.listar({ sesionId: 's-1' })[0].estado, 'retenido');
+    igual((await recarga.svc.procesar()).estado, 'hecho', 'debía seguir con el resto');
+  });
+  prueba('Tope VIGENTE: "Reintentar todos" no se pasa del tope (fallido de 3 hojas, sesión nueva de 3, tope 3)', async function () {
+    var tope = { valor: 3 }; var t = nuevoConTope(tope);
+    t.svc.configurarSimulacion({ estado: 'sin-papel' }); t.svc.encolar(trabajo({ copias: 3 }));
+    for (var i = 0; i < 4; i++) { await t.svc.procesar(); t.reloj.t += 9000; }
+    igual(t.svc.listar({ estados: ['fallido'] }).length, 1); t.svc.configurarSimulacion({ estado: 'lista' });
+    aserta(t.svc.encolar(trabajo({ sesionId: 'otra', copias: 3 })).ok, 'la sesión nueva cabe');
+    var r = t.svc.reintentarFallidos(); igual(r.reintentados, 0); igual(r.sinTope, 1);
+    igual(t.svc.hojasDelEvento('ev-1', 3).usadas, 3, 'se pasó del tope');
+  });
+  prueba('Tope VIGENTE: subir o bajar el tope en el evento vale de inmediato (el número que traiga quien llama no manda)', async function () {
+    var tope = { valor: 2 }; var t = nuevoConTope(tope);
+    var a = t.svc.encolar(trabajo({ copias: 2, topeHojas: 999 })); aserta(a.ok && a.restantes === 0, 'debía usar el tope vigente (2) y no el congelado');
+    igual(t.svc.encolar(trabajo({ sesionId: 'x', topeHojas: 999 })).motivo, 'tope');
+    tope.valor = 5; aserta(t.svc.encolar(trabajo({ sesionId: 'y', copias: 3, topeHojas: 1 })).ok, 'al subir el tope debía aceptar');
+    tope.valor = null; aserta(t.svc.encolar(trabajo({ sesionId: 'z', copias: 9, topeHojas: 1 })).ok, 'sin tope vigente no hay límite');
+  });
+  prueba('Tope VIGENTE: reintentar recorta las hojas si quedan menos y lo informa; al trasladar a otra impresora un fallido sin hojas disponibles NO se vuelve a poner en cola', async function () {
+    var tope = { valor: 4 }; var t = nuevoConTope(tope);
+    t.svc.configurarSimulacion({ estado: 'sin-papel' }); var f = t.svc.encolar(trabajo({ copias: 3 }));
+    for (var i = 0; i < 4; i++) { await t.svc.procesar(); t.reloj.t += 9000; }
+    t.svc.configurarSimulacion({ estado: 'lista' }); t.svc.encolar(trabajo({ sesionId: 'o', copias: 2 }));
+    var r = t.svc.reintentar(f.trabajo.id); aserta(r.ok && r.recortado === true && r.trabajo.hojas === 2, 'debía recortar a 2: ' + JSON.stringify(r));
+    var u = nuevoConTope({ valor: 3 }); u.svc.configurarSimulacion({ estado: 'sin-papel' }); var f2 = u.svc.encolar(trabajo({ copias: 3 }));
+    for (var j = 0; j < 4; j++) { await u.svc.procesar(); u.reloj.t += 9000; }
+    u.svc.encolar(trabajo({ sesionId: 'o', copias: 3 }));
+    u.svc.cambiarImpresora('simulada-5x7', 'trasladar');
+    igual(u.svc.listar({ sesionId: 's-1' })[0].estado, 'fallido', 'trasladar se saltó el tope');
+    igual(u.svc.hojasDelEvento('ev-1', 3).usadas, 3);
+  });
+  prueba('Registro de impresión dañado: no se pisa en silencio (se guarda una copia aparte y el estado lo avisa)', async function () {
+    var almacen = I.almacenamientoEnMemoria(); almacen.setItem(I.CLAVE, '{esto no es json');
+    var t = nuevo({ almacen: almacen }); t.svc.encolar(trabajo());
+    igual(almacen.getItem(I.CLAVE + '-ilegible'), '{esto no es json', 'no guardó la copia del dañado');
+    igual(t.svc.estado('ambos').ilegible, true, 'no avisó'); igual(t.svc.listar().length, 1, 'tras avisar sigue funcionando');
+  });
+  prueba('Si no se puede guardar la fila, el semáforo lo dice (rojo) en vez de fingir que todo está bien', async function () {
+    var base = I.almacenamientoEnMemoria(); var roto = { getItem: base.getItem, removeItem: base.removeItem, setItem: function () { throw new Error('cuota'); } };
+    var t = nuevo({ almacen: roto }); t.svc.encolar(trabajo());
+    var e = t.svc.estado('ambos'); igual(e.semaforo, 'error'); aserta(/guardar/.test(e.texto) && e.errorDeGuardado, 'texto: ' + e.texto);
+  });
+  prueba('Un trabajo que otra instancia ya tomó o canceló no se imprime dos veces (reclamo condicional)', async function () {
+    var t = nuevo(); var a = t.svc.encolar(trabajo({ sesionId: 'a' }));
+    var otra = nuevo({ almacen: t.almacen, reloj: t.reloj });
+    t.svc.cancelar(a.trabajo.id); igual((await t.svc.procesar()).estado, 'vacia'); igual(t.svc.hojasDelEvento('ev-1').impresas, 0);
+    t.svc.encolar(trabajo({ sesionId: 'b' })); var reg = JSON.parse(t.almacen.getItem(I.CLAVE)); reg.arriendo = { pestana: 'otra-viva', hasta: t.reloj.t + 60000 }; t.almacen.setItem(I.CLAVE, JSON.stringify(reg));
+    igual((await t.svc.procesar()).estado, 'otra-pestana'); igual(t.svc.hojasDelEvento('ev-1').impresas, 0, 'imprimió con arriendo ajeno');
+  });
+
+  // ----- Conexión con el validador (decisión D2) -----
+  function entradaValidador(modo, impresoraVivo) {
+    var foto = function (n) { return { id: 'f' + n, tipo: 'foto', numero: n, visible: true, xMm: 3, yMm: 3 + (n - 1) * 40, anchoMm: 44, altoMm: 33, rotacion: 0 }; };
+    return {
+      equipo: { pin: { definido: true } },
+      evento: { version: 2, id: 'ev-1', nombre: 'Boda', estado: 'proximo', entrega: { modo: modo, copias: 1, impresionAuto: false }, plantillas: { habilitadas: ['p'], porDefecto: 'p' }, ritmo: { cuentaSeg: 3, pausaSeg: 3, mensajePausa: 'x', pacienciaSeg: 30 } },
+      plantilla: { id: 'p', nombre: 'T', papel: { anchoMm: 50.8, altoMm: 152.4, ppp: 300, duplicarEnHoja: true }, elementos: [foto(1), foto(2), foto(3)] },
+      vivo: { camaras: [{ id: 'c', etiqueta: 'W', activa: true, anchoPx: 1920, altoPx: 1080 }], impresora: impresoraVivo, espacioLibreMB: 50000 },
+    };
+  }
+  function codigosDe(r) { return r.bloqueos.map(function (b) { return b.codigo; }); }
+  prueba('D2 con la impresora simulada: con un problema BLOQUEA en "solo impresión" y en "ambos"; "solo digital" no la mira', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ estado: 'sin-papel' });
+    ['impresion', 'ambos'].forEach(function (m) {
+      var r = ValidadorEvento.validar(entradaValidador(m, t.svc.paraValidador()));
+      aserta(!r.listo && codigosDe(r).indexOf('IMPRESORA_CON_PROBLEMA') !== -1, m + ' debía bloquear');
+    });
+    var d = ValidadorEvento.validar(entradaValidador('digital', t.svc.paraValidador()));
+    aserta(d.listo && codigosDe(d).indexOf('IMPRESORA_CON_PROBLEMA') === -1, 'solo digital no debía mirarla');
+    ['sin-cinta', 'atascada', 'desconectada', 'tapa-abierta'].forEach(function (e) {
+      t.svc.configurarSimulacion({ estado: e });
+      aserta(!ValidadorEvento.validar(entradaValidador('ambos', t.svc.paraValidador())).listo, e + ' debía bloquear');
+    });
+    t.svc.configurarSimulacion({ estado: 'lista' });
+    aserta(ValidadorEvento.validar(entradaValidador('ambos', t.svc.paraValidador())).listo, 'lista no debía bloquear');
+  });
+  prueba('Sin dato de impresora (null, como la lista de eventos): nunca bloquea, solo avisa que no se puede comprobar', async function () {
+    var r = ValidadorEvento.validar(entradaValidador('ambos', null));
+    aserta(r.listo, 'bloqueó sin dato'); aserta(r.avisos.some(function (a) { return a.codigo === 'IMPRESORA_NO_COMPROBABLE'; }), 'faltó el aviso');
+  });
+  prueba('Impresora lenta: el validador avisa que la fila va a crecer; papel distinto (5x7 contra hoja 4x6) avisa', async function () {
+    var t = nuevo(); t.svc.configurarSimulacion({ lenta: true });
+    var r = ValidadorEvento.validar(entradaValidador('ambos', t.svc.paraValidador()));
+    aserta(r.listo && r.avisos.some(function (a) { return a.codigo === 'IMPRESION_MAS_LENTA_QUE_SESION'; }), 'no avisó la lentitud');
+    var u = nuevo(); u.svc.cambiarImpresora('simulada-5x7');
+    var r2 = ValidadorEvento.validar(entradaValidador('ambos', u.svc.paraValidador()));
+    aserta(r2.avisos.some(function (a) { return a.codigo === 'PAPEL_DISTINTO'; }), 'no avisó el papel distinto');
+    var normal = ValidadorEvento.validar(entradaValidador('ambos', nuevo().svc.paraValidador()));
+    aserta(normal.listo && normal.avisos.length === 0, 'la 4x6 normal debía quedar sin avisos: ' + JSON.stringify(normal.avisos.map(function (a) { return a.codigo; })));
+  });
+  prueba('Los modelos de papel de la lista de impresoras coinciden con los que pide el validador (forma de los medios)', async function () {
+    var t = nuevo(); t.svc.impresoras().forEach(function (m) { aserta(m.medios.every(function (x) { return x.anchoMm > 0 && x.altoMm > 0; }), m.id); });
+    igual(t.svc.impresoras().filter(function (m) { return m.actual; }).length, 1);
+  });
+
+  (async function () {
+    for (var i = 0; i < pruebas.length; i++) {
+      var p = pruebas[i], ok = false, error = '';
+      try { await p.fn(); ok = true; } catch (e) { error = (e && e.message) || String(e); }
+      window.registrarCaso('Impresión · ' + p.nombre, ok, error);
+    }
   })();
 })();
 </script>

@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-17 (hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-18 (hito 3: sección 3.15, impresión con impresora simulada; antes, hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -289,6 +289,17 @@ Construido; detalle técnico en `docs/ARQUITECTURA_FLUJO.md` §7.9 y en `pages/s
 - **Restaurar suma por defecto** ("Sumar a lo que ya tengo": no borra nada y lo que ya existe se queda). "Reemplazar todo" borra lo de ahora, pide confirmación con el botón rojo y ofrece respaldar antes. Siempre todo o nada: si algo falla, no se cambia nada.
 - **Exportar e importar un evento suelto** desde la lista. Si el evento ya existe en el equipo, se importa como copia nueva "… (importado)" sin tocar el original; un evento importado nunca queda como evento activo.
 - **Aviso de poco espacio** (desde 80 %) en la lista, sin bloquear nada, con enlace a Respaldo.
+
+### 3.15 Hito 3: impresión de punta a punta con impresora simulada (2026-11-18)
+
+Construido contra una impresora **simulada** detrás de un adaptador (`pages/shared/impresion.js`); el detalle técnico está en `docs/ARQUITECTURA_FLUJO.md` §7.10. No hay hardware, driver ni servidor local: lo real queda para la app de escritorio (hitos 3a y 8). Decisiones de arquitectura y producto:
+
+- **La cola de impresión es persistente** (localStorage, un solo registro, para que el tope de hojas sea atómico) y nunca bloquea la interfaz: reintenta sola, escala tras 4 intentos y no reimprime sola una hoja que quedó a medias.
+- **El diálogo de impresión del navegador ya no se usa** (una cola automática no puede abrir ventanas).
+- **Tope de hojas:** cuenta lo comprometido, no solo lo impreso; solo con modo "Ambos"; mensaje amable antes de las fotos; las copias adicionales y las reimpresiones cuentan; se mide contra el tope vigente del evento.
+- **Copias adicionales solo del operador** (con PIN). Conteo de hojas por evento y por impresora; una hoja 4 x 6 con dos tiras es 1 hoja.
+- **D2 aplicada:** con la impresora en problemas, "Lanzar evento" se bloquea en "Solo impresión" y en "Ambos"; "Solo digital" no la mira.
+- **Pendientes:** impresión real, estado real de la impresora, panel en vivo (C5), detalle (C6), errores (C7) y el conteo de hojas dentro del respaldo. La prueba técnica de escritorio (D8) está preparada en `docs/PRUEBA_TECNICA_ESCRITORIO.md` y espera el visto bueno del dueño.
 
 ## 4. Requisitos del editor de layouts
 
