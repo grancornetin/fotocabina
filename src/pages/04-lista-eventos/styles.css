@@ -561,6 +561,14 @@ img, svg { display: block; }
 .event-text-btn:hover { background: var(--color-surface-high); }
 .event-text-btn--danger:hover { color: var(--color-red); border-color: var(--color-red); }
 .event-text-btn--end { margin-left: auto; }
+/* "Lanzar" de un evento "No lanzable": deshabilitado, el motivo está en la tarjeta (hito A, 2026-11-18). */
+.event-text-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background: transparent;
+  color: var(--color-fog);
+}
+.event-text-btn:disabled:hover { background: transparent; }
 /* En una tarjeta en curso, "Terminar evento" y "Lanzar" van juntos en una segunda fila. */
 .event-actions-break { flex-basis: 100%; height: 0; }
 .event-text-btn:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }

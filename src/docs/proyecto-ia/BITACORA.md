@@ -153,3 +153,8 @@
 - **Qué:** "Lanzar" de cada tarjeta pasa a botón normal (el lima queda para "Crear evento"); la cabina 01 ya no mide 780 px a 390 px (`overflow: hidden` en `.cabin`). Sin cambios de comportamiento.
 - **Observación abierta:** un evento "No lanzable" aún muestra "Lanzar" habilitado y lleva a la cabina, que muestra el bloqueo.
 - **Estado:** HECHO, certificado; commiteado.
+
+## 2026-11-18 · Mini-hito A: "Lanzar" deshabilitado en eventos "No lanzable"
+- **Quién:** orquestador (construyó), Code Reviewer (sin bloqueantes), Evidence Collector (PASA 8 de 8 en Chrome real, 390 y 1366 px, claro y oscuro, consola limpia, un solo lima, 104/104 pruebas).
+- **Qué:** decisión del dueño (opción B): en la lista 04, el botón "Lanzar" de una tarjeta que el validador marca "No lanzable" queda deshabilitado y el motivo se lee en la propia tarjeta (mismo validador, sin lógica duplicada). Tras la revisión se agregó una guarda (sin motor de plantillas no se deshabilita nada) y la opacidad pasó a 0,4 (DESIGN.md); esos dos retoques mínimos no se volvieron a probar en navegador.
+- **Observación cerrada:** la del hito B ("No lanzable" con Lanzar habilitado).

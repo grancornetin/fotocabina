@@ -92,7 +92,8 @@
   // Devuelve el primer bloqueo, o null si se puede lanzar o todavía no hay datos para saberlo.
   // Los eventos archivados no se marcan: su pestaña ya lo dice.
   function bloqueoDeLanzamiento(evento) {
-    if (typeof ValidadorEvento === 'undefined' || evento.estado === 'archivado') return null;
+    // Sin el validador o sin el motor de plantillas (fallo de carga) no hay datos fiables: no se marca ni se deshabilita nada.
+    if (typeof ValidadorEvento === 'undefined' || typeof MotorPlantillas === 'undefined' || evento.estado === 'archivado') return null;
     var id = idPlantilla(evento);
     // Sin datos de plantillas (todavía no cargan o no se pudieron leer) no se puede afirmar que una asignada "ya no existe": no se marca.
     // Un evento sin ninguna plantilla asignada sí se marca, porque no depende de esa lectura.
@@ -106,10 +107,32 @@
     return res.bloqueos[0] || null;
   }
 
+  // "Lanzar" queda deshabilitado mientras el validador diga "No lanzable" (decisión del dueño, 2026-11-18);
+  // el motivo se lee en la propia tarjeta (aria-describedby) y no se duplica la lógica.
+  function aplicarLanzar(card, bloqueo) {
+    var btn = card.querySelector('[data-action="lanzar"]');
+    var parrafo = card.querySelector('[data-campo="lanzable"]');
+    if (!btn) return;
+    if (bloqueo) {
+      btn.disabled = true;
+      btn.setAttribute('title', 'No se puede lanzar: ' + bloqueo.mensaje);
+      if (parrafo) {
+        if (!parrafo.id) parrafo.id = 'bloqueo-' + card.getAttribute('data-id');
+        btn.setAttribute('aria-describedby', parrafo.id);
+      }
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute('title');
+      btn.removeAttribute('aria-describedby');
+    }
+  }
+
   function pintarLanzable(parrafo, evento) {
     var b = bloqueoDeLanzamiento(evento);
     parrafo.textContent = '';
     parrafo.hidden = !b;
+    var tarjeta = parrafo.closest('.event-card');
+    if (tarjeta) aplicarLanzar(tarjeta, b);
     if (!b) return;
     var etiqueta = document.createElement('span');
     etiqueta.className = 'ds-badge ds-badge--error';

@@ -693,7 +693,7 @@ Todas con mi recomendación primero. Si respondes "sí a todo lo recomendado", e
 5. **Tira 2 × 6:** importar de `MotorPlantillas` la regla (umbrales de 51 y 150 mm) en vez de duplicarla en el validador.
 6. **Mostrar ritmo y resumen** en C2c (hito 1.4) y en C5 en vivo.
 7. **Pasar `espacioLibreMB`** a quien llame al validador, con `navigator.storage.estimate()`; hasta entonces la regla de disco está inactiva.
-8. **Una tarjeta "No lanzable" aún muestra su botón "Lanzar" lima.** Revisar en C1 y C2 (Regla del Único Verde de `DESIGN.md`, y que no invite a una acción bloqueada). **RESUELTA (2026-11-18, hito B):** "Lanzar" ya no es lima en ninguna tarjeta.
+8. **Una tarjeta "No lanzable" aún muestra su botón "Lanzar" lima.** Revisar en C1 y C2 (Regla del Único Verde de `DESIGN.md`, y que no invite a una acción bloqueada). **RESUELTA (2026-11-18, hito B y mini-hito A):** "Lanzar" ya no es lima y, en una tarjeta "No lanzable", queda deshabilitado con el motivo en la tarjeta (decisión del dueño).
 9. **Falta el botón "Reabrir" para eventos archivados** (2.3: un evento archivado no se lanza sin reabrirlo). **Decisión pendiente del dueño;** se propone en el hito 1.3. **RESUELTA (2026-11-17, hito 1.3, construido, pendiente de certificación independiente):** C1 tiene "Reabrir" en las tarjetas Archivados (ver 7.8).
 10. **`entrega.topeHojas` no lo configura ninguna pantalla todavía** (llega con C2 en modo edición, hito 1.2); el validador ya lo lee. **RESUELTA (2026-11-17, hito 1.2):** C2 lo configura (solo con modo "Ambos"), el almacén lo sanea y la cabina lo congela y lo muestra (ver 7.7).
 
