@@ -377,6 +377,164 @@
     return cuenta;
   }
 
+  // ---------- Respaldo y restauración (hito 1.6) ----------
+  // Funciones dedicadas para shared/respaldo.js: leen y escriben en CRUDO (registros tal como están guardados y
+  // los Blobs de cada archivo), sin hidratar nada. Solo se AGREGAN funciones: nada de lo anterior cambió.
+
+  // Lee todo lo que hay (o lo de unos eventos) sin convertir nada. Los Blobs vienen como referencias (no se
+  // cargan en memoria). Opciones:
+  //   eventoIds: [ids] para filtrar por evento (null = todos)
+  //   incluirSesiones / incluirArchivos: false para dejar fuera las sesiones (y con ellas sus archivos) o solo los archivos
+  //   huellas: 'todas' | [huellas] = copias congeladas a incluir; además se incluyen las que usan las sesiones leídas
+  // Devuelve { sesiones: [registro], archivos: [{ id, sesionId, tipo, tamano, creadoEn, blob }], congeladas: [{ huella, nombre, creadoEn, plantilla }] }.
+  function leerTodoCrudo(opciones) {
+    const op = opciones || {};
+    const eventoIds = Array.isArray(op.eventoIds) ? new Set(op.eventoIds) : null;
+    const incluirSesiones = op.incluirSesiones !== false;
+    const incluirArchivos = incluirSesiones && op.incluirArchivos !== false;
+    const todas = op.huellas === 'todas';
+    const pedidas = new Set(Array.isArray(op.huellas) ? op.huellas : []);
+    return transaccion('readonly', async (almacen, archivos, congeladas) => {
+      let registros = [];
+      if (incluirSesiones) {
+        registros = (await esperar(almacen.getAll())) || [];
+        if (eventoIds) registros = registros.filter((r) => eventoIds.has(r.eventoId || r.evento));
+      }
+      let filas = [];
+      if (incluirArchivos) {
+        if (!eventoIds) filas = (await esperar(archivos.getAll())) || [];
+        else for (const r of registros) filas = filas.concat((await esperar(archivos.index('sesionId').getAll(r.id))) || []);
+      }
+      registros.forEach((r) => { if (r.plantilla && r.plantilla.huella) pedidas.add(r.plantilla.huella); });
+      let copias = (await esperar(congeladas.getAll())) || [];
+      if (!todas) copias = copias.filter((c) => pedidas.has(c.huella));
+      return {
+        sesiones: registros,
+        archivos: filas.map((f) => ({ id: f.id, sesionId: f.sesionId, tipo: f.tipo, tamano: Number.isFinite(f.tamano) ? f.tamano : (f.blob ? f.blob.size : 0), creadoEn: f.creadoEn || null, blob: f.blob })),
+        congeladas: copias.map((c) => ({ huella: c.huella, nombre: c.nombre || '', creadoEn: c.creadoEn || null, plantilla: c.plantilla })),
+      };
+    });
+  }
+
+  // Conteo barato de lo guardado: { sesiones, archivos, fotos, congeladas, bytes } (suma el tamaño de los archivos).
+  function contarContenido() {
+    return transaccion('readonly', async (almacen, archivos, congeladas) => {
+      const sesiones = await esperar(almacen.count());
+      const nCongeladas = await esperar(congeladas.count());
+      const total = { sesiones, archivos: 0, fotos: 0, congeladas: nCongeladas, bytes: 0 };
+      await new Promise((resolver, rechazar) => {
+        const pedido = archivos.openCursor();
+        pedido.onerror = () => rechazar(pedido.error);
+        pedido.onsuccess = () => {
+          const cursor = pedido.result;
+          if (!cursor) { resolver(); return; }
+          const f = cursor.value;
+          total.archivos += 1;
+          if (f.tipo === 'foto') total.fotos += 1;
+          total.bytes += Number.isFinite(f.tamano) ? f.tamano : (f.blob ? f.blob.size : 0);
+          cursor.continue();
+        };
+      });
+      return total;
+    });
+  }
+
+  // Ids que ya existen: { sesiones: [ids], archivos: [ids], congeladas: [huellas] } (sirve para saber qué se sumaría).
+  function idsExistentes() {
+    return transaccion('readonly', async (almacen, archivos, congeladas) => ({
+      sesiones: (await esperar(almacen.getAllKeys())) || [],
+      archivos: (await esperar(archivos.getAllKeys())) || [],
+      congeladas: (await esperar(congeladas.getAllKeys())) || [],
+    }));
+  }
+
+  // Escribe sesiones, archivos y copias congeladas ya leídas con `leerTodoCrudo` (o armadas desde un respaldo), en UNA
+  // sola transacción: o se escribe todo o no se escribe nada (si algo falla la base queda como estaba).
+  //   datos    = { sesiones: [registro], archivos: [{ id, sesionId, tipo, tamano, creadoEn, blob }], congeladas: [{ huella, nombre, creadoEn, plantilla }] }
+  //   opciones = { modo: 'sumar' | 'reemplazar', regenerarIds, eventoDestino, mapaPlantillas }
+  // `sumar` (por defecto): lo que ya existe por id se deja como está (gana lo guardado) y se cuenta como omitido; los archivos de una
+  //   sesión omitida no se tocan. `reemplazar`: vacía los tres almacenes y deja exactamente `datos`.
+  // `regenerarIds` (importar un evento como copia): cada sesión recibe un id nuevo, sus archivos se renombran y sus referencias
+  //   (`fotos[].archivo`, `salidas.*`) se rehacen; `eventoDestino` pasa a ser el evento de todas; `mapaPlantillas` ({ viejo: nuevo })
+  //   corrige el id de plantilla de cada sesión cuando una plantilla se importó con id nuevo.
+  // Devuelve { sesionesAgregadas, sesionesOmitidas, archivosAgregados, congeladasAgregadas, congeladasOmitidas }.
+  function escribirCrudo(datos, opciones) {
+    const op = opciones || {};
+    const reemplazar = op.modo === 'reemplazar';
+    const regenerar = op.regenerarIds === true;
+    const d = datos || {};
+    const sesiones = Array.isArray(d.sesiones) ? d.sesiones : [];
+    const filas = Array.isArray(d.archivos) ? d.archivos : [];
+    const copias = Array.isArray(d.congeladas) ? d.congeladas : [];
+    const mapaPl = Object.assign(Object.create(null), op.mapaPlantillas || {}); // sin prototipo: un id como "constructor" no cuenta
+    return transaccion('readwrite', async (almacen, archivos, congeladas) => {
+      let sesionesExistentes = new Set();
+      let archivosExistentes = new Set();
+      let huellasExistentes = new Set();
+      if (reemplazar) {
+        almacen.clear();
+        archivos.clear();
+        congeladas.clear();
+      } else {
+        sesionesExistentes = new Set((await esperar(almacen.getAllKeys())) || []);
+        archivosExistentes = new Set((await esperar(archivos.getAllKeys())) || []);
+        huellasExistentes = new Set((await esperar(congeladas.getAllKeys())) || []);
+      }
+      const r = { sesionesAgregadas: 0, sesionesOmitidas: 0, archivosAgregados: 0, congeladasAgregadas: 0, congeladasOmitidas: 0 };
+      // Primero se decide qué sesiones entran y cómo se llaman, para poder renombrar los archivos.
+      const nuevoDe = new Map();
+      const mapaArchivos = new Map();
+      sesiones.forEach((s) => {
+        const id = regenerar ? nuevoId() : s.id;
+        if (!regenerar && sesionesExistentes.has(id)) { r.sesionesOmitidas += 1; return; }
+        nuevoDe.set(s.id, id);
+      });
+      filas.forEach((f) => {
+        if (!nuevoDe.has(f.sesionId)) return;
+        let id = f.id;
+        if (regenerar) {
+          const prefijo = `f-${f.sesionId}-`;
+          id = f.id.startsWith(prefijo) ? idArchivo(nuevoDe.get(f.sesionId), f.id.slice(prefijo.length)) : `f-${nuevoDe.get(f.sesionId)}-${f.id}`;
+        }
+        mapaArchivos.set(f.id, id);
+      });
+      sesiones.forEach((s) => {
+        if (!nuevoDe.has(s.id)) return;
+        // Copia propia; las sesiones del formato antiguo traen Blobs (tira, gif) dentro del registro y se conservan tal cual.
+        const registro = {};
+        Object.keys(s).forEach((k) => { registro[k] = s[k] instanceof Blob ? s[k] : JSON.parse(JSON.stringify(s[k] === undefined ? null : s[k])); });
+        registro.id = nuevoDe.get(s.id);
+        if (op.eventoDestino) {
+          registro.evento = op.eventoDestino;
+          if ('eventoId' in registro || registro.version === 2) registro.eventoId = op.eventoDestino;
+        }
+        if (regenerar) {
+          if (Array.isArray(registro.fotos)) registro.fotos.forEach((f) => { if (f && typeof f === 'object' && mapaArchivos.has(f.archivo)) f.archivo = mapaArchivos.get(f.archivo); });
+          if (registro.salidas && typeof registro.salidas === 'object') {
+            Object.keys(registro.salidas).forEach((k) => { if (mapaArchivos.has(registro.salidas[k])) registro.salidas[k] = mapaArchivos.get(registro.salidas[k]); });
+          }
+        }
+        if (registro.plantilla && typeof registro.plantilla === 'object' && mapaPl[registro.plantilla.id]) registro.plantilla.id = mapaPl[registro.plantilla.id];
+        if (registro.plantillaId && mapaPl[registro.plantillaId]) registro.plantillaId = mapaPl[registro.plantillaId];
+        almacen.put(registro);
+        r.sesionesAgregadas += 1;
+      });
+      filas.forEach((f) => {
+        if (!nuevoDe.has(f.sesionId)) return;
+        const id = mapaArchivos.get(f.id);
+        if (!reemplazar && archivosExistentes.has(id)) return;
+        archivos.put({ id, sesionId: nuevoDe.get(f.sesionId), tipo: f.tipo, blob: f.blob, tamano: f.tamano, creadoEn: f.creadoEn || new Date().toISOString() });
+        r.archivosAgregados += 1;
+      });
+      copias.forEach((c) => {
+        if (!reemplazar && huellasExistentes.has(c.huella)) { r.congeladasOmitidas += 1; return; }
+        congeladas.put({ huella: c.huella, plantilla: c.plantilla, nombre: c.nombre || '', creadoEn: c.creadoEn || new Date().toISOString() });
+        r.congeladasAgregadas += 1;
+      });
+      return r;
+    });
+  }
+
   function nuevoId() {
     let u;
     try { u = raiz.crypto.randomUUID(); } catch (e) { u = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`; }
@@ -400,6 +558,10 @@
     esCompleta,
     esIncompleta,
     contarPorEvento,
+    leerTodoCrudo,
+    contarContenido,
+    idsExistentes,
+    escribirCrudo,
     nuevoId,
   };
 })(window);

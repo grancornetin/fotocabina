@@ -206,6 +206,9 @@
           '<button class="event-action-btn" data-action="duplicar" title="Duplicar evento" aria-label="Duplicar evento">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>' +
           '</button>' +
+          '<button class="event-action-btn" data-action="exportar" title="Exportar evento" aria-label="Exportar evento">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>' +
+          '</button>' +
           botonCierre +
           botonPrincipal +
         '</div>' +
@@ -234,6 +237,10 @@
 
     card.querySelector('[data-action="duplicar"]').addEventListener('click', function () {
       duplicarEvento(evento);
+    });
+
+    card.querySelector('[data-action="exportar"]').addEventListener('click', function () {
+      abrirExportar(evento);
     });
 
     var cierreBtn = card.querySelector('[data-action="archivar"], [data-action="eliminar"], [data-action="terminar"]');
@@ -420,12 +427,12 @@
     }
   }
 
-  function mostrarAviso(texto) {
+  function mostrarAviso(texto, ms) {
     var notice = document.getElementById('notice');
     notice.textContent = texto;
     notice.hidden = false;
     clearTimeout(notice._timeout);
-    notice._timeout = setTimeout(function () { notice.hidden = true; }, 5200);
+    notice._timeout = setTimeout(function () { notice.hidden = true; }, ms || 5200);
   }
 
   var textosVacio = {
@@ -475,6 +482,193 @@
 
   document.getElementById('createEventBtn').addEventListener('click', irACrearEvento);
   document.getElementById('eventsEmptyBtn').addEventListener('click', irACrearEvento);
+
+  /* ---------- Exportar e importar un evento (hito 1.6) ----------
+     Toda la lógica vive en shared/respaldo.js (Respaldo). Aquí solo se pide y se muestra. */
+
+  var xfer = { modo: null, evento: null, paquete: null, trabajando: false, foco: null };
+
+  function xferEl(id) { return document.getElementById(id); }
+
+  function xferProgreso(p) {
+    xferEl('xferProgress').hidden = false;
+    xferEl('xferProgressText').textContent = p.texto || '';
+    var barra = xferEl('xferBar');
+    if (p.total > 0) {
+      barra.classList.remove('is-indeterminate');
+      barra.firstElementChild.style.width = Math.max(2, Math.min(100, (p.hecho / p.total) * 100)) + '%';
+    } else {
+      barra.classList.add('is-indeterminate');
+      barra.firstElementChild.style.width = '';
+    }
+  }
+
+  // Mientras trabaja: botones apagados, el cuadro no se puede cerrar y el navegador avisa si se intenta salir.
+  function xferTrabajo(si) {
+    xfer.trabajando = si;
+    xferEl('xferAcceptBtn').disabled = si;
+    xferEl('xferCancelBtn').disabled = si;
+    xferEl('xferFotos').disabled = si;
+    window.onbeforeunload = si ? function (e) { e.preventDefault(); e.returnValue = ''; return ''; } : null;
+    if (!si) xferEl('xferProgress').hidden = true;
+  }
+
+  function xferAbrir() {
+    xfer.foco = document.activeElement;
+    xferEl('xferError').hidden = true;
+    xferEl('xferProgress').hidden = true;
+    xferEl('xferCancelBtn').textContent = 'Cancelar';
+    xferEl('xferOverlay').setAttribute('data-visible', 'true');
+    xferEl('xferCancelBtn').focus();
+  }
+
+  function xferCerrar(devolverFoco) {
+    if (xfer.trabajando) return;
+    xferEl('xferOverlay').setAttribute('data-visible', 'false');
+    var origen = xfer.foco;
+    xfer.foco = null;
+    xfer.paquete = null;
+    if (devolverFoco !== false && origen && origen.isConnected) { try { origen.focus(); } catch (e) { /* sin foco */ } }
+  }
+
+  // Falló o no corresponde: el cuadro queda con el motivo y solo se puede cerrar. No se cambió nada.
+  function xferError(texto) {
+    xferTrabajo(false);
+    xferEl('xferError').textContent = texto;
+    xferEl('xferError').hidden = false;
+    xferEl('xferAcceptBtn').hidden = true;
+    xferEl('xferCancelBtn').textContent = 'Cerrar';
+    xferEl('xferCancelBtn').focus();
+  }
+
+  function abrirExportar(evento) {
+    xfer.modo = 'exportar';
+    xfer.evento = evento;
+    xfer.paquete = null;
+    xferEl('xferTitle').textContent = 'Exportar evento';
+    xferEl('xferText').textContent = '«' + evento.nombre + '» se guarda en un archivo .zip con su ficha, las plantillas que usa y sus sesiones.';
+    xferEl('xferFotosRow').hidden = false;
+    xferEl('xferFotos').checked = true;
+    xferEl('xferNote').hidden = true;
+    xferEl('xferAcceptBtn').textContent = 'Exportar';
+    xferEl('xferAcceptBtn').hidden = false;
+    xferTrabajo(false);
+    xferAbrir();
+  }
+
+  function hacerExportar() {
+    xferTrabajo(true);
+    xferProgreso({ texto: 'Preparando…' });
+    Respaldo.crearPaqueteEvento(xfer.evento.id, { conFotos: xferEl('xferFotos').checked, alProgresar: xferProgreso }).then(function (r) {
+      Respaldo.descargar(r.blob, r.nombre);
+      xferTrabajo(false);
+      xferCerrar(true);
+      var falta = r.manifest.plantillasFaltantes || 0;
+      var avisos = (r.advertencias || []).map(function (x) { return x.mensaje; }).join(' ');
+      mostrarAviso((avisos ? 'Evento exportado pero INCOMPLETO: «' : 'Evento exportado: «') + r.nombre + '» (' + Respaldo.formatearBytes(r.blob.size) + ').' + (avisos ? ' ' + avisos : '') +
+        (falta ? ' ' + (falta === 1 ? '1 plantilla del evento ya no existe en el editor y no se incluyó.' : falta + ' plantillas del evento ya no existen en el editor y no se incluyeron.') : ''), 8000);
+    }).catch(function (e) {
+      xferError('No se pudo exportar el evento. ' + e.message);
+    });
+  }
+
+  function textoPlural(n, uno, varios) { return n + ' ' + (n === 1 ? uno : varios); }
+
+  function abrirImportar(archivo) {
+    xfer.modo = 'importar';
+    xfer.evento = null;
+    xfer.paquete = null;
+    xferEl('xferTitle').textContent = 'Importar evento';
+    xferEl('xferText').textContent = 'Revisando el archivo…';
+    xferEl('xferFotosRow').hidden = true;
+    xferEl('xferNote').hidden = true;
+    xferEl('xferAcceptBtn').textContent = 'Importar';
+    xferEl('xferAcceptBtn').hidden = false;
+    xferAbrir();
+    xferTrabajo(true);
+    xferProgreso({ texto: 'Abriendo el archivo…' });
+    Respaldo.leerPaquete(archivo, { alProgresar: xferProgreso }).then(function (p) {
+      xferTrabajo(false);
+      if (p.tipo !== 'evento') {
+        xferEl('xferText').textContent = '';
+        xferError('Este archivo es un respaldo completo, no un solo evento. Para restaurarlo entra a «Respaldo» desde el menú.');
+        return;
+      }
+      xfer.paquete = p;
+      var v = Respaldo.previsualizarImportacion(p);
+      var r = p.resumen;
+      xferEl('xferText').textContent = '«' + r.evento.nombre + '» · ' + textoPlural(r.sesiones, 'sesión', 'sesiones') + (r.conFotos ? (r.sesiones ? ' con sus fotos' : '') : ' (el archivo no trae fotos)') + ' · ' + textoPlural(r.plantillas, 'plantilla', 'plantillas') + ' · ' + Respaldo.formatearBytes(r.bytes) + '. ' +
+        (v.existe
+          ? 'Ya hay un evento igual en este equipo: se agrega como copia nueva con el nombre «' + v.nombreFinal + '» y el que ya tienes no se toca.'
+          : 'Se agrega a tu lista sin tocar nada de lo que ya tienes.');
+      xferEl('xferNote').hidden = false;
+      xferEl('xferAcceptBtn').disabled = false;
+      xferEl('xferCancelBtn').disabled = false;
+      xferEl('xferAcceptBtn').focus();
+    }).catch(function (e) {
+      xferEl('xferText').textContent = '';
+      xferError(e.message);
+    });
+  }
+
+  function hacerImportar() {
+    if (!xfer.paquete) return;
+    xferTrabajo(true);
+    xferProgreso({ texto: 'Preparando…' });
+    Respaldo.importarEvento(xfer.paquete, { alProgresar: xferProgreso }).then(function (r) {
+      xferTrabajo(false);
+      xferCerrar(false);
+      eventos = AlmacenEventos.listar();
+      conteo = null;
+      seleccionarPestana(r.estado === 'en-curso' ? 'en-curso' : (r.estado === 'archivado' ? 'archivados' : 'proximos'));
+      cargarDerivados();
+      avisarEspacio();
+      mostrarAviso('Evento importado: «' + r.nombre + '».' +
+        (r.copia ? ' Ya tenías uno igual, así que entró como copia nueva y el que tenías no se tocó.' : '') +
+        ' Trae ' + textoPlural(r.sesiones.sesionesAgregadas, 'sesión', 'sesiones') + (r.plantillas.agregadas ? ' y se agregaron ' + textoPlural(r.plantillas.agregadas, 'plantilla', 'plantillas') + ' al editor.' : '.'), 9000);
+    }).catch(function (e) {
+      xferError('No se pudo importar el evento y no se cambió nada. ' + e.message);
+    });
+  }
+
+  xferEl('xferAcceptBtn').addEventListener('click', function () {
+    if (xfer.trabajando) return;
+    if (xfer.modo === 'exportar') hacerExportar();
+    else if (xfer.modo === 'importar') hacerImportar();
+  });
+  xferEl('xferCancelBtn').addEventListener('click', function () { xferCerrar(true); });
+  xferEl('xferOverlay').addEventListener('click', function (e) { if (e.target === this) xferCerrar(true); });
+
+  // Teclado del cuadro: Escape lo cierra (salvo mientras trabaja); Tab y Shift+Tab giran entre sus controles.
+  document.addEventListener('keydown', function (e) {
+    var overlay = xferEl('xferOverlay');
+    if (overlay.getAttribute('data-visible') !== 'true') return;
+    if (e.key === 'Escape') { e.preventDefault(); xferCerrar(true); return; }
+    if (e.key !== 'Tab') return;
+    var controles = Array.prototype.filter.call(overlay.querySelectorAll('button, input'), function (b) { return !b.disabled && b.offsetParent !== null; });
+    if (!controles.length) { e.preventDefault(); return; }
+    var primero = controles[0], ultimo = controles[controles.length - 1];
+    var dentro = overlay.contains(document.activeElement);
+    if (e.shiftKey && (document.activeElement === primero || !dentro)) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && (document.activeElement === ultimo || !dentro)) { e.preventDefault(); primero.focus(); }
+  });
+
+  document.getElementById('importEventBtn').addEventListener('click', function () {
+    if (!xfer.trabajando) document.getElementById('importInput').click();
+  });
+  document.getElementById('importInput').addEventListener('change', function () {
+    var archivo = this.files && this.files[0];
+    this.value = '';
+    if (archivo) abrirImportar(archivo);
+  });
+
+  // Aviso discreto cuando queda poco espacio (80 % o más). No bloquea nada; lleva a Respaldo.
+  function avisarEspacio() {
+    if (typeof Respaldo === 'undefined') return;
+    Respaldo.estadoEspacio().then(function (est) {
+      document.getElementById('spaceNotice').hidden = !(est.disponible && est.porcentaje >= 80);
+    }).catch(function () { /* sin dato: no se avisa */ });
+  }
 
   /* ---------- Hoja "Próximamente" para accesos aún no construidos ---------- */
 
@@ -558,6 +752,7 @@
     }
     render();
     cargarDerivados();
+    avisarEspacio();
   }
 
   window.addEventListener('storage', function (ev) {
@@ -568,6 +763,7 @@
 
   render();
   cargarDerivados();
+  avisarEspacio();
 
   // Viene de "Terminar evento" en la cabina: se abre directo en Archivados con el aviso.
   (function () {

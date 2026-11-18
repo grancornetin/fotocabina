@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-17 (hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-17 (hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -278,6 +278,17 @@ Construido; detalle técnico en `docs/ARQUITECTURA_FLUJO.md` §2.6 y §7.2 y en 
 - **Eliminar un archivado avisa cuántas sesiones se pierden** (todas, también las incompletas y la que estuviera abierta) y que no se puede deshacer. El número se cuenta de nuevo al abrir el aviso, y al aceptar se vuelve a leer el evento: si otra pestaña lo reabrió o lo cambió mientras tanto, no se elimina y se avisa.
 - **La cabina no entra a modo invitado con un evento terminado o eliminado desde otra pestaña**: al lanzar y al tocar la pantalla de inicio se relee el evento y se avisa al operador.
 - **Los avisos de confirmación son accesibles por teclado** (Escape, foco en Cancelar, el foco no se escapa del aviso, vuelve al botón de origen).
+
+### 3.14 Hito 1.6: respaldo y restauración (2026-11-17)
+
+Construido; detalle técnico en `docs/ARQUITECTURA_FLUJO.md` §7.9 y en `pages/shared/README.md`. Decisiones de producto (defaults de bajo riesgo, a confirmar por el dueño):
+
+- **Pantalla propia "Respaldo"** (`pages/06-respaldo`), abierta desde el menú lateral de la lista de eventos, sin PIN. Se muda a Ajustes del equipo (C8) cuando exista.
+- **Un respaldo es un ZIP estándar** que se abre en el Explorador de Windows. Trae eventos, plantillas, sesiones, fotos (tira, hoja, GIF) y copias de plantilla. **No trae el PIN** ni nada del Equipo: en otro equipo se crea un PIN nuevo; en el mismo se conserva el actual.
+- **Las fotos de los invitados son datos personales:** la casilla "Incluir las fotos de los invitados" viene marcada, y sin ella no se guardan sesiones (solo eventos y plantillas).
+- **Restaurar suma por defecto** ("Sumar a lo que ya tengo": no borra nada y lo que ya existe se queda). "Reemplazar todo" borra lo de ahora, pide confirmación con el botón rojo y ofrece respaldar antes. Siempre todo o nada: si algo falla, no se cambia nada.
+- **Exportar e importar un evento suelto** desde la lista. Si el evento ya existe en el equipo, se importa como copia nueva "… (importado)" sin tocar el original; un evento importado nunca queda como evento activo.
+- **Aviso de poco espacio** (desde 80 %) en la lista, sin bloquear nada, con enlace a Respaldo.
 
 ## 4. Requisitos del editor de layouts
 

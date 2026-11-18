@@ -2,7 +2,7 @@
 
 > Lista completa de pantallas del producto, organizadas por quién las usa y en qué etapa del negocio aparecen. Sirve como plan de construcción: primero migramos lo que ya existe al nuevo sistema visual, después completamos lo que falta de la Etapa 1, y dejamos la Etapa 2 mapeada para cuando llegue el momento.
 >
-> Última revisión: 2026-11-17 (hito 1.2, certificado: C2 también edita eventos, varias plantillas habilitadas, tope de hojas y A7 según el modo de entrega; antes, 2026-11-16, hitos 0.2 y 1.1: la cabina dibuja la plantilla real del evento; correcciones de texto; las pantallas nuevas propuestas A12, C2c y C8 a C11 están en `docs/ARQUITECTURA_FLUJO.md` §3.1 a la espera de aprobación del dueño).
+> Última revisión: 2026-11-17 (hito 1.6 certificado: pantalla nueva C8a Respaldo y restauración, exportar/importar evento y aviso de espacio; antes, hito 1.2, certificado: C2 también edita eventos, varias plantillas habilitadas, tope de hojas y A7 según el modo de entrega; antes, 2026-11-16, hitos 0.2 y 1.1: la cabina dibuja la plantilla real del evento; correcciones de texto; las pantallas nuevas propuestas A12, C2c y C8 a C11 están en `docs/ARQUITECTURA_FLUJO.md` §3.1 a la espera de aprobación del dueño).
 
 ## Cómo leer esta lista
 
@@ -49,6 +49,7 @@
 | C4 | **Configuración de impresora** | Falta | Selección de impresora, tamaño de papel/media, orientación, copias por defecto, prueba de impresión. |
 | C5 | **Panel "en vivo" del evento** | Falta | La pantalla que se mira durante el evento: estado de cámara/impresora en tiempo real, cola de impresión, sesiones en curso, contador de invitados atendidos. Es la más crítica para "no frenar la fila" (Principio 5). |
 | C6 | **Detalle de sesión** | Falta | Ver una sesión puntual: fotos originales, composición final, estado de impresión/entrega, opción de reimprimir. |
+| C8a | **Respaldo y restauración** | **Construida** (`06-respaldo`, hito 1.6, certificado) | Crear un respaldo de todo el equipo (eventos, plantillas, sesiones, fotos y copias congeladas) en un ZIP, restaurarlo ("Sumar a lo que ya tengo" por defecto, o "Reemplazar todo" con confirmación destructiva y todo-o-nada) y ver el espacio usado. Se abre desde el ítem "Respaldo" del menú de `04-lista-eventos`. **Primera parte de C8 (Ajustes del equipo, hito 7)**: cuando C8 exista, esta pantalla se muda ahí. Además, `04-lista-eventos` exporta e importa un evento suelto y avisa cuando queda poco espacio. |
 | C7 | **Resolución de error del operador** | Falta | Versión detallada (no la simplificada del invitado) del error de cámara/impresora, con pasos de diagnóstico y reintento. |
 
 ---

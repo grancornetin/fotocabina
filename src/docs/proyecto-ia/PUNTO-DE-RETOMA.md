@@ -57,3 +57,17 @@
 **Correcciones del Code Reviewer (0.1b) aplicadas:** respaldo confirmado antes de sobrescribir (si falla, solo en memoria), `ajustesExtra`, captura sin imagen = aviso y reintento, `aplicarAjustes` conserva la cámara, marco medido sin transición, alias con habilitadas únicas, `limpiarCongeladas` respeta copias de menos de 1 min, README. Pruebas t1/t2/t3/t7 repetidas y t4 nueva (10 comprobaciones).
 
 **Riesgos del Reality Checker (0.1b) aplicados:** R1 (ninguna escritura sobrescribe el v1 sin respaldo confirmado; reintenta y si falla queda en memoria con aviso), R2 (original dañado sin copia -danado no se sobrescribe), R3 (cuota llena: `errorDeGuardado()` + copia en memoria + aviso en 04, 05 y 01), recarga de la cabina con plantilla viva borrada usa la copia congelada del evento (sin congelado sigue bloqueado, 1A), frase del README de shared corregida. Pruebas t1 33/33, t2 44/44, t3 16/16, t4 10/10, t5 (nueva) 13/13, t7 42/42 x3 cámaras; consola limpia.
+
+## ORQUESTADOR: misión 2026-11-17 (hito 1.6 respaldo y restauración, luego hito corto 04/01)
+**Estado:** EN CURSO. Orden: A) hito 1.6 (constructor, Code Reviewer, Evidence Collector, Reality Checker, commit si certifica) y B) hito corto (lanzar de cada tarjeta deja de ser lima; desborde móvil 390 px de la cabina).
+- Decisiones del dueño ya tomadas (2026-11-17): varios eventos En curso a la vez; Reabrir sin confirmación; Próximo se puede archivar; Terminar desde la cabina vuelve a Archivados hasta que exista C10; el botón Lanzar lima de la lista y el desborde de la cabina van en el hito B.
+- Defaults elegidos por el orquestador para 1.6 (reportar al dueño): pantalla nueva `src/pages/06-respaldo/` abierta desde "Respaldo" en el menú de la lista (se mudará a C8 cuando exista); el respaldo NO incluye el PIN ni ajustes de cámara; archivo ZIP estándar (abre en el Explorador); restaurar por defecto SUMA sin borrar nada (lo existente gana), con opción "Reemplazar todo" con confirmación destructiva; importar un evento que ya existe lo crea como copia nueva.
+- Avance: (actualizar abajo en cada checkpoint)
+
+
+
+## Frontend 1.6 (respaldo y restauración) — CONSTRUIDO, pendiente de certificación independiente
+**Estado final del constructor:** todo hecho: código, pruebas y documentación. Sin commit (lo hace el orquestador).
+- **Pruebas:** `shared/tests-validador.html` 99/99 (64 anteriores + 35 nuevos, con localStorage de doble en memoria; el real queda intacto). Pruebas reales en Chrome (arnés y capturas en `C:/tmp/h16`, fuera del repo): ida y vuelta idéntica, restaurar dos veces sin duplicar, reemplazar, archivos corruptos/futuros/ajenos rechazados, fallo simulado en IndexedDB y localStorage deja todo igual, exportar/importar evento con y sin colisión, 390 px sin scroll horizontal, claro y oscuro, cabina y editor abren con lo restaurado, consola sin errores.
+- **Archivos:** `shared/respaldo.js` (nuevo), `shared/almacen-eventos.js`, `shared/almacen-plantillas.js`, `01-camera-flow/almacen-sesiones.js` (solo funciones nuevas), `06-respaldo/*` (nuevo), `04-lista-eventos/{index.html,styles.css,app.js,README.md}`, `shared/tests-validador.html`, `shared/README.md`, docs: MAPA, `src/README.md`, FLUJO_NAVEGACION, ARQUITECTURA (§7.9 y tabla 7.2), DSLRBOOTH §3.14.
+- **Para el orquestador:** consolidar RETOMAR, TABLERO, BITACORA y cerebro. Hay un servidor `python -m http.server 8716` que quedó corriendo (sobre `src/`); se puede cerrar. La carpeta `.playwright-mcp/` de la raíz ya se borró (la recrea la herramienta del navegador si se vuelve a usar; no se commitea).

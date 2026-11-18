@@ -285,6 +285,35 @@ img, svg { display: block; }
   font-variant-numeric: tabular-nums;
 }
 
+.events-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .events-head-actions { width: 100%; }
+  .events-head-actions .ds-btn { flex: 1 1 100%; }
+}
+
+/* Aviso discreto de poco espacio (hito 1.6): no bloquea nada, solo lleva a Respaldo. */
+.space-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0 0 var(--sp-3);
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 177, 61, 0.45);
+  background: rgba(255, 177, 61, 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--color-amber);
+  font-size: 0.875rem;
+}
+.space-notice-link { color: var(--color-bone); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.space-notice-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; border-radius: 4px; }
+
 /* ---------- Tabs (idéntico a 00-design-system) ---------- */
 
 .ds-tabs {
@@ -624,6 +653,42 @@ img, svg { display: block; }
 .confirm-text, .soon-text { color: var(--color-fog); font-size: 0.9375rem; margin: 0 0 var(--sp-3); }
 
 .confirm-actions { display: flex; gap: var(--sp-1); justify-content: center; }
+
+/* ---------- Exportar / importar un evento (hito 1.6) ---------- */
+
+.xfer-check { display: flex; gap: 14px; align-items: flex-start; text-align: left; margin: 0 0 var(--sp-2); cursor: pointer; }
+.xfer-check input { accent-color: var(--color-bone); width: 22px; height: 22px; margin: 2px 0 0; flex-shrink: 0; cursor: pointer; }
+.xfer-check input:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 3px; }
+.xfer-check-title { display: block; font-size: 0.9375rem; font-weight: 600; }
+.xfer-check-help { display: block; font-size: 0.8125rem; color: var(--color-fog); margin-top: 2px; }
+
+.xfer-note, .xfer-error {
+  margin: 0 0 var(--sp-2);
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 177, 61, 0.45);
+  background: rgba(255, 177, 61, 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--color-amber);
+  font-size: 0.875rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.xfer-error { border-color: rgba(255, 77, 77, 0.45); background: rgba(255, 77, 77, 0.08); color: var(--color-red); }
+
+.xfer-progress { margin: 0 0 var(--sp-2); text-align: left; }
+.xfer-progress-text { margin: 0 0 8px; font-size: 0.875rem; }
+.xfer-bar { height: 10px; border-radius: 999px; background: var(--color-surface-high); border: 1px solid var(--color-border); overflow: hidden; }
+.xfer-bar > span { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--color-fog); transition: width 200ms var(--ease-standard); }
+.xfer-bar.is-indeterminate > span { width: 35%; animation: xfer-ir 1.2s var(--ease-standard) infinite alternate; }
+@keyframes xfer-ir { from { transform: translateX(0); } to { transform: translateX(185%); } }
+@media (prefers-reduced-motion: reduce) {
+  .xfer-bar.is-indeterminate > span { animation: none; width: 100%; }
+  .xfer-bar > span { transition: none; }
+}
+
+#xferOverlay .confirm-card { max-width: 420px; max-height: calc(100vh - 2 * var(--sp-3)); overflow-y: auto; }
+#xferOverlay .confirm-actions { flex-wrap: wrap; }
+#xferOverlay .confirm-actions .ds-btn { height: 48px; }
 
 /* ---------- Aviso ---------- */
 

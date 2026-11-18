@@ -140,3 +140,10 @@
 - **Reservas:** botón lima "Lanzar" por tarjeta en la lista y viewport de la cabina en móvil (ya existían); faltan pruebas automáticas de las funciones nuevas; prueba manual del dueño.
 - **Dónde verlo:** `src/pages/shared/almacen-eventos.js`, `src/pages/04-lista-eventos/`, `src/pages/01-camera-flow/`, `src/docs/ARQUITECTURA_FLUJO.md` 7.8.
 - **Estado:** HECHO y certificado; commiteado.
+
+## [2026-11-18] hito | 1.6 cerrado: respaldo y restauración
+- **Quién:** orquestador + equipo (frontend construyó; Code Reviewer corrigió; Evidence Collector certificó; Reality Checker: LISTO CON RESERVAS).
+- **Qué:** pantalla nueva Respaldo (`06-respaldo`) abierta desde el menú de la lista: crea un ZIP con eventos, plantillas, sesiones y fotos (sin PIN), restaura sumando o reemplazando todo (todo o nada), exportar/importar un evento y aviso de poco espacio. Pruebas automáticas 104/104 (incluye ciclo de vida del evento).
+- **Por qué:** todo vivía solo en el navegador; borrar datos del sitio lo perdía todo (hallazgo 4, decisión D7).
+- **Reservas:** fotos sin cifrar y sin PIN; restaurar con editor abierto puede pisar; sin prueba de varios GB; prueba manual del dueño pendiente. Detalle en `ARQUITECTURA_FLUJO.md` 7.9.
+- **Estado:** HECHO, certificado; commiteado.

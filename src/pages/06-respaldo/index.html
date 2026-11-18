@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0A0A0B" />
+  <title>FotoCabina — Respaldo y restauración</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="resp-shell">
+    <header class="resp-head">
+      <a class="resp-back" id="volverLink" href="../04-lista-eventos/index.html" aria-label="Volver a Eventos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+        Volver a Eventos
+      </a>
+    </header>
+
+    <main class="resp-main">
+      <div class="resp-intro">
+        <h1>Respaldo y restauración</h1>
+        <p>Guarda todo lo de este equipo en un archivo y recupéralo cuando lo necesites. Si alguien borra los datos del navegador o cambias de computador, sin un respaldo se pierden eventos, plantillas y fotos.</p>
+      </div>
+
+      <section class="resp-card" aria-labelledby="tEspacio">
+        <h2 class="resp-card-title" id="tEspacio">Espacio en este equipo</h2>
+        <p class="resp-linea" id="espacioTexto" aria-live="polite">Calculando…</p>
+        <div class="resp-barra" id="espacioBarra" role="progressbar" aria-label="Espacio usado" aria-valuemin="0" aria-valuemax="100" hidden><span></span></div>
+        <p class="resp-hint" id="espacioPersistente"></p>
+        <p class="resp-aviso resp-aviso--ambar" id="espacioAviso" role="status" hidden>Queda poco espacio en este equipo. Haz un respaldo y libera lo que ya no uses.</p>
+      </section>
+
+      <section class="resp-card" aria-labelledby="tCrear">
+        <h2 class="resp-card-title" id="tCrear">Crear respaldo</h2>
+        <p class="resp-linea">Descarga un archivo .zip con tus eventos, plantillas y sesiones. Guárdalo fuera de este computador, por ejemplo en un pendrive o en la nube. No incluye el PIN del equipo.</p>
+        <label class="resp-check-fila" for="fotosCheck">
+          <input type="checkbox" class="resp-check" id="fotosCheck" checked />
+          <span class="resp-check-texto">
+            <span class="resp-check-titulo">Incluir las fotos de los invitados</span>
+            <span class="resp-hint">Son datos personales. Sin ellas el archivo pesa mucho menos y es más seguro de compartir, pero las sesiones no se guardan: solo eventos, plantillas y ajustes.</span>
+          </span>
+        </label>
+        <p class="resp-hint" id="ultimoRespaldo"></p>
+        <div class="resp-progreso" id="crearProgreso" hidden>
+          <p class="resp-linea" id="crearProgresoTexto" role="status" aria-live="polite"></p>
+          <div class="resp-barra resp-barra--trabajo" id="crearProgresoBarra"><span></span></div>
+        </div>
+        <p class="resp-msg" id="crearMensaje" role="status" hidden></p>
+        <p class="resp-aviso resp-aviso--ambar" id="crearAdvertencia" role="alert" hidden></p>
+        <div class="resp-acciones">
+          <button class="ds-btn ds-btn--primary" id="crearBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            Crear respaldo
+          </button>
+        </div>
+      </section>
+
+      <section class="resp-card" aria-labelledby="tRestaurar">
+        <h2 class="resp-card-title" id="tRestaurar">Restaurar desde un archivo</h2>
+        <p class="resp-linea">Elige un respaldo creado aquí. Antes de tocar nada se revisa todo el archivo y verás un resumen para compararlo con lo que tienes hoy.</p>
+        <input type="file" id="archivoInput" accept=".zip,application/zip" hidden />
+        <div class="resp-acciones">
+          <button class="ds-btn ds-btn--secondary" id="elegirBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>
+            Elegir archivo de respaldo
+          </button>
+        </div>
+        <div class="resp-progreso" id="leerProgreso" hidden>
+          <p class="resp-linea" id="leerProgresoTexto" role="status" aria-live="polite"></p>
+          <div class="resp-barra resp-barra--trabajo" id="leerProgresoBarra"><span></span></div>
+        </div>
+        <p class="resp-error" id="restError" role="alert" hidden></p>
+        <p class="resp-aviso" id="restInfo" role="status" hidden></p>
+
+        <div class="resp-resumen" id="restResumen" hidden>
+          <h3 class="resp-sub" id="resumenTitulo">Lo que trae el archivo</h3>
+          <p class="resp-linea" id="resumenFecha"></p>
+          <table class="resp-tabla">
+            <caption class="resp-solo-lector">Comparación entre el respaldo y lo que hay hoy en este equipo</caption>
+            <thead><tr><th scope="col">Dato</th><th scope="col">En el respaldo</th><th scope="col">Hoy en este equipo</th></tr></thead>
+            <tbody id="resumenFilas"></tbody>
+          </table>
+
+          <fieldset class="resp-modos">
+            <legend class="resp-sub">¿Cómo restaurar?</legend>
+            <label class="resp-modo">
+              <input type="radio" name="modo" value="sumar" checked />
+              <span class="resp-modo-cuerpo">
+                <span class="resp-modo-titulo">Sumar a lo que ya tengo <span class="resp-etiqueta">Recomendado</span></span>
+                <span class="resp-hint">No borra nada. Si un evento, plantilla o sesión ya existe, se queda como está. Puedes restaurar el mismo archivo dos veces sin duplicar nada.</span>
+              </span>
+            </label>
+            <label class="resp-modo">
+              <input type="radio" name="modo" value="reemplazar" />
+              <span class="resp-modo-cuerpo">
+                <span class="resp-modo-titulo">Reemplazar todo</span>
+                <span class="resp-hint">Borra lo que hay ahora en este equipo y deja exactamente lo del respaldo. Úsalo para dejar un equipo igual a otro.</span>
+              </span>
+            </label>
+          </fieldset>
+
+          <p class="resp-linea" id="modoPrevio" aria-live="polite"></p>
+          <p class="resp-error" id="modoEspacio" role="alert" hidden></p>
+          <div class="resp-acciones">
+            <button class="ds-btn ds-btn--secondary" id="restaurarBtn" type="button">Restaurar</button>
+          </div>
+        </div>
+
+        <div class="resp-resultado" id="restResultado" role="status" hidden>
+          <p class="resp-resultado-texto" id="restResultadoTexto"></p>
+          <a class="ds-btn ds-btn--secondary" href="../04-lista-eventos/index.html">Ir a Eventos</a>
+        </div>
+      </section>
+
+      <p class="resp-hint resp-nota">Esta pantalla se mudará a «Ajustes del equipo» cuando esa sección exista.</p>
+    </main>
+  </div>
+
+  <!-- Confirmar restaurar -->
+  <div class="confirm-overlay" id="dlgOverlay" data-visible="false">
+    <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="dlgTitulo" aria-describedby="dlgTexto">
+      <h2 class="confirm-title" id="dlgTitulo">Restaurar</h2>
+      <p class="confirm-text" id="dlgTexto" aria-live="polite"></p>
+      <p class="resp-aviso resp-aviso--ambar" id="dlgAviso">Cierra la cabina y el editor de plantillas antes de seguir: si están abiertos pueden guardar encima de lo que se restaure.</p>
+      <div class="resp-progreso" id="dlgProgreso" hidden>
+        <p class="resp-linea" id="dlgProgresoTexto" role="status" aria-live="polite"></p>
+        <div class="resp-barra resp-barra--trabajo" id="dlgProgresoBarra"><span></span></div>
+      </div>
+      <p class="resp-error" id="dlgError" role="alert" hidden></p>
+      <p class="resp-aviso" id="dlgRespaldado" role="status" hidden></p>
+      <div class="confirm-actions">
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="dlgRespaldarBtn" type="button" hidden>Respaldar lo de ahora</button>
+        <button class="ds-btn ds-btn--ghost ds-btn--compact" id="dlgCancelarBtn" type="button">Cancelar</button>
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="dlgAceptarBtn" type="button">Restaurar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../shared/almacen-eventos.js"></script>
+  <script src="../shared/almacen-plantillas.js"></script>
+  <script src="../01-camera-flow/almacen-sesiones.js"></script>
+  <script src="../shared/respaldo.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

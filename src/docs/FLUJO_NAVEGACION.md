@@ -216,7 +216,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### C1 · Lista de eventos — *Construida*
 - **Llega:** apertura de la app, o tocando el **logo/"Inicio"** desde la cabina (decisión nueva, resuelve el hueco de vuelta).
-- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · **"Editar evento" → C2 en modo edición (`05-crear-evento/index.html?editar=<id>`, hito 1.2; ver "C1 → C2 en edición" más abajo)** · **"Terminar evento"** (tarjeta En curso) y **"Reabrir"** (tarjeta Archivados) actúan en la misma vista (hito 1.3; ver "Ciclo de vida desde C1 y la cabina" más abajo) · Duplicar/Archivar/Eliminar también actúan en la misma vista.
+- **Sale:** "Lanzar" → cabina (C2b/A1) · "Editar plantilla" → B1/B3 · "Crear evento" → C2 · **"Editar evento" → C2 en modo edición (`05-crear-evento/index.html?editar=<id>`, hito 1.2; ver "C1 → C2 en edición" más abajo)** · **"Terminar evento"** (tarjeta En curso) y **"Reabrir"** (tarjeta Archivados) actúan en la misma vista (hito 1.3; ver "Ciclo de vida desde C1 y la cabina" más abajo) · Duplicar/Archivar/Eliminar también actúan en la misma vista · **"Respaldo" del menú → C8a (`06-respaldo/index.html`, hito 1.6; ver "C1 → Respaldo" más abajo)** · **"Exportar evento" (ícono de cada tarjeta) y "Importar evento" (botón secundario del encabezado)** actúan en un cuadro sobre la misma vista (hito 1.6).
 - **Feliz:** ve eventos por tabs (Próximos/En curso/Archivados), toca "Lanzar" en el de hoy.
 - **"Lanzar" y el validador (hito 0.3, 2026-11-17):** la lista decide con el validador único (`shared/validador-evento.js`) si el evento es lanzable y marca "No lanzable" con el motivo; la cabina vuelve a revisar al abrirse y es quien explica el bloqueo. Hueco: la card "No lanzable" aún muestra su botón "Lanzar" lima.
 - **Ciclo de vida desde C1 y la cabina (hito 1.3, 2026-11-17, construido, pendiente de certificación independiente):**
@@ -257,6 +257,28 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Sin espacio al guardar → cuadro de error, el botón se rehabilita y el reintento reutiliza el mismo evento (no duplica).
   - Evento archivado → se puede editar y sigue archivado; para lanzarlo hay que reabrirlo desde C1 con "Reabrir" (hito 1.3).
   - Los enlaces de acción del validador (`DESTINOS.EDITAR_EVENTO`, "Cambiar las copias", "Cambiar la entrega") **todavía no están conectados** a `05-crear-evento?editar=<id>`; hoy esa pantalla solo se abre desde el botón de la tarjeta.
+
+### C1 → Respaldo y restauración (C8a, `06-respaldo/index.html`) — *Hecha y certificada (hito 1.6)*
+- **Llega:** desde C1, ítem "Respaldo" del menú lateral (o de la barra inferior en móvil). Pantalla de tarea puntual: abre en la misma pestaña, sin PIN (la lista tampoco lo pide).
+- **Sale:** "Volver a Eventos" (arriba a la izquierda; dice a dónde va) → C1 · "Ir a Eventos" tras restaurar → C1. Cuando exista C8 (hito 7) esta pantalla pasa a ser una sección de Equipo y el ítem del menú de C1 se reemplaza por "Equipo".
+- **Qué pasa al volver:** C1 vuelve a leer los eventos al mostrarse (evento `pageshow`, `visibilitychange`), así que ve lo restaurado sin recargar a mano. Una restauración que ya terminó no se deshace al volver.
+- **Feliz:** crea un respaldo (descarga el ZIP y anota la fecha del último respaldo) o elige un archivo, ve el resumen frente a lo que hay hoy, elige "Sumar" (por defecto) o "Reemplazar todo" y confirma en un cuadro que le recuerda cerrar la cabina y el editor.
+- **Errores/bordes:**
+  - Archivo que no es ZIP, ZIP ajeno, corrupto (CRC), re-comprimido o de una versión más nueva → se rechaza **antes de escribir**, con el motivo y el siguiente paso; no se cambia nada.
+  - Archivo de un solo evento elegido aquí → aviso "usa Importar evento en la lista".
+  - Sin espacio suficiente (con 10 % de margen) → el botón Restaurar queda apagado y se explica; si el navegador no informa el espacio, se avisa y se intenta igual (todo o nada).
+  - Falla a mitad de camino (cuota, error de IndexedDB) → se devuelve todo a como estaba y el cuadro dice que no se cambió nada.
+  - "Reemplazar todo" → botón rojo destructivo, nunca lima; el cuadro ofrece "Respaldar lo de ahora" antes. También suelta el evento activo de la cabina.
+  - Nada que respaldar → mensaje neutro, no error.
+  - Cierre de pestaña a mitad de una operación → el navegador avisa; si se cierra igual, la escritura de IndexedDB es una sola transacción (no queda a medias).
+  - Cabina o editor abiertos en otra pestaña durante la restauración → **no se detecta** (hoy solo se avisa en el cuadro; el editor guarda desde su memoria y puede pisar lo restaurado). Reserva abierta.
+
+### C1 → Exportar / Importar evento — *Hecha y certificada (hito 1.6)*
+- **Exportar:** botón de ícono "Exportar evento" en cada tarjeta → cuadro con la casilla "Incluir las fotos de los invitados" → descarga `evento-<nombre>-AAAA-MM-DD.zip` y aviso con el peso. Si el evento tenía plantillas que ya no existen en el editor, el aviso lo dice. Escape o "Cancelar" cierran sin hacer nada; el foco vuelve al botón.
+- **Importar:** botón secundario "Importar evento" (encabezado) → selector de archivo → el mismo cuadro con el resumen. Si el id ya existe en este equipo se agrega como copia nueva "… (importado)" y el existente no se toca; si no, conserva su id. Mantiene su estado pero nunca queda como evento activo. Al terminar la lista cambia a la pestaña de su estado y avisa.
+- **Qué pasa al volver:** nada que volver: es un cuadro sobre la misma vista. La lista se redibuja con el evento nuevo y vuelve a contar sesiones.
+- **Errores/bordes:** respaldo completo elegido como evento → "restáuralo desde Respaldo"; archivo dañado, ajeno o de versión más nueva → rechazo sin escribir; evento eliminado mientras el cuadro estaba abierto → "ese evento ya no existe"; fallo al guardar → no se cambia nada.
+- **Aviso de espacio en C1:** con 80 % o más de uso, una franja ámbar sobre las pestañas con enlace a Respaldo; no bloquea nada.
 
 ### C2b · Modo operador previo al lanzamiento — *Migrado (estructura)*
 - **Llega:** desde C1 al "Lanzar" un evento (abrirla no cambia el estado del evento; lo pasa a En curso el "Lanzar evento" de esta pantalla, hito 1.3) · desde modo invitado, "Operador"/ESC + PIN correcto (vuelve, no llega de cero).

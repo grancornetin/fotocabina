@@ -37,6 +37,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
           <span>Impresora</span>
         </a>
+        <a class="op-nav-item" id="navRespaldo" href="../06-respaldo/index.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          <span>Respaldo</span>
+        </a>
         <a class="op-nav-item" id="navAyuda" href="#">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.6-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></svg>
           <span>Ayuda</span>
@@ -68,6 +72,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
         <span>Impresora</span>
       </a>
+      <a class="op-tabbar-item" id="tabRespaldo" href="../06-respaldo/index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+        <span>Respaldo</span>
+      </a>
     </nav>
 
     <!-- Contenido principal -->
@@ -77,11 +85,23 @@
           <h1 class="events-title">Eventos</h1>
           <p class="events-sub" id="eventsSub">Cargando eventos…</p>
         </div>
-        <button class="ds-btn ds-btn--primary" id="createEventBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          Crear evento
-        </button>
+        <div class="events-head-actions">
+          <button class="ds-btn ds-btn--secondary" id="importEventBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>
+            Importar evento
+          </button>
+          <button class="ds-btn ds-btn--primary" id="createEventBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Crear evento
+          </button>
+        </div>
+        <input type="file" id="importInput" accept=".zip,application/zip" hidden />
       </header>
+
+      <p class="space-notice" id="spaceNotice" role="status" hidden>
+        <span>Queda poco espacio en este equipo. Haz un respaldo y libera lo que ya no uses.</span>
+        <a class="space-notice-link" href="../06-respaldo/index.html">Ir a Respaldo</a>
+      </p>
 
       <div class="ds-tabs" role="tablist" aria-label="Filtro de eventos" id="eventsTabs">
         <button class="ds-tab" role="tab" data-filter="proximos" aria-selected="true">Próximos</button>
@@ -115,6 +135,31 @@
     </div>
   </div>
 
+  <!-- Exportar / importar un evento (hito 1.6) -->
+  <div class="confirm-overlay" id="xferOverlay" data-visible="false">
+    <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="xferTitle" aria-describedby="xferText">
+      <h2 class="confirm-title" id="xferTitle">Exportar evento</h2>
+      <p class="confirm-text" id="xferText" aria-live="polite"></p>
+      <label class="xfer-check" id="xferFotosRow" for="xferFotos">
+        <input type="checkbox" id="xferFotos" checked />
+        <span>
+          <span class="xfer-check-title">Incluir las fotos de los invitados</span>
+          <span class="xfer-check-help">Son datos personales. Sin ellas el archivo pesa mucho menos, pero las sesiones no viajan: solo la ficha del evento y sus plantillas.</span>
+        </span>
+      </label>
+      <p class="xfer-note" id="xferNote" hidden>Cierra el editor de plantillas antes de importar: si está abierto puede guardar encima de lo que se agregue.</p>
+      <div class="xfer-progress" id="xferProgress" hidden>
+        <p class="xfer-progress-text" id="xferProgressText" role="status" aria-live="polite"></p>
+        <div class="xfer-bar" id="xferBar"><span></span></div>
+      </div>
+      <p class="xfer-error" id="xferError" role="alert" hidden></p>
+      <div class="confirm-actions">
+        <button class="ds-btn ds-btn--ghost" id="xferCancelBtn" type="button">Cancelar</button>
+        <button class="ds-btn ds-btn--secondary" id="xferAcceptBtn" type="button">Exportar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Hoja "Próximamente" para accesos aún no construidos -->
   <div class="soon-overlay" id="soonOverlay" data-visible="false">
     <div class="soon-card" role="dialog" aria-modal="true" aria-labelledby="soonTitle">
@@ -132,6 +177,7 @@
   <script src="../shared/motor-plantillas.js"></script>
   <script src="../shared/validador-evento.js"></script>
   <script src="../01-camera-flow/almacen-sesiones.js"></script>
+  <script src="../shared/respaldo.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -36,6 +36,9 @@
 
 <script src="motor-plantillas.js"></script>
 <script src="validador-evento.js"></script>
+<script src="almacen-eventos.js"></script>
+<script src="almacen-plantillas.js"></script>
+<script src="respaldo.js"></script>
 <script>
 (function () {
   'use strict';
@@ -266,9 +269,361 @@
     tr.appendChild(td1); tr.appendChild(td2); filas.appendChild(tr);
   });
   var total = document.getElementById('total');
-  total.textContent = pasan + ' de ' + casos.length + ' casos pasan' + (pasan === casos.length ? ' — TODO PASA' : ' — HAY FALLAS');
-  total.className = pasan === casos.length ? 'ok' : 'mal';
-  document.title = (pasan === casos.length ? 'PASA ' : 'FALLA ') + pasan + '/' + casos.length;
+  var cuenta = { pasan: pasan, total: casos.length };
+  function pintarTotal() {
+    total.textContent = cuenta.pasan + ' de ' + cuenta.total + ' casos pasan' + (cuenta.pasan === cuenta.total ? ' — TODO PASA' : ' — HAY FALLAS');
+    total.className = cuenta.pasan === cuenta.total ? 'ok' : 'mal';
+    document.title = (cuenta.pasan === cuenta.total ? 'PASA ' : 'FALLA ') + cuenta.pasan + '/' + cuenta.total;
+  }
+  pintarTotal();
+  // Los casos de más abajo (respaldo y ciclo de vida) usan esta función para sumarse al mismo total.
+  window.registrarCaso = function (nombre, ok, error) {
+    cuenta.total += 1;
+    if (ok) cuenta.pasan += 1;
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td'); td1.className = 'estado ' + (ok ? 'pasa' : 'falla'); td1.textContent = ok ? 'PASA' : 'FALLA';
+    var td2 = document.createElement('td'); td2.textContent = nombre;
+    if (error) { var s = document.createElement('small'); s.textContent = error; td2.appendChild(s); }
+    tr.appendChild(td1); tr.appendChild(td2); filas.appendChild(tr);
+    pintarTotal();
+  };
+})();
+</script>
+<script>
+// ---------- Respaldo (hito 1.6): ZIP, manifest, paquetes y ciclo de vida del almacén ----------
+// Sin dependencias. NO toca el localStorage real: antes de usar los almacenes se sustituye window.localStorage por un
+// doble en memoria (y al final se comprueba que lo real quedó igual). Las pruebas del ZIP y del manifest son funciones puras.
+(function () {
+  'use strict';
+  var R = Respaldo;
+  var enc = new TextEncoder();
+
+  // --- doble de localStorage ---
+  var memoria = {};
+  var doble = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(memoria, k) ? memoria[k] : null; },
+    setItem: function (k, v) { memoria[k] = String(v); },
+    removeItem: function (k) { delete memoria[k]; },
+    clear: function () { memoria = {}; },
+  };
+  var realAntes = null, original = null, aislado = false;
+  try { realAntes = window.localStorage.getItem('fotocabina-eventos'); } catch (e) { realAntes = null; }
+  try {
+    original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', { configurable: true, get: function () { return doble; } });
+    aislado = window.localStorage === doble;
+  } catch (e) { aislado = false; }
+
+  var pruebas = [];
+  function prueba(nombre, fn, usaAlmacen) { pruebas.push({ nombre: nombre, fn: fn, usaAlmacen: !!usaAlmacen }); }
+  function aserta(c, msg) { if (!c) throw new Error(msg || 'no se cumple'); }
+  function rechaza(promesa, codigo) {
+    return promesa.then(function () { throw new Error('debía rechazar con ' + codigo); }, function (e) { if (e.codigo !== codigo) throw new Error('código ' + e.codigo + ' en vez de ' + codigo + ' (' + e.message + ')'); });
+  }
+  function bytes(n, s) { var u = new Uint8Array(n); for (var i = 0; i < n; i++) u[i] = (i * 7 + s) & 255; return u; }
+  async function iguales(a, b) { var x = new Uint8Array(await a.arrayBuffer()), y = new Uint8Array(await b.arrayBuffer()); if (x.length !== y.length) return false; for (var i = 0; i < x.length; i++) if (x[i] !== y[i]) return false; return true; }
+
+  // ===== ZIP y CRC =====
+  prueba('CRC32 de "123456789" es 0xCBF43926 y se puede seguir por trozos', async function () {
+    var d = enc.encode('123456789');
+    aserta(R.crc32(d) === 0xCBF43926, 'crc distinto');
+    aserta(R.crc32(d.subarray(4), R.crc32(d.subarray(0, 4))) === 0xCBF43926, 'por trozos');
+  });
+  prueba('ZIP: ida y vuelta con nombres con tildes, archivo vacío y un binario de más de 4 MB', async function () {
+    var grande = new Blob([bytes(4500000, 3)]);
+    var zip = await R.abrirZip(await R.crearZip([
+      { nombre: 'datos/canción-ñandú.json', datos: '{"a":"ñ"}' },
+      { nombre: 'vacio.bin', datos: new Uint8Array(0) },
+      { nombre: 'archivos/000001.bin', datos: grande },
+    ]));
+    aserta(zip.entradas.length === 3, 'entradas');
+    for (var i = 0; i < zip.entradas.length; i++) await zip.verificar(zip.entradas[i]);
+    aserta(await zip.leerTexto(zip.porNombre.get('datos/canción-ñandú.json')) === '{"a":"ñ"}', 'texto con tildes');
+    aserta(zip.porNombre.get('vacio.bin').tamano === 0, 'vacío');
+    aserta(await iguales(await zip.abrirDatos(zip.porNombre.get('archivos/000001.bin')), grande), 'los bytes del binario cambiaron');
+  });
+  prueba('ZIP: los registros ZIP64 (forzados) también se leen de vuelta', async function () {
+    var zip = await R.abrirZip(await R.crearZip([{ nombre: 'a.txt', datos: 'hola' }, { nombre: 'b/ñ.txt', datos: 'mundo' }], { forzarZip64: true }));
+    aserta(zip.entradas.length === 2, 'entradas');
+    await zip.verificar(zip.porNombre.get('b/ñ.txt'));
+    aserta(await zip.leerTexto(zip.porNombre.get('a.txt')) === 'hola', 'texto');
+  });
+  prueba('ZIP: un byte cambiado hace fallar el CRC (CORRUPTO)', async function () {
+    var blob = await R.crearZip([{ nombre: 'a.txt', datos: 'hola mundo, esto se va a corromper' }]);
+    var b = new Uint8Array(await blob.arrayBuffer()); b[30 + 5 + 3] ^= 0xFF;
+    var zip = await R.abrirZip(new Blob([b]));
+    await rechaza(zip.verificar(zip.entradas[0]), 'CORRUPTO');
+  });
+  prueba('ZIP: un archivo que no es ZIP se rechaza (NO_ES_ZIP), también vacío o diminuto', async function () {
+    await rechaza(R.abrirZip(new Blob([enc.encode('esto es solo texto, de más de veintidós bytes')])), 'NO_ES_ZIP');
+    await rechaza(R.abrirZip(new Blob([])), 'NO_ES_ZIP');
+    await rechaza(R.abrirZip(new Blob([enc.encode('PK')])), 'NO_ES_ZIP');
+  });
+  prueba('ZIP: una entrada con compresión se rechaza con mensaje claro (COMPRIMIDO)', async function () {
+    var blob = await R.crearZip([{ nombre: 'a.txt', datos: 'hola' }]);
+    var b = new Uint8Array(await blob.arrayBuffer());
+    for (var i = 0; i < b.length - 4; i++) if (b[i] === 0x50 && b[i + 1] === 0x4b && b[i + 2] === 1 && b[i + 3] === 2) { b[i + 10] = 8; break; }
+    await rechaza(R.abrirZip(new Blob([b])), 'COMPRIMIDO');
+  });
+  prueba('ZIP: un directorio central cortado se rechaza sin lanzar excepciones raras (CORRUPTO o NO_ES_ZIP)', async function () {
+    var blob = await R.crearZip([{ nombre: 'a.txt', datos: 'hola' }, { nombre: 'b.txt', datos: 'chao' }]);
+    var b = new Uint8Array(await blob.arrayBuffer());
+    var cortado = new Blob([b.subarray(0, b.length - 30)]);
+    try { await R.abrirZip(cortado); throw new Error('debía rechazar'); } catch (e) { aserta(e.codigo === 'CORRUPTO' || e.codigo === 'NO_ES_ZIP', 'código ' + e.codigo); }
+  });
+
+  // ===== manifest =====
+  function manifestBase(extra) {
+    var m = { app: 'FotoCabina', formato: 1, tipo: 'respaldo', creadoEn: '2026-11-17T12:00:00.000Z', conFotos: true, conteos: { eventos: 0, plantillas: 0, sesiones: 0, archivos: 0, fotos: 0, congeladas: 0 } };
+    for (var k in (extra || {})) m[k] = extra[k];
+    return m;
+  }
+  prueba('Manifest: uno válido se acepta', async function () { aserta(R.validarManifest(manifestBase()).ok, 'debía aceptarlo'); });
+  prueba('Manifest: de una versión futura se rechaza con mensaje claro (VERSION_NUEVA)', async function () {
+    var r = R.validarManifest(manifestBase({ formato: R.FORMATO + 1 }));
+    aserta(!r.ok && r.codigo === 'VERSION_NUEVA' && /más nueva/.test(r.mensaje), 'no lo rechazó como versión nueva');
+  });
+  prueba('Manifest: sin app de FotoCabina, sin tipo o con conteos rotos se rechaza', async function () {
+    aserta(R.validarManifest(manifestBase({ app: 'Otra' })).codigo === 'NO_ES_FOTOCABINA', 'app');
+    aserta(R.validarManifest(null).codigo === 'NO_ES_FOTOCABINA', 'null');
+    aserta(R.validarManifest(manifestBase({ tipo: 'raro' })).codigo === 'ESTRUCTURA', 'tipo');
+    aserta(R.validarManifest(manifestBase({ conteos: { eventos: -1, plantillas: 0, sesiones: 0, archivos: 0, fotos: 0, congeladas: 0 } })).codigo === 'ESTRUCTURA', 'conteos');
+    aserta(R.validarManifest(manifestBase({ formato: 0 })).codigo === 'ESTRUCTURA', 'formato 0');
+  });
+  prueba('Nombres de archivo: respaldo y evento (con tildes y símbolos limpiados)', async function () {
+    var f = new Date(2026, 10, 17);
+    aserta(R.nombreRespaldo(f) === 'fotocabina-respaldo-2026-11-17.zip', R.nombreRespaldo(f));
+    aserta(R.nombreArchivoEvento('Boda de Ñandú & Fran ¡2026!', f) === 'evento-boda-de-nandu-fran-2026-2026-11-17.zip', R.nombreArchivoEvento('Boda de Ñandú & Fran ¡2026!', f));
+    aserta(/^evento-sin-nombre-/.test(R.nombreArchivoEvento('¡¡¡', f)), 'sin nombre');
+  });
+
+  // ===== leerPaquete (valida sin escribir) =====
+  function entradasPaquete(m, extra) {
+    var e = [
+      { nombre: 'manifest.json', datos: JSON.stringify(m) },
+      { nombre: 'datos/eventos.json', datos: '[]' }, { nombre: 'datos/contadores.json', datos: '{}' }, { nombre: 'datos/plantillas.json', datos: 'null' },
+      { nombre: 'datos/sesiones.json', datos: '[]' }, { nombre: 'datos/archivos.json', datos: '[]' }, { nombre: 'datos/congeladas.json', datos: '[]' },
+    ];
+    return e.concat(extra || []);
+  }
+  prueba('Paquete: uno mínimo válido se lee y se resume sin tocar ningún almacén', async function () {
+    var p = await R.leerPaquete(new File([await R.crearZip(entradasPaquete(manifestBase()))], 'r.zip'));
+    aserta(p.tipo === 'respaldo' && p.resumen.eventos === 0 && p.resumen.conFotos === true, 'resumen');
+  });
+  prueba('Paquete: de versión futura, ZIP ajeno y texto se rechazan antes de leer los datos', async function () {
+    await rechaza(R.leerPaquete(new File([await R.crearZip(entradasPaquete(manifestBase({ formato: 99 })))], 'f.zip')), 'VERSION_NUEVA');
+    await rechaza(R.leerPaquete(new File([await R.crearZip([{ nombre: 'hola.txt', datos: 'hola' }])], 'a.zip')), 'NO_ES_FOTOCABINA');
+    await rechaza(R.leerPaquete(new File([enc.encode('no soy un zip, pero soy largo para pasar el mínimo')], 't.zip')), 'NO_ES_ZIP');
+  });
+  prueba('Paquete: datos dañados (CRC malo en un dato) se rechazan (CORRUPTO)', async function () {
+    var blob = await R.crearZip(entradasPaquete(manifestBase(), [{ nombre: 'extra.txt', datos: 'AAAAAAAAAAAAAAAAAAAA' }]));
+    var b = new Uint8Array(await blob.arrayBuffer());
+    var s = enc.encode('AAAAAAAAAAAAAAAAAAAA'), pos = -1;
+    for (var i = 0; i < b.length - s.length; i++) { var ok = true; for (var j = 0; j < s.length; j++) if (b[i + j] !== s[j]) { ok = false; break; } if (ok) { pos = i; break; } }
+    aserta(pos >= 0, 'no se halló el dato'); b[pos + 3] = 66;
+    await rechaza(R.leerPaquete(new File([b], 'c.zip')), 'CORRUPTO');
+  });
+  prueba('Paquete: conteos que no cuadran o sesiones con archivos faltantes se rechazan (ESTRUCTURA)', async function () {
+    var m = manifestBase({ conteos: { eventos: 5, plantillas: 0, sesiones: 0, archivos: 0, fotos: 0, congeladas: 0 } });
+    await rechaza(R.leerPaquete(new File([await R.crearZip(entradasPaquete(m))], 'e.zip')), 'ESTRUCTURA');
+    var m2 = manifestBase({ conteos: { eventos: 0, plantillas: 0, sesiones: 1, archivos: 1, fotos: 1, congeladas: 0 } });
+    var e = entradasPaquete(m2).map(function (x) {
+      if (x.nombre === 'datos/sesiones.json') return { nombre: x.nombre, datos: '[{"id":"s-1"}]' };
+      if (x.nombre === 'datos/archivos.json') return { nombre: x.nombre, datos: '[{"id":"f-s-1-foto1","sesionId":"s-1","tipo":"foto","tamano":3,"entrada":"archivos/000001.bin"}]' };
+      return x;
+    });
+    await rechaza(R.leerPaquete(new File([await R.crearZip(e)], 'g.zip')), 'ESTRUCTURA');
+  });
+  prueba('Paquete: sin fotos no puede traer sesiones (coherencia de la casilla)', async function () {
+    var m = manifestBase({ conFotos: false, conteos: { eventos: 0, plantillas: 0, sesiones: 1, archivos: 0, fotos: 0, congeladas: 0 } });
+    var e = entradasPaquete(m).map(function (x) { return x.nombre === 'datos/sesiones.json' ? { nombre: x.nombre, datos: '[{"id":"s-1"}]' } : x; });
+    await rechaza(R.leerPaquete(new File([await R.crearZip(e)], 'h.zip')), 'ESTRUCTURA');
+  });
+
+  // ===== Sesiones del formato antiguo (v1): Blob dentro del registro =====
+  prueba('Sesión v1 (tira y gif como Blob dentro del registro): ida y vuelta por el ZIP con los mismos bytes', async function () {
+    var tira = new Blob([bytes(6000, 5)], { type: 'image/png' }), gif = new Blob([bytes(2500, 8)], { type: 'image/gif' });
+    var v1 = { id: 's-v1', evento: 'ev-1', fecha: '2026-01-01T00:00:00Z', fotos: ['data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,BBBB'], tira: tira, gif: gif };
+    var v2 = { id: 's-v2', version: 2, eventoId: 'ev-1', fotos: [], salidas: {} };
+    aserta(JSON.parse(JSON.stringify(v1)).tira && Object.keys(JSON.parse(JSON.stringify(v1)).tira).length === 0, 'sin la corrección JSON los dejaría vacíos');
+    var ext = R.extraerBlobsV1([v1, v2]);
+    aserta(ext.extras.length === 2 && ext.sesiones[0].tira === null && ext.sesiones[0].gif === null && ext.sesiones[1] === v2, 'extracción');
+    aserta(v1.tira === tira, 'no debe modificar el original');
+    var meta = ext.extras.map(function (a, i) { return { id: a.id, sesionId: a.sesionId, tipo: a.tipo, tamano: a.tamano, v1Campo: a.v1Campo, entrada: 'archivos/00000' + (i + 1) + '.bin' }; });
+    var zip = await R.abrirZip(await R.crearZip([{ nombre: 'sesiones.json', datos: JSON.stringify(ext.sesiones) }, { nombre: 'archivos.json', datos: JSON.stringify(meta) }].concat(ext.extras.map(function (a, i) { return { nombre: meta[i].entrada, datos: a.blob }; }))));
+    var sesLeidas = JSON.parse(await zip.leerTexto(zip.porNombre.get('sesiones.json')));
+    var metaLeida = JSON.parse(await zip.leerTexto(zip.porNombre.get('archivos.json')));
+    var preparados = []; for (var i = 0; i < metaLeida.length; i++) { await zip.verificar(zip.porNombre.get(metaLeida[i].entrada)); preparados.push({ id: metaLeida[i].id, sesionId: metaLeida[i].sesionId, tipo: metaLeida[i].tipo, v1Campo: metaLeida[i].v1Campo, blob: await zip.abrirDatos(zip.porNombre.get(metaLeida[i].entrada)) }); }
+    var rep = R.reponerBlobsV1(sesLeidas, preparados);
+    aserta(rep.archivos.length === 0, 'los Blob v1 no deben ir al almacén de archivos');
+    aserta(rep.sesiones[0].fotos.length === 2 && rep.sesiones[0].fotos[0] === v1.fotos[0], 'fotos como texto');
+    aserta(await iguales(rep.sesiones[0].tira, tira) && await iguales(rep.sesiones[0].gif, gif), 'los bytes cambiaron');
+    aserta(rep.sesiones[1].id === 's-v2' && rep.sesiones[1].version === 2, 'la v2 no cambia');
+  });
+
+  // ===== Avisos de lectura (nunca un respaldo "completo" en silencio) =====
+  prueba('Plantillas del editor dañadas: estadoContenedorParaRespaldo lo distingue de "no hay nada"', async function () {
+    memoria = {};
+    aserta(AlmacenPlantillas.estadoContenedorParaRespaldo() === 'ausente', 'ausente');
+    doble.setItem('fotocabina-editor-v1', '{esto no es json');
+    aserta(AlmacenPlantillas.estadoContenedorParaRespaldo() === 'danado', 'danado');
+    doble.setItem('fotocabina-editor-v1', JSON.stringify({ plantillas: [] }));
+    aserta(AlmacenPlantillas.estadoContenedorParaRespaldo() === 'valido', 'valido');
+  }, true);
+  prueba('Eventos dañados: exportarCrudo marca ilegible y no inventa eventos', async function () {
+    memoria = {}; doble.setItem('fotocabina-eventos', '{roto');
+    var x = AlmacenEventos.exportarCrudo();
+    aserta(x.ilegible === true && x.eventos.length === 0, 'debía marcar ilegible');
+    memoria = {}; aserta(AlmacenEventos.exportarCrudo().ilegible === false, 'vacío no es ilegible');
+  }, true);
+
+  // ===== AlmacenEventos con localStorage en memoria =====
+  var A = AlmacenEventos;
+  function nuevoEvento(nombre) { var e = A.crear({ nombre: nombre || 'Boda', fecha: '2026-12-01', plantillaId: 'pl-1' }); A.guardar(e); return e.id; }
+  function reiniciar() { memoria = {}; }
+
+  prueba('Ciclo de vida: marcarEnCurso pasa un próximo a en curso, anota lanzadoEn una sola vez y no baja a otros', async function () {
+    reiniciar(); var a = nuevoEvento('A'), b = nuevoEvento('B');
+    var r = A.marcarEnCurso(a); aserta(r.estado === 'en-curso' && !!r.lanzadoEn, 'no pasó a en curso');
+    var h = r.lanzadoEn; var r2 = A.marcarEnCurso(a); aserta(r2.lanzadoEn === h, 'la hora del primer lanzamiento cambió');
+    A.marcarEnCurso(b); aserta(A.obtener(a).estado === 'en-curso' && A.obtener(b).estado === 'en-curso', 'pueden convivir varios');
+  }, true);
+  prueba('Ciclo de vida: un archivado NO se lanza (marcarEnCurso lo deja archivado)', async function () {
+    reiniciar(); var a = nuevoEvento(); A.terminar(a);
+    var r = A.marcarEnCurso(a); aserta(r.estado === 'archivado', 'se lanzó un archivado');
+  }, true);
+  prueba('Ciclo de vida: terminar archiva, anota terminadoEn, suelta el evento activo y un archivado queda igual', async function () {
+    reiniciar(); var a = nuevoEvento(); A.marcarEnCurso(a); A.setActivo(a);
+    var r = A.terminar(a); aserta(r.estado === 'archivado' && !!r.terminadoEn, 'no archivó');
+    aserta(A.obtenerActivo() === null, 'siguió activo');
+    var t = r.terminadoEn; aserta(A.terminar(a).terminadoEn === t, 'cambió la hora de término');
+  }, true);
+  prueba('Ciclo de vida: reabrir un evento lanzado vuelve a en curso; uno que nunca se lanzó vuelve a próximo', async function () {
+    reiniciar(); var a = nuevoEvento('Lanzado'), b = nuevoEvento('Nunca');
+    A.marcarEnCurso(a); A.terminar(a); A.terminar(b);
+    var ra = A.reabrir(a), rb = A.reabrir(b);
+    aserta(ra.estado === 'en-curso' && !ra.terminadoEn, 'lanzado no volvió a en curso');
+    aserta(rb.estado === 'proximo' && !rb.terminadoEn, 'no lanzado no volvió a próximo');
+  }, true);
+  prueba('Ciclo de vida: reabrir un evento que no está archivado no cambia nada', async function () {
+    reiniciar(); var a = nuevoEvento(); aserta(A.reabrir(a).estado === 'proximo', 'próximo'); A.marcarEnCurso(a); aserta(A.reabrir(a).estado === 'en-curso', 'en curso');
+  }, true);
+  prueba('Ciclo de vida: fueLanzado solo mira la hora de lanzamiento', async function () {
+    aserta(A.fueLanzado(null) === false && A.fueLanzado({}) === false && A.fueLanzado({ congelado: { plantilla: {} } }) === false, 'falso esperado');
+    aserta(A.fueLanzado({ lanzadoEn: '2026-11-17T00:00:00Z' }) === true, 'verdadero esperado');
+  });
+  prueba('Ciclo de vida: cambiarPlantilla cambia solo la plantilla (la habilita) y no pisa el estado', async function () {
+    reiniciar(); var a = nuevoEvento(); A.marcarEnCurso(a);
+    var r = A.cambiarPlantilla(a, 'pl-2');
+    aserta(r.estado === 'en-curso' && r.plantillas.porDefecto === 'pl-2' && r.plantillas.habilitadas.indexOf('pl-2') >= 0 && r.plantillas.habilitadas.indexOf('pl-1') >= 0, JSON.stringify(r.plantillas));
+    aserta(A.cambiarPlantilla(a, '') === null && A.cambiarPlantilla(a, null) === null, 'una plantilla vacía no corresponde');
+  }, true);
+  prueba('Ciclo de vida: con un evento que no existe todo da null', async function () {
+    reiniciar(); nuevoEvento();
+    aserta(A.marcarEnCurso('no-existe') === null && A.terminar('no-existe') === null && A.reabrir('no-existe') === null && A.cambiarPlantilla('no-existe', 'pl-1') === null, 'debía dar null');
+  }, true);
+
+  // ===== importarCrudo / exportarCrudo / instantáneas =====
+  function evCrudo(id, nombre) { return { version: 2, id: id, nombre: nombre, fecha: '2026-12-01', estado: 'proximo' }; }
+  prueba('Respaldo de eventos: exportarCrudo en un equipo vacío no inventa los eventos de demostración', async function () {
+    reiniciar(); var x = A.exportarCrudo(); aserta(x.eventos.length === 0, 'creó eventos'); aserta(doble.getItem('fotocabina-eventos') === null, 'escribió sin pedirlo');
+  }, true);
+  prueba('Respaldo de eventos: sumar no pisa lo existente (gana lo que ya está) y es idempotente', async function () {
+    reiniciar(); var id = nuevoEvento('Original');
+    var datos = { eventos: [evCrudo(id, 'DEL RESPALDO'), evCrudo('ev-nuevo', 'Nuevo')], contadores: { 'ev-nuevo': 7 } };
+    var r1 = A.importarCrudo(datos, { modo: 'sumar' }); var r2 = A.importarCrudo(datos, { modo: 'sumar' });
+    aserta(r1.agregados === 1 && r1.omitidos === 1 && r2.agregados === 0 && r2.omitidos === 2, JSON.stringify([r1, r2]));
+    var lista = A.exportarCrudo(); aserta(lista.eventos.filter(function (e) { return e.id === id; }).length === 1 && lista.eventos.filter(function (e) { return e.id === id; })[0].nombre === 'Original' && lista.eventos.filter(function (e) { return e.id === 'ev-nuevo'; }).length === 1, 'pisó el existente o duplicó');
+    aserta(lista.contadores['ev-nuevo'] === 7, 'contador');
+  }, true);
+  prueba('Respaldo de eventos: reemplazar deja exactamente el respaldo y suelta el evento activo', async function () {
+    reiniciar(); var id = nuevoEvento('Viejo'); A.setActivo(id);
+    var r = A.importarCrudo({ eventos: [evCrudo('ev-a', 'A')], contadores: {} }, { modo: 'reemplazar' });
+    aserta(r.agregados === 1 && A.exportarCrudo().eventos.length === 1 && A.exportarCrudo().eventos[0].id === 'ev-a', 'no quedó exacto');
+    aserta(doble.getItem('fotocabina-evento-activo') === null, 'siguió el activo');
+  }, true);
+  prueba('Respaldo de eventos: los contadores quedan en el mayor valor (nunca repiten un número de sesión)', async function () {
+    reiniciar(); var id = nuevoEvento('C');
+    doble.setItem('fotocabina-eventos-contadores', JSON.stringify((function () { var o = {}; o[id] = 10; return o; })()));
+    var c = {}; c[id] = 4; var m = {}; m[id] = 25;
+    A.importarCrudo({ eventos: [evCrudo(id, 'C')], contadores: c }, { modo: 'sumar', minimos: m });
+    aserta(A.siguienteNumeroSesion(id, 0) === 26, 'el siguiente debía ser 26');
+  }, true);
+  prueba('Respaldo de eventos: la instantánea devuelve las claves exactas (también las que no existían)', async function () {
+    reiniciar(); var id = nuevoEvento('S'); A.setActivo(id);
+    var snap = A.tomarInstantanea(); var antes = JSON.stringify(memoria);
+    A.importarCrudo({ eventos: [evCrudo('ev-x', 'X')], contadores: { 'ev-x': 3 } }, { modo: 'reemplazar' });
+    aserta(JSON.stringify(memoria) !== antes, 'no cambió nada para deshacer');
+    A.devolverInstantanea(snap); aserta(JSON.stringify(memoria) === antes, 'no volvió igual');
+    reiniciar(); var vacia = A.tomarInstantanea(); A.importarCrudo({ eventos: [evCrudo('ev-y', 'Y')], contadores: {} }, { modo: 'sumar' });
+    A.devolverInstantanea(vacia); aserta(doble.getItem('fotocabina-eventos') === null, 'una clave que no existía debía borrarse');
+  }, true);
+  prueba('Respaldo de eventos: si no hay espacio para guardar, importarCrudo lanza (y se puede deshacer)', async function () {
+    reiniciar(); nuevoEvento('Q'); var snap = A.tomarInstantanea(); var antes = JSON.stringify(memoria);
+    var set = doble.setItem; doble.setItem = function () { throw new Error('cuota'); };
+    var fallo = false; try { A.importarCrudo({ eventos: [evCrudo('ev-z', 'Z')], contadores: {} }, { modo: 'sumar' }); } catch (e) { fallo = true; }
+    doble.setItem = set; A.devolverInstantanea(snap);
+    aserta(fallo, 'debía lanzar'); aserta(JSON.stringify(memoria) === antes, 'quedó distinto');
+  }, true);
+
+  // ===== AlmacenPlantillas (excepción de respaldo) =====
+  var P = AlmacenPlantillas;
+  function tpl(id) { return { id: id, nombre: 'T ' + id, papel: { anchoMm: 50.8, altoMm: 152.4, ppp: 300 }, elementos: [] }; }
+  prueba('Plantillas: agregar suma las nuevas, omite las que ya existen y conserva ultimaAbierta válido', async function () {
+    reiniciar(); doble.setItem('fotocabina-editor-v1', JSON.stringify({ plantillas: [tpl('a')], ultimaAbierta: 'a' }));
+    var r = P.agregarPlantillasDesdeRespaldo([tpl('a'), tpl('b')], { ultimaAbierta: 'b' });
+    var c = P.leerContenedorParaRespaldo();
+    aserta(r.agregadas === 1 && r.omitidas === 1 && c.plantillas.length === 2 && c.ultimaAbierta === 'a', JSON.stringify(r) + c.ultimaAbierta);
+  });
+  prueba('Plantillas: reemplazar deja el contenedor del respaldo (ultimaAbierta corregida si no existe) y null lo borra', async function () {
+    reiniciar(); P.reemplazarContenedorDesdeRespaldo({ plantillas: [tpl('x'), tpl('y')], ultimaAbierta: 'zzz' });
+    aserta(P.leerContenedorParaRespaldo().ultimaAbierta === 'x', 'ultimaAbierta');
+    P.reemplazarContenedorDesdeRespaldo(null); aserta(P.leerContenedorParaRespaldo() === null, 'no borró');
+  });
+  prueba('Plantillas: la instantánea devuelve el texto exacto, incluso si no había nada', async function () {
+    reiniciar(); var vacia = P.instantaneaParaRespaldo(); P.reemplazarContenedorDesdeRespaldo({ plantillas: [tpl('q')], ultimaAbierta: 'q' });
+    P.devolverInstantaneaDeRespaldo(vacia); aserta(doble.getItem('fotocabina-editor-v1') === null, 'debía quedar sin la clave');
+  });
+  prueba('Plantillas: copiaNormalizada + huella dan la misma identidad aunque cambien la fecha y el orden de claves', async function () {
+    var a = tpl('m'), b = { elementos: [], papel: { ppp: 300, altoMm: 152.4, anchoMm: 50.8 }, nombre: 'T m', id: 'm', modificada: 'otra fecha' };
+    aserta(await P.huella(P.copiaNormalizada(a)) === await P.huella(P.copiaNormalizada(b)), 'huellas distintas');
+    b.nombre = 'Otro'; aserta(await P.huella(P.copiaNormalizada(a)) !== await P.huella(P.copiaNormalizada(b)), 'huellas iguales con distinto contenido');
+  });
+
+  prueba('Plantillas: «Sumar» no pisa un contenedor dañado (lanza y deja el texto tal cual)', async function () {
+    reiniciar(); doble.setItem('fotocabina-editor-v1', '{"plantillas": [ roto');
+    var lanzo = false; try { P.agregarPlantillasDesdeRespaldo([tpl('n')], {}); } catch (e) { lanzo = true; }
+    aserta(lanzo, 'debía lanzar'); aserta(doble.getItem('fotocabina-editor-v1') === '{"plantillas": [ roto', 'pisó el texto dañado');
+  });
+  prueba('Paquete: un archivo con tipo "text/html" entra sin tipo; uno image/png lo conserva', async function () {
+    var m = manifestBase({ conteos: { eventos: 0, plantillas: 0, sesiones: 1, archivos: 2, fotos: 2, congeladas: 0 } });
+    var e = entradasPaquete(m, [{ nombre: 'archivos/000001.bin', datos: 'abc' }, { nombre: 'archivos/000002.bin', datos: 'def' }]).map(function (x) {
+      if (x.nombre === 'datos/sesiones.json') return { nombre: x.nombre, datos: '[{"id":"s-1"}]' };
+      if (x.nombre === 'datos/archivos.json') return { nombre: x.nombre, datos: JSON.stringify([
+        { id: 'a', sesionId: 's-1', tipo: 'foto', tamano: 3, mime: 'text/html', entrada: 'archivos/000001.bin' },
+        { id: 'b', sesionId: 's-1', tipo: 'foto', tamano: 3, mime: 'image/png', entrada: 'archivos/000002.bin' }]) };
+      return x;
+    });
+    var p = await R.leerPaquete(new File([await R.crearZip(e)], 'm.zip'));
+    aserta((await p.blobDe(p.datos.archivos[0])).type === '', 'dejó pasar text/html');
+    aserta((await p.blobDe(p.datos.archivos[1])).type === 'image/png', 'perdió image/png');
+  });
+
+  // ===== ejecución =====
+  (async function () {
+    for (var i = 0; i < pruebas.length; i++) {
+      var p = pruebas[i], ok = false, error = '';
+      if (p.usaAlmacen && !aislado) { error = 'no se pudo aislar localStorage; para no tocar tus datos reales esta prueba no se ejecuta'; }
+      else {
+        try { await p.fn(); ok = true; } catch (e) { error = (e && e.message) || String(e); }
+      }
+      window.registrarCaso('Respaldo · ' + p.nombre, ok, error);
+    }
+    // El localStorage real tiene que haber quedado igual.
+    var igual = true;
+    try { if (original) Object.defineProperty(window, 'localStorage', original); igual = window.localStorage.getItem('fotocabina-eventos') === realAntes; } catch (e) { igual = false; }
+    window.registrarCaso('Respaldo · el localStorage real no se tocó (los casos usaron un doble en memoria)', igual && aislado, aislado ? '' : 'no se pudo sustituir localStorage');
+  })();
 })();
 </script>
 </body>

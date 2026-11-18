@@ -549,6 +549,92 @@
     return n;
   }
 
+  // ---------- Respaldo y restauración (hito 1.6) ----------
+  // Funciones dedicadas para shared/respaldo.js (ninguna pantalla las llama directo). Trabajan en
+  // CRUDO sobre las claves de este almacén (eventos, contadores y evento activo) y pasan siempre por
+  // `persistir`, así que conservan sus protecciones: copia de la clave v1 antes de sobrescribir y
+  // aviso por cuota llena. Nunca crean los eventos de demostración (un equipo nuevo que restaura no
+  // debe quedar con eventos de ejemplo mezclados).
+
+  // Eventos guardados de verdad: [] si la clave no existe (sin crear los de demostración).
+  function eventosGuardados() {
+    const { texto, error } = leerCrudo();
+    if (!pendiente && !error && texto == null) return [];
+    return leerTodos();
+  }
+
+  // { eventos: [v2 normalizados], contadores: { [eventoId]: n }, ilegible } con copias propias, sin tocar nada.
+  // Los contadores se limitan a los eventos devueltos.
+  function exportarCrudo() {
+    // `ilegible` = hay texto guardado pero no se puede leer como lista de eventos (quien respalda debe avisarlo).
+    const { texto } = leerCrudo();
+    let ilegible = false;
+    if (texto != null) { try { ilegible = !Array.isArray(JSON.parse(texto)); } catch (e) { ilegible = true; } }
+    const eventos = clonar(eventosGuardados());
+    const todos = leerContadores();
+    const contadores = {};
+    eventos.forEach((e) => { if (Number.isFinite(todos[e.id])) contadores[e.id] = todos[e.id]; });
+    return { eventos, contadores, ilegible };
+  }
+
+  // Copia exacta de lo que hay guardado en las claves de eventos, para poder devolverlo si algo falla.
+  // Lanza si el almacenamiento no se puede leer (entonces no se empieza nada).
+  function tomarInstantanea() {
+    const claves = [CLAVE_EVENTOS, CLAVE_CONTADORES, CLAVE_ACTIVO];
+    const copia = {};
+    claves.forEach((k) => { copia[k] = localStorage.getItem(k); });
+    return copia;
+  }
+
+  // Devuelve las claves a como estaban en `tomarInstantanea()` y descarta lo pendiente en memoria.
+  function devolverInstantanea(copia) {
+    Object.keys(copia || {}).forEach((k) => {
+      if (copia[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, copia[k]);
+    });
+    pendiente = null;
+    ultimoError = null;
+  }
+
+  // Escribe eventos y contadores de un respaldo. Lanza un Error (con mensaje para el operador) si no se
+  // pudo guardar; quien llama debe devolver la instantánea.
+  //   datos    = { eventos: [...], contadores: { id: n } }
+  //   opciones = { modo: 'sumar' | 'reemplazar', minimos: { id: n } }
+  // `sumar`: los eventos que ya existen por id se dejan como están (se cuentan como omitidos). `reemplazar`:
+  // deja exactamente los del respaldo y suelta el evento activo. Los contadores quedan en el mayor valor entre
+  // lo guardado, lo del respaldo y `minimos` (el n.º más alto de las sesiones restauradas): nunca repiten un número.
+  // Devuelve { agregados, omitidos }.
+  function importarCrudo(datos, opciones) {
+    const op = esObjeto(opciones) ? opciones : {};
+    const reemplazar = op.modo === 'reemplazar';
+    const d = esObjeto(datos) ? datos : {};
+    const entrantes = [];
+    const vistos = new Set();
+    (Array.isArray(d.eventos) ? d.eventos : []).forEach((crudo) => {
+      const e = normalizar(clonar(crudo), { valor: false });
+      if (!e || vistos.has(e.id)) return;
+      vistos.add(e.id);
+      entrantes.push(e);
+    });
+    const existentes = reemplazar ? [] : eventosGuardados();
+    const ids = new Set(existentes.map((e) => e.id));
+    const nuevos = [];
+    let omitidos = 0;
+    entrantes.forEach((e) => { if (ids.has(e.id)) omitidos += 1; else { ids.add(e.id); nuevos.push(e); } });
+    const lista = reemplazar ? nuevos : existentes.concat(nuevos);
+    if (!persistir(lista)) throw new Error((ultimoError && ultimoError.mensaje) || 'No se pudieron guardar los eventos en este equipo.');
+    const previos = reemplazar ? {} : leerContadores();
+    const contadores = {};
+    const unir = (id, n) => { if (Number.isFinite(n)) contadores[id] = Math.max(contadores[id] || 0, n); };
+    Object.keys(previos).forEach((id) => unir(id, previos[id]));
+    const entrada = esObjeto(d.contadores) ? d.contadores : {};
+    Object.keys(entrada).forEach((id) => unir(id, entrada[id]));
+    const minimos = esObjeto(op.minimos) ? op.minimos : {};
+    Object.keys(minimos).forEach((id) => unir(id, minimos[id]));
+    localStorage.setItem(CLAVE_CONTADORES, JSON.stringify(contadores));
+    if (reemplazar) localStorage.removeItem(CLAVE_ACTIVO);
+    return { agregados: nuevos.length, omitidos };
+  }
+
   // ---------- Respaldo: PIN del formato anterior ----------
   // Los eventos v1 podían traer un PIN propio. La cabina lo pasa al Equipo una vez; como la
   // migración a v2 lo quita de los eventos, se busca en el respaldo de la clave vieja.
@@ -628,6 +714,10 @@
     fueLanzado,
     cambiarPlantilla,
     siguienteNumeroSesion,
+    exportarCrudo,
+    importarCrudo,
+    tomarInstantanea,
+    devolverInstantanea,
     pinAntiguoDelRespaldo,
     limpiarPinsDelRespaldo,
     errorDeGuardado,
