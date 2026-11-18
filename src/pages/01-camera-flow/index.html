@@ -546,7 +546,7 @@
           </label>
         </div>
         <p class="drawer-help drawer-help--first" id="c4RolloEstado">Configura cuántas hojas trae el rollo para recibir un aviso antes de que se acabe.</p>
-        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4CambioRollo" type="button">Cambié el papel y la cinta</button>
+        <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4CambioRollo" type="button">Rollo nuevo</button>
         <p class="drawer-help drawer-help--first" id="c4Totales"></p>
 
         <h4 class="c4-sub">Trabajos de impresión</h4>
@@ -622,6 +622,18 @@
         <div class="soon-actions">
           <button class="ds-btn ds-btn--ghost ds-btn--compact" id="endCancelBtn" type="button">Cancelar</button>
           <button class="ds-btn ds-btn--destructive ds-btn--compact" id="endAcceptBtn" type="button">Terminar evento</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmación de "Rollo nuevo": reinicia el conteo del rollo de esta impresora (se acumula entre eventos) -->
+    <div class="soon-overlay" id="rolloOverlay" data-visible="false">
+      <div class="soon-card" role="dialog" aria-modal="true" aria-labelledby="rolloTitulo" aria-describedby="rolloTexto">
+        <h2 class="soon-title" id="rolloTitulo">Rollo nuevo</h2>
+        <p class="soon-text" id="rolloTexto"></p>
+        <div class="soon-actions">
+          <button class="ds-btn ds-btn--ghost ds-btn--compact" id="rolloCancelBtn" type="button">Cancelar</button>
+          <button class="ds-btn ds-btn--secondary ds-btn--compact" id="rolloOkBtn" type="button">Sí, puse papel y cinta nuevos</button>
         </div>
       </div>
     </div>

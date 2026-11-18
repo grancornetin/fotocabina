@@ -737,6 +737,10 @@
   const endText = q('#endText');
   const endAcceptBtn = q('#endAcceptBtn');
   const endCancelBtn = q('#endCancelBtn');
+  const rolloOverlay = q('#rolloOverlay');
+  const rolloTexto = q('#rolloTexto');
+  const rolloOkBtn = q('#rolloOkBtn');
+  const rolloCancelBtn = q('#rolloCancelBtn');
 
   function marcarEventoEnCurso() {
     if (eventoActual.id === 'demo' || typeof AlmacenEventos === 'undefined') return;
@@ -2358,9 +2362,9 @@
     if (document.activeElement !== c4.avisoRollo) c4.avisoRollo.value = String(perfil.avisoRestantes);
     const rollo = e.rollo;
     c4.rolloEstado.textContent = !rollo.configurado ? 'Configura cuántas hojas trae el rollo para recibir un aviso antes de que se acabe.'
-      : rollo.aviso === 'agotado' ? `El rollo ya llegó a sus ${rollo.total} hojas según el conteo: cámbialo y toca "Cambié el papel y la cinta".`
+      : rollo.aviso === 'agotado' ? `El rollo ya llegó a sus ${rollo.total} hojas según el conteo: cuando lo cambies toca "Rollo nuevo".`
       : rollo.aviso === 'bajo' ? `Quedan unas ${rollo.restantes} hojas del rollo: ten papel y cinta a mano.`
-      : `Quedan unas ${rollo.restantes} de ${rollo.total} hojas del rollo (según el conteo).`;
+      : `Quedan unas ${rollo.restantes} de ${rollo.total} hojas del rollo (según el conteo, sumando todos los eventos desde el último «Rollo nuevo»).`;
     c4.rolloEstado.dataset.tono = rollo.aviso ? 'aviso' : '';
     const cont = impresion.contadores().porImpresora[perfil.impresoraId];
     c4.totales.textContent = cont ? `Esta impresora lleva ${plural(cont.impresas, 'hoja', 'hojas')} en total${cont.cambioEn ? `; último cambio de rollo: ${formatearFecha(cont.cambioEn).replace(/\.$/, '')}` : ''}.` : 'Esta impresora todavía no imprimió nada.';
@@ -2410,7 +2414,31 @@
   c4.copiasMas.addEventListener('click', () => cambiarCopiasDelEvento(1));
   c4.hojasRollo.addEventListener('change', () => { impresion.guardarPerfil({ hojasPorRollo: c4.hojasRollo.value }); refrescarImpresora(true); });
   c4.avisoRollo.addEventListener('change', () => { impresion.guardarPerfil({ avisoRestantes: c4.avisoRollo.value }); refrescarImpresora(true); });
-  c4.cambioRollo.addEventListener('click', () => { impresion.cambiarRollo(); avisarEnPanel('Listo: el conteo del rollo volvió a cero.'); refrescarImpresora(true); });
+  // "Rollo nuevo": el conteo del rollo es de esta impresora y se acumula entre eventos; solo este botón lo reinicia, y pide confirmar.
+  const rolloAbierto = () => rolloOverlay.dataset.visible === 'true';
+  c4.cambioRollo.addEventListener('click', () => {
+    if (rolloAbierto()) return;
+    const r = impresion.restantesRollo();
+    const nombre = impresion.estado('ambos').impresora.nombre;
+    rolloTexto.textContent = `El conteo del rollo de ${nombre} vuelve a cero${r.desdeCambio ? ` (llevaba ${plural(r.desdeCambio, 'hoja', 'hojas')}, sumando todos los eventos)` : ''}. `
+      + 'Confírmalo solo si ya pusiste papel y cinta nuevos: empezar otro evento no lo reinicia. El conteo de hojas de cada evento no cambia.';
+    cerrarDrawer();
+    rolloOverlay.dataset.visible = 'true';
+    rolloCancelBtn.focus();
+  });
+  function cerrarRollo() {
+    rolloOverlay.dataset.visible = 'false';
+    abrirDrawer('seccionImpresion');
+    try { c4.cambioRollo.focus(); } catch (e) { /* sin foco */ }
+  }
+  rolloCancelBtn.addEventListener('click', cerrarRollo);
+  rolloOverlay.addEventListener('click', (e) => { if (e.target === rolloOverlay) cerrarRollo(); });
+  rolloOkBtn.addEventListener('click', () => {
+    impresion.cambiarRollo();
+    cerrarRollo();
+    avisarEnPanel('Listo: el conteo del rollo volvió a cero.');
+    refrescarImpresora(true);
+  });
   c4.prueba.addEventListener('click', () => {
     impresion.encolar({ sesionId: null, eventoId: null, eventoNombre: 'Prueba', copias: 1, origen: 'prueba' });
     avisarEnPanel('Hoja de prueba enviada a la fila.');
@@ -2864,6 +2892,11 @@
     if (terminarEventoAbierto()) {
       if (e.key === 'Escape') { e.preventDefault(); cerrarTerminarEvento(); }
       else if (e.key === 'Tab') trampaFocoTerminar(e);
+      return;
+    }
+    if (rolloAbierto()) {
+      if (e.key === 'Escape') { e.preventDefault(); cerrarRollo(); }
+      else if (e.key === 'Tab') trampaFocoEn(rolloOverlay, e);
       return;
     }
     if (limiteAbierto()) {
