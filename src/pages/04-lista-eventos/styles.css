@@ -567,25 +567,8 @@ img, svg { display: block; }
 
 .event-launch-btn {
   margin-left: auto;
-  appearance: none;
-  border: none;
-  cursor: pointer;
-  background: var(--color-lime);
-  color: var(--color-lime-ink);
-  font-family: var(--font-sans);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  height: 36px;
-  padding: 0 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: box-shadow 200ms var(--ease-standard), transform 160ms var(--ease-standard);
 }
-.event-launch-btn svg { width: 15px; height: 15px; }
-.event-launch-btn:hover { box-shadow: var(--glow-accent); }
-.event-launch-btn:active { transform: scale(0.96); }
+/* "Lanzar" es un botón normal (secundario, mismo patrón que .event-text-btn): el único lima de la pantalla es "Crear evento" (hito B). */
 
 /* ---------- Estado vacío ---------- */
 

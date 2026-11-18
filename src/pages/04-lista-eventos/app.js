@@ -177,8 +177,8 @@
       ? '<button class="event-text-btn event-text-btn--end" data-action="reabrir" title="Reabrir evento" aria-label="Reabrir evento">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 18v-6h6"/></svg>Reabrir' +
         '</button>'
-      : '<button class="event-launch-btn" data-action="lanzar">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>' +
+      : '<button class="event-text-btn event-launch-btn" data-action="lanzar">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>' +
           'Lanzar' +
         '</button>';
 

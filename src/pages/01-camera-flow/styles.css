@@ -151,6 +151,8 @@ button { font-family: inherit; }
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* El panel de Ajustes cerrado espera fuera de pantalla (translateX(100%)); sin esto sumaba su ancho al de la página (hito B). */
+  overflow: hidden;
 }
 
 /* ---------- Header de operador ---------- */

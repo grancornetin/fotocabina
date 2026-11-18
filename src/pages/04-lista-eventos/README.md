@@ -37,7 +37,7 @@ Esta pantalla carga `../shared/almacen-plantillas.js` (nombres de plantilla) y `
 - **Conteo real:** cada tarjeta cuenta las sesiones guardadas ("2 sesiones · 1 incompleta"), también en Archivados.
 - **La lista no se queda con datos viejos:** vuelve a leer eventos y sesiones cuando otra pestaña cambia los eventos (evento `storage`), cuando se vuelve a la pestaña y cuando el navegador muestra la copia guardada al volver con "atrás".
 - **Viene de "Terminar evento" de la cabina:** `index.html?terminado=<id>` abre directo en Archivados con el aviso "Evento terminado. Quedó en Archivados: lo puedes reabrir desde ahí." y limpia el parámetro de la dirección (ver `docs/FLUJO_NAVEGACION.md` para actualizar).
-- **Un solo botón lima por pantalla:** "Terminar evento" y "Reabrir" no son lima. Sigue pendiente la decisión de diseño sobre los "Lanzar" lima de cada tarjeta junto a "Crear evento".
+- **Un solo botón lima por pantalla:** "Terminar evento" y "Reabrir" no son lima. **Hito B (2026-11-18):** el "Lanzar" de cada tarjeta ya no es lima: es un botón normal con borde (mismo patrón de `.event-text-btn`, conserva su ícono de "play" y su lugar a la derecha de la fila) en claro y oscuro. El único lima de la pantalla es "Crear evento". Tampoco cambia con la etiqueta "No lanzable": solo es un botón neutro, la lógica no se tocó.
 
 ## "No lanzable" (hito 0.3)
 
@@ -49,7 +49,7 @@ Cada tarjeta de un evento próximo o en curso muestra una etiqueta roja "No lanz
 - **"Importar evento"** (botón **secundario** en el encabezado, junto a "Crear evento", que sigue siendo el único lima del encabezado) abre el selector de archivo, valida el paquete y muestra un cuadro con el resumen. Si el id del evento ya existe en este equipo, entra como **copia nueva** "… (importado)" sin tocar el existente; si no, conserva su id. Un evento importado conserva su estado y nunca queda como evento activo. Al terminar, la lista cambia a la pestaña del estado del evento y avisa. Un respaldo completo elegido por error se rechaza con "restáuralo desde Respaldo".
 - **Aviso de espacio:** con 80 % o más de uso aparece, sobre las pestañas, "Queda poco espacio en este equipo. Haz un respaldo y libera lo que ya no uses." con enlace a Respaldo. No bloquea nada y no hay aviso si el navegador no informa el espacio. Se revisa al abrir, al volver a la pestaña y tras importar.
 - Los cuadros de exportar/importar tienen `role="dialog"`, `aria-modal`, foco en Cancelar, trampa de foco, Escape (no mientras trabajan) y foco de vuelta; el progreso va en una región `aria-live`. Esta pantalla ahora también carga `../shared/respaldo.js`.
-- **Pendiente de diseño (hito siguiente):** los botones "Lanzar" lima de cada tarjeta (junto a "Crear evento") no se tocaron.
+- Los "Lanzar" por tarjeta ya no son lima (hito B, ver arriba).
 
 ## Pendiente
 

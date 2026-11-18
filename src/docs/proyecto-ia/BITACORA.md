@@ -147,3 +147,9 @@
 - **Por qué:** todo vivía solo en el navegador; borrar datos del sitio lo perdía todo (hallazgo 4, decisión D7).
 - **Reservas:** fotos sin cifrar y sin PIN; restaurar con editor abierto puede pisar; sin prueba de varios GB; prueba manual del dueño pendiente. Detalle en `ARQUITECTURA_FLUJO.md` 7.9.
 - **Estado:** HECHO, certificado; commiteado.
+
+## [2026-11-18] hito | B cerrado: un solo lima en la lista y cabina sin desborde móvil
+- **Quién:** orquestador + equipo (frontend construyó; Evidence Collector certificó comparando contra la versión anterior en 390 y 1366 px, con sesión completa de invitado; sin Reality Checker aparte por ser un cambio de 2 líneas de estilo, revisado por el orquestador).
+- **Qué:** "Lanzar" de cada tarjeta pasa a botón normal (el lima queda para "Crear evento"); la cabina 01 ya no mide 780 px a 390 px (`overflow: hidden` en `.cabin`). Sin cambios de comportamiento.
+- **Observación abierta:** un evento "No lanzable" aún muestra "Lanzar" habilitado y lleva a la cabina, que muestra el bloqueo.
+- **Estado:** HECHO, certificado; commiteado.
