@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-18 (hito 3: sección 3.15, impresión con impresora simulada; antes, hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-18 (hito 3b: sección 3.16, decisiones sobre hojas, rollo, copias y borrar; antes, hito 3: sección 3.15, impresión con impresora simulada; antes, hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -300,6 +300,13 @@ Construido contra una impresora **simulada** detrás de un adaptador (`pages/sha
 - **Copias adicionales solo del operador** (con PIN). Conteo de hojas por evento y por impresora; una hoja 4 x 6 con dos tiras es 1 hoja.
 - **D2 aplicada:** con la impresora en problemas, "Lanzar evento" se bloquea en "Solo impresión" y en "Ambos"; "Solo digital" no la mira.
 - **Pendientes:** impresión real, estado real de la impresora, panel en vivo (C5), detalle (C6), errores (C7) y el conteo de hojas dentro del respaldo. La prueba técnica de escritorio (D8) está preparada en `docs/PRUEBA_TECNICA_ESCRITORIO.md` y espera el visto bueno del dueño.
+
+### 3.16 Hito 3b: decisiones del dueño sobre hojas, rollo, copias y borrar (2026-11-18)
+- **El conteo de hojas viaja en el respaldo y en "Exportar/Importar evento"** (tope por evento y rollo por impresora).
+- **El rollo es un acumulado por impresora que pasa de un evento a otro;** solo se reinicia con la acción explícita "Rollo nuevo". El tope de hojas sigue siendo por evento.
+- **"Copias adicionales (operador)" no lleva PIN;** se pide en modo operador (galería), no en la pantalla del invitado.
+- **Con impresión automática, nada sale a la impresora hasta que el invitado confirma;** "Borrar y empezar de nuevo" lo cancela sin gastar hoja ni tope y lleva a la pantalla de inicio (no repite la sesión; cambia lo anotado en 3.x sobre "Borrar y repetir sesión").
+- **La prueba técnica de escritorio (D8) se personalizó** a HiTi P510L, Canon SELPHY CP1500 y Canon EOS T5; sigue sin ejecutarse.
 
 ## 4. Requisitos del editor de layouts
 

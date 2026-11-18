@@ -90,7 +90,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### A5 · Revisión de la sesión
 - **Llega:** desde A3, al completar la última foto.
-- **Sale:** confirma → A6 · repite una foto → vuelve a A3 solo para esa, luego vuelve acá · "Borrar y repetir sesión" → reinicia desde A3/A1.
+- **Sale:** confirma → A6 · repite una foto → vuelve a A3 solo para esa, luego vuelve acá · "Borrar y repetir sesión" → reinicia desde A3/A1 (en la revisión A5 el botón se llama "Repetir toda la sesión" y sigue yendo a A3).
 - **Feliz:** ve las N fotos, confirma, pasa a composición.
 - **Errores/bordes:**
   - Una foto salió con error de captura → debe marcarse visualmente, forzar "Repetir" antes de poder confirmar.
@@ -110,8 +110,8 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
 
 ### A7 · Resultado final
 - **Llega:** desde A6, al terminar la composición.
-- **Sale:** "Borrar y repetir sesión" → A3/A1 · "Finalizar" → A1 (marca finalizada) · timeout de inactividad (nunca/30/60/90 s, aviso en últimos 10 s) → A1 sola, sesión ya guardada · **Imprimir → A9** (hito 3: ya no abre el diálogo del navegador; el pedido va a la cola de impresión) · **"Copias adicionales (operador)" → PIN → diálogo de cantidad → A9** (el invitado no las pide).
-- **Impresión en A7 (hito 3, 2026-11-18):** con **impresión automática** (`impresionAuto` del evento) la hoja se manda sola al terminar la tira y el invitado no ve "Imprimir": ve una línea de estado ("Imprimiendo tu tira…", "Tu tira fue enviada a la impresora"). Sin impresión automática, "Imprimir" manda una sola vez las copias del evento (después queda "Enviado"). El botón "Copias adicionales (operador)" está siempre a la vista en los modos que imprimen, pide el PIN del equipo y abre un diálogo con la cantidad; muestra cuántas hojas lleva el evento y cuántas quedan del tope. Si el evento ya llegó a su tope, A7 no ofrece imprimir ni copias y lo explica; el invitado ya vio el aviso antes de tomar las fotos (ver A1 → A3 abajo).
+- **Sale:** "Borrar y empezar de nuevo" (hito 3b, antes "Borrar y repetir sesión") → A1 siempre: borra la sesión con sus fotos, cancela lo que esperaba o estaba en la fila y no repite la sesión actual; se esconde si una hoja ya salió · "Finalizar" → A1 (marca finalizada; confirma y libera la impresión automática que esperaba) · timeout de inactividad (nunca/30/60/90 s, aviso en últimos 10 s) → A1 sola, sesión ya guardada · **Imprimir → A9** (hito 3: ya no abre el diálogo del navegador; el pedido va a la cola de impresión) · **Copias adicionales (hito 3b): ya no están en A7**; se piden en A11 (galería, modo operador) › detalle › "Copias adicionales" → diálogo de cantidad → A9, sin PIN propio (ya se entró con el del equipo).
+- **Impresión en A7 (hito 3, 2026-11-18):** con **impresión automática** (`impresionAuto` del evento) la hoja se manda sola al terminar la tira y el invitado no ve "Imprimir": ve una línea de estado ("Imprimiendo tu tira…", "Tu tira fue enviada a la impresora"). Sin impresión automática, "Imprimir" manda una sola vez las copias del evento (después queda "Enviado"). Hito 3b: con impresión automática el trabajo espera a que el invitado confirme (Finalizar, volver al inicio, salir al operador o 20 s) y "Borrar y empezar de nuevo" lo descarta sin gastar hoja. Las copias adicionales ya no se piden en A7: van en A11 (galería, modo operador) sin PIN propio.
 - **Según el modo de entrega (hito 1.2, 2026-11-17):** lo que ofrece A7 sale del modo congelado en **esa** sesión. Solo impresión: tira e "Imprimir", sin QR, descarga, compartir, pestañas ni GIF. Solo digital: sin "Imprimir". Ambos y demostración sin evento: todo. Editar el evento después no cambia las sesiones ya tomadas.
 - **Feliz:** tabs Tira/Fotos/GIF, imprime y/o descarga, escanea QR, toca "Finalizar" o se va.
 - **Errores/bordes:**
@@ -135,7 +135,7 @@ Cada pantalla tiene: **Cómo se llega** (todos los caminos posibles), **Cómo se
   - Doble escaneo/descarga repetida → no duplica ni bloquea, "Descargado" es idempotente.
 
 ### A9 · Imprimiendo (carga) — *Construido en el navegador con impresora simulada (hito 3, 2026-11-18)*
-- **Llega:** desde A7 al tocar "Imprimir", al terminar la tira si el evento imprime solo (impresión automática), desde el diálogo de copias adicionales (operador, con PIN) o desde "Reimprimir" de la galería (A11).
+- **Llega:** desde A7 al tocar "Imprimir", al confirmar el resultado cuando el evento imprime solo (impresión automática; hito 3b: ya no al mostrarlo), o desde "Copias adicionales" del detalle de sesión en la galería (A11, modo operador, sin PIN propio).
 - **Sale:** automático al confirmar que el trabajo entró a la cola → vuelve a A7 sin esperar (la tarjeta "Enviado a imprimir" dura unos 2,6 s, deja pasar los toques y no bloquea al siguiente invitado). Con una impresora que no está lista, la tarjeta pasa a la variante amable de A10 (ver abajo).
 - **Feliz:** "Enviado a imprimir · N hojas". Si el tope dejó imprimir menos hojas que las pedidas: "Se imprime 1 de 3 hojas: era lo que quedaba del límite del evento".
 - **Qué hace de verdad:** `encolar` guarda el trabajo (síncrono, antes de intentar nada) y la cola lo manda a la impresora aparte. Hoy la impresora es **simulada** (`shared/impresion.js`); el adaptador real se enchufa después sin tocar esta pantalla.

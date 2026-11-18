@@ -1513,8 +1513,6 @@ button { font-family: inherit; }
 }
 .print-status[data-tono="aviso"] { color: var(--color-amber); border-color: rgba(255, 177, 61, 0.35); background: rgba(255, 177, 61, 0.08); }
 
-.extra-copies-btn { align-self: flex-start; }
-.extra-copies-btn svg { width: 16px; height: 16px; flex: none; }
 
 /* A9: tarjeta breve centrada en la parte baja; deja pasar los toques para no frenar a nadie */
 .print-sent {

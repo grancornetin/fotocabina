@@ -95,7 +95,6 @@
 
   const printStatus = q('#printStatus');
   const printLabel = q('#printLabel');
-  const extraCopiesBtn = q('#extraCopiesBtn');
   const printSent = q('#printSent');
   const printSentTitle = q('#printSentTitle');
   const printSentSub = q('#printSentSub');
@@ -132,6 +131,17 @@
     return blob ? { blob, medidas: guardada.impresion || null } : null;
   }
   const impresion = (typeof Impresion !== 'undefined') ? Impresion.crearServicio({ resolverContenido: contenidoDeImpresion, topeDe: (id) => topeVigenteDe(id) }) : null;
+  // Espera de confirmación de la impresión automática (ver "Impresión automática" más abajo).
+  const ESPERA_CONFIRMACION_MS = 20000;
+  const esperaImpresion = (typeof Impresion !== 'undefined') ? Impresion.crearEspera({
+    ms: ESPERA_CONFIRMACION_MS,
+    alLiberar: (p) => {
+      avisarEnvio(enviarAImprimir({ sesion: p.sesion, copias: p.copias, origen: 'auto', topeHojas: p.topeHojas }), true);
+      actualizarEstadoImpresionResultado();
+    },
+  }) : { armar() {}, confirmar() {}, descartar() {}, enEspera() { return false; } };
+  const liberarImpresionEnEspera = () => { try { esperaImpresion.confirmar(); } catch (e) { /* nunca debe impedir salir de la pantalla */ } };
+  const descartarImpresionEnEspera = () => esperaImpresion.descartar();
 
   // Ajustes de sesión del operador. Si la cabina se abrió desde "Lanzar" en la lista de
   // eventos (04-lista-eventos), el evento activo del almacén compartido (shared/almacen-
@@ -1110,6 +1120,7 @@
 
   function exitEvent() {
     detenerTemporizadorInicio();
+    liberarImpresionEnEspera();
     if (sessionActive) cancelRequested = true;
     cerrarSesionAbierta();
     cabin.classList.remove('is-guest-mode');
@@ -1151,6 +1162,7 @@
     interstitialLayer.dataset.visible = 'false';
     pauseOverlay.dataset.visible = 'false';
     pauseBtn.hidden = true;
+    liberarImpresionEnEspera(); // ya con el resultado oculto: confirma la impresión automática que esperaba
   }
 
   // ---------- Sesión de captura ----------
@@ -1455,17 +1467,15 @@
     renderPinDots();
     pinHint.dataset.bloqueo = 'false';
     pinMensaje(TEXTOS_PIN[pinFlujo.pasos[pinFlujo.paso]], false);
-    pinTitle.textContent = pinFlujo.modo === 'entrar' || pinFlujo.modo === 'operar' ? 'Acceso de operador' : (pinFlujo.modo === 'crear' ? 'Crea tu PIN de operador' : 'Cambiar PIN');
-    if (pinFlujo.modo === 'operar') pinMensaje('Ingresa el PIN para pedir copias adicionales.', false);
+    pinTitle.textContent = pinFlujo.modo === 'entrar' ? 'Acceso de operador' : (pinFlujo.modo === 'crear' ? 'Crea tu PIN de operador' : 'Cambiar PIN');
     actualizarBloqueoPin();
   }
 
   function abrirPin(modo = 'entrar', alTerminar = null, alCerrar = null) {
     const definido = AjustesEquipo.estadoPin().definido;
     if (modo === 'entrar' && !definido) { exitEvent(); return; } // sin PIN en el equipo, nadie queda encerrado
-    if (modo === 'operar' && !definido) { alTerminar(); return; } // sin PIN en el equipo, cualquiera es operador
-    const pasos = modo === 'entrar' || modo === 'operar' ? ['verificar'] : (definido ? ['actual', 'nuevo', 'repetir'] : ['nuevo', 'repetir']);
-    pinFlujo = { modo: modo === 'entrar' || modo === 'operar' ? modo : (definido ? 'cambiar' : 'crear'), pasos, paso: 0, nuevo: '', alTerminar, alCerrar };
+    const pasos = modo === 'entrar' ? ['verificar'] : (definido ? ['actual', 'nuevo', 'repetir'] : ['nuevo', 'repetir']);
+    pinFlujo = { modo: modo === 'entrar' ? modo : (definido ? 'cambiar' : 'crear'), pasos, paso: 0, nuevo: '', alTerminar, alCerrar };
     pinOverlay.dataset.visible = 'true';
     mostrarPaso();
     if (sessionActive && !paused) {
@@ -1502,7 +1512,6 @@
         const resultado = await AjustesEquipo.verificarPin(pinBuffer);
         if (pinFlujo !== flujo) return; // se canceló mientras se verificaba
         if (resultado.ok) {
-          if (paso === 'verificar' && flujo.modo === 'operar') { flujo.alCerrar = null; cerrarPin(); if (flujo.alTerminar) flujo.alTerminar(); return; }
           if (paso === 'verificar') { pausadoPorPin = false; cerrarPin(); exitEvent(); return; }
           flujo.paso += 1;
           mostrarPaso();
@@ -2051,6 +2060,9 @@
 
   // Lo que ve el invitado sobre su impresión (sin términos técnicos).
   function resumenImpresionSesion(sesionId) {
+    if (esperaImpresion.enEspera(sesionId)) {
+      return { tono: 'ok', texto: 'Tu tira se imprimirá en unos segundos o cuando toques Finalizar. ¿No te gustó? Toca «Borrar y empezar de nuevo» y no se imprime.' };
+    }
     if (!impresion || !sesionId) return null;
     const trabajos = impresion.listar({ sesionId }).filter((t) => t.estado !== 'cancelado');
     if (!trabajos.length) return null;
@@ -2070,16 +2082,28 @@
     }
     printStatus.hidden = !r;
     if (r) { printStatus.textContent = r.texto; printStatus.dataset.tono = r.tono; }
+    // Lo que ya salió de la impresora no se puede recuperar: el botón de borrar se esconde para no prometer lo imposible.
+    retakeSessionBtn.hidden = !result.hidden && !!sesionActual && hojaYaSalio(sesionActual.id);
   }
 
   const sesionesImpresasSolas = new Set();
+
+  // Impresión automática (hito 3b, decisión del dueño 2026-11-18): el trabajo NO sale a la impresora hasta que el invitado
+  // confirma su resultado. Se confirma al tocar "Finalizar", al volver al inicio por inactividad, al salir al modo operador
+  // o, como red de seguridad (para que nunca dependa del ajuste de inactividad), tras ESPERA_CONFIRMACION_MS en el resultado.
+  // Mientras espera NO está en la cola: no gasta hoja ni cuenta para el tope, y "Borrar y empezar de nuevo" lo descarta sin rastro.
+  // ¿Alguna hoja de esta sesión ya salió o puede haber salido? (Entonces "Borrar y empezar de nuevo" ya no puede evitar el gasto.)
+  function hojaYaSalio(sesionId) {
+    if (!impresion || !sesionId) return false;
+    return impresion.listar({ sesionId }).some((t) => ['imprimiendo', 'hecho', 'retenido'].includes(t.estado));
+  }
   // Impresión automática al terminar la sesión: según el evento (`impresionAuto` y `copias`, ya congelados en la sesión).
   function imprimirAutomatico() {
     const sesion = sesionActual;
     const cfg = sesion && sesion.configCongelada;
     if (sesion && cfg && cfg.modo !== 'digital' && cfg.impresionAuto && !sesionesImpresasSolas.has(sesion.id)) {
       sesionesImpresasSolas.add(sesion.id);
-      avisarEnvio(enviarAImprimir({ sesion, copias: cfg.copias, origen: 'auto', topeHojas: cfg.topeHojas }), true);
+      esperaImpresion.armar({ sesion, sesionId: sesion.id, copias: cfg.copias, topeHojas: cfg.topeHojas });
     }
     actualizarEstadoImpresionResultado();
   }
@@ -2092,7 +2116,7 @@
     refrescarImpresora(true);
   }
 
-  // ----- Copias adicionales y reimpresión (solo operador) -----
+  // ----- Copias adicionales (solo en modo operador, sin PIN propio: ya se entró con el PIN del equipo) -----
   let copiasCtx = null;
   let copiasFoco = null; // quién abrió el diálogo: a él vuelve el foco al cerrarlo
   const COPIAS_MAX = 20;
@@ -2502,7 +2526,6 @@
     printBtn.hidden = !imprime || !!cfgSesion.impresionAuto;
     printBtn.disabled = false;
     printLabel.textContent = 'Imprimir';
-    extraCopiesBtn.hidden = !imprime || !impresion;
     downloadBtn.hidden = !digital;
     shareBtn.hidden = !(digital && compartirSoportado);
     q('#resultTabs').hidden = !digital;
@@ -2732,6 +2755,7 @@
   // Cualquier toque sobre la pantalla de resultado reinicia la vuelta automática al inicio
   result.addEventListener('pointerdown', reiniciarTemporizadorInicio);
 
+  window.addEventListener('pagehide', () => { try { liberarImpresionEnEspera(); } catch (e) { /* sin cola */ } });
   settingsBtn.addEventListener('click', () => abrirDrawer());
   printerStatusBadge.addEventListener('click', () => abrirDrawer('seccionImpresion'));
   drawerCloseBtn.addEventListener('click', cerrarDrawer);
@@ -2773,18 +2797,28 @@
   retakeAllBtn.addEventListener('click', retakeAllPhotos);
   confirmBtn.addEventListener('click', confirmAndCompose);
 
+  // "Borrar y empezar de nuevo" (hito 3b): lo que esperaba confirmación se descarta sin rastro, lo que ya estaba en la fila se cancela
+  // (sin gastar hoja ni contar para el tope), se borra la sesión con sus fotos y el invitado vuelve a la PANTALLA DE INICIO.
   retakeSessionBtn.addEventListener('click', async () => {
+    if (retakeSessionBtn.disabled) return;
+    const sesion = sesionActual;
+    // Si una hoja ya salió o se está imprimiendo, borrar no la recupera: no se promete lo imposible.
+    if (sesion && hojaYaSalio(sesion.id)) { actualizarEstadoImpresionResultado(); return; }
+    retakeSessionBtn.disabled = true;
     detenerTemporizadorInicio();
+    descartarImpresionEnEspera();
     result.hidden = true;
-    if (sesionActual) {
-      const sesion = sesionActual;
-      sesionActual = null;
-      cancelarImpresionesPendientesDe(sesion.id);
-      try { await encolarGuardado(() => AlmacenSesiones.borrar(sesion.id)); } catch (e) { /* si falla, quedará en la galería */ }
-      actualizarContadorEvento();
+    try {
+      if (sesion) {
+        sesionActual = null;
+        cancelarImpresionesPendientesDe(sesion.id);
+        try { await encolarGuardado(() => AlmacenSesiones.borrar(sesion.id)); } catch (e) { /* si falla, quedará en la galería */ }
+        actualizarContadorEvento();
+      }
+    } finally {
+      retakeSessionBtn.disabled = false;
+      enterIdle();
     }
-    gifBlob = null;
-    retakeAllPhotos();
   });
 
   finishBtn.addEventListener('click', async () => {
@@ -2794,7 +2828,7 @@
       sesion.terminadaEn = new Date().toISOString();
       try { await encolarGuardado(() => AlmacenSesiones.guardarRegistro(sesion)); } catch (e) { /* ya guardada al componer */ }
     }
-    enterIdle();
+    enterIdle(); // confirma el resultado: aquí sale la impresión automática que esperaba
   });
 
   downloadBtn.addEventListener('click', () => {
@@ -2832,13 +2866,6 @@
     actualizarEstadoImpresionResultado();
   });
 
-  extraCopiesBtn.addEventListener('click', () => {
-    if (!sesionActual || !finalBlob) return;
-    const sesion = sesionActual;
-    detenerTemporizadorInicio();
-    abrirPin('operar', () => abrirCopias({ titulo: 'Copias adicionales', foco: extraCopiesBtn, sesion, origen: 'adicional', eventoId: eventoActual.id, topeHojas: topeVigenteDe(eventoActual.id) || null }),
-      () => { if (!result.hidden) iniciarTemporizadorInicio(); });
-  });
   copiesMinus.addEventListener('click', () => cambiarCopias(-1));
   copiesPlus.addEventListener('click', () => cambiarCopias(1));
   copiesCancelBtn.addEventListener('click', cerrarCopias);
@@ -2862,7 +2889,7 @@
     if (!sesionDetalle || !sesionDetalle.tira) return;
     const sesion = sesionDetalle;
     const eventoId = sesion.eventoId || sesion.evento;
-    abrirCopias({ titulo: 'Reimprimir', foco: detailPrintBtn, sesion, origen: 'reimpresion', eventoId, topeHojas: topeVigenteDe(eventoId) });
+    abrirCopias({ titulo: 'Copias adicionales', foco: detailPrintBtn, sesion, origen: 'adicional', eventoId, topeHojas: topeVigenteDe(eventoId) });
   });
   detailDownloadBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.tira) descargarBlob(sesionDetalle.tira, 'fotocabina-tira.png'); });
   detailGifBtn.addEventListener('click', () => { if (sesionDetalle && sesionDetalle.gif) descargarBlob(sesionDetalle.gif, 'fotocabina.gif'); });

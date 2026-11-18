@@ -20,7 +20,7 @@
 
 ---
 
-**Actualizado:** 2026-11-18 (mini-hito A y hito 3 cerrados y commiteados)  ·  **Cuenta/sesión:** orquestador  ·  **Rama:** main
+**Actualizado:** 2026-11-18 (hito 3b cerrado)  ·  **Cuenta/sesión:** orquestador  ·  **Rama:** main
 
 ## Estado en una frase
 Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más pantallas se diseña el esqueleto completo) de pantallas: cabina del invitado, editor de plantillas, lista de eventos, crear evento y cámara ya funcionan en el navegador; falta impresora, panel en vivo, servidor local de entrega y toda la parte de hardware real. Último commit de código: `57930dd` (C3 cámara, 2026-09-25). Sin cambios pendientes de código.
@@ -44,17 +44,19 @@ Etapa 1 (uso propio), fase de construcción (decisión 2026-11-16: antes de más
 - Mini-hito A (2026-11-18, `d25655d`): en la lista 04, "Lanzar" queda deshabilitado en eventos "No lanzable", con el motivo en la tarjeta. Code Reviewer y Evidence Collector (8 de 8 en Chrome real).
 - Hito 3 (2026-11-18): impresión de punta a punta con impresora SIMULADA (`shared/impresion.js`, cola persistente, A9, A10 de impresora, conteo y tope de hojas, impresión automática, copias adicionales solo del operador, panel C4 en Ajustes de la cabina, D2 conectada). Certificado con reservas: Code Reviewer, Evidence Collector (146/146), Reality Checker. Detalle y reservas: `ARQUITECTURA_FLUJO.md` §7.10. La prueba técnica de escritorio (D8) está preparada en `src/docs/PRUEBA_TECNICA_ESCRITORIO.md`, NO ejecutada. Falta la prueba manual del dueño.
 
+- Hito 3b (2026-11-18, decisiones del dueño): (1) el conteo de hojas viaja en el respaldo y en exportar/importar evento; (2) el rollo es por impresora y se acumula entre eventos, solo "Rollo nuevo" (con confirmación) lo reinicia; (3) copias adicionales sin PIN, solo en modo operador (galería); (4) con impresión automática nada sale hasta que el invitado confirma, "Borrar y empezar de nuevo" cancela sin gastar hoja y lleva al inicio; (5) `PRUEBA_TECNICA_ESCRITORIO.md` personalizada a HiTi P510L, SELPHY CP1500 y EOS T5 (NO ejecutada). Certificado con reservas: Code Reviewer, Evidence Collector (Chrome real), Reality Checker. Detalle y reservas: `ARQUITECTURA_FLUJO.md` §7.11. Falta la prueba manual del dueño.
+
 ## En curso / a medias
 | Tarea | Agente | Estado | Dónde quedó (archivo y paso) | Hacia dónde iba |
 |---|---|---|---|---|
 
 ## Siguiente paso exacto
 1. El dueño prueba a mano con cámara real (idealmente 16:9) y confirma que las caras no se ven estiradas.
-2. Decidir con el dueño la prueba técnica de escritorio (3a/D8) y las 4 decisiones del hito 3 (ver abajo). Después C5 con A12 (panel en vivo). No iniciar C5 sin pedirlo.
+2. Decidir con el dueño la prueba técnica de escritorio (3a/D8, ya personalizada a sus equipos) y las decisiones de 3b (ver abajo). Después C5 con A12 (panel en vivo). No iniciar C5 sin pedirlo.
 
 ## Decisiones pendientes del dueño
 1. Visto bueno a la prueba técnica de escritorio (D8): ya preparada, esperando respuesta.
-1b. Hito 3: (i) el tope vigente manda siempre al reintentar (recomendado sí); (ii) botón "Copias adicionales (operador)" visible con PIN; (iii) "Borrar y repetir" tras impresión automática; (iv) el conteo de hojas debe viajar en el respaldo (recomendado sí, antes del primer evento real). Ver el informe del orquestador.
+1b. Hito 3b (preguntas que quedan): (i) si la impresión en espera debe sobrevivir a un corte de luz (hoy se pierde en esos 20 s, la tira queda en la galería); (ii) si "hojas por rollo" debe ser un número por impresora (hoy es uno solo); (iii) cámara: partir con la webcam de Canon o ir directo al kit de programación; SELPHY en el primer evento o solo la HiTi; comprar el adaptador de corriente de la T5 (detalle en el informe del orquestador).
 2. Redacción final del aviso de uso de fotos (se propone un texto al construir la pantalla de bienvenida).
 Todas las demás decisiones del esqueleto están respondidas (2026-11-16). Ver `src/docs/ARQUITECTURA_FLUJO.md` §8.
 
