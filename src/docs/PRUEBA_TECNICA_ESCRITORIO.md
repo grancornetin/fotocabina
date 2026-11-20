@@ -80,3 +80,17 @@ Chrome en modo kiosco con impresión sin diálogo y la cámara por Webcam Utilit
 - F11 Canon, T5/1200D batería y especificaciones https://hk.canon/en/support/8201999900 y https://id.canon/en/support/6200196000
 - F12 Dragonframe, soporte de cámaras https://www.dragonframe.com/camera-support/
 - F13 Listado de terceros del driver HiTi P510L https://treexy.com/products/driver-fusion/database/printers/hiti/p510l/
+
+## Resultados de la prueba con papel real (2026-11-20, con el dueño, HiTi P510L + Canon EOS T5)
+| Prueba | Resultado |
+|---|---|
+| T5 por EDSDK (script y dentro de la cabina) | Conecta en ~1,8 s, vista previa ~11 cuadros/s, foto completa 5184x3456 (~5,4 MB), disparo ~3 s en total (5,7 s el primero). Sesión de 3 fotos dentro de la cabina sin fallos. |
+| Impresión silenciosa HiTi P510L (papel "6x4") | PASA: sin ventanas, 18 a 25 s por hoja (el fabricante dice 12 s), cola de Windows vacía después. Sin estirar (cuadro de 50 mm mide 50 mm, círculo redondo). Driver con nombre propio "HiTi P510L" (el de la P520L/P525L no sirve). |
+| Márgenes y posición | El driver informa márgenes 0 pero la impresora corre la imagen: ~2,6 mm a la izquierda con el papel normal. Corregido con un ajuste por impresora y tipo de papel; recorte resultante ~1,5 mm a la izquierda y ~2,5 mm a la derecha, ~2 mm arriba y ~2,5 mm abajo. Las plantillas deben dejar 3 mm de margen. |
+| Color | Barras de color y tonos de piel bien; verde más oscuro que en pantalla; los 2 o 3 grises más oscuros salen casi iguales; grises con leve tinte (oscuros verdosos, claros lavanda). |
+| Papel agotado a propósito | El driver retiene el trabajo y muestra su aviso ("Paper box missing", error 32776). Con la versión anterior del programa (cancelaba y reintentaba) podía salir doble; corregido: el programa espera la decisión del operador. "Volver a imprimir" = una sola hoja (confirmado); "Cancelar" = ninguna hoja, `impresora-cancelada`. |
+| Cinta agotada | No probada. |
+| Estado que informa Windows | Con papel fuera Windows no lo marca antes de imprimir (la impresora queda "lista"); el fallo aparece al mandar el trabajo (error en ~3 s). |
+| Corte en dos tiras (papel "6x4-Split") | PASA tras ajustar: la HiTi corta al medio. Ajuste de fábrica 1,5 mm; con la hoja de alineación el corte cayó justo en el 0. La SELPHY no corta. |
+| Sesión completa en la cabina (T5 + HiTi) | PASA: 3 fotos, tira con la plantilla del evento, impresión automática a la primera, trabajo "hecho", contador de hojas en 1. |
+Hojas gastadas: 3 de pruebas de calibración y 1 de la hoja con papel agotado, más las de corte y la sesión de la cabina. Pendiente: SELPHY, cinta agotada y las reservas listadas en `RETOMAR.md`.

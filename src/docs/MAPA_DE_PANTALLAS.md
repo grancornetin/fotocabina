@@ -101,6 +101,7 @@
 - **Etapa 1 — Migrado en `01-camera-flow`:** A1, A3, A4 (versión mínima), A5, A6, A7, A11 — 7 pantallas/pasos.
 - **Etapa 1 — Parcial:** A8 (maqueta visual del QR, sin servidor local real), A10 (variante impresora construida con impresora simulada en el hito 3; falta el diseño final).
 - **Etapa 1 — Construido con impresora simulada (hito 3):** A9 y C4. El adaptador real de impresora llega con la app de escritorio.
+- **Actualización 2026-11-20 (hito 5):** C4 (Ajustes › Impresora) ganó la sección "Alinear el corte" (solo con una impresora que corta, HiTi) y la cabina avisa suave si hoy no se alineó; la impresión real con la HiTi P510L ya se probó con papel (ver `src/pages/01-camera-flow/README.md` y `src/escritorio/README.md`).
 - **Etapa 1 — Falta construir:** A2 (1 del flujo invitado) + C5-C7 (3 del panel de operador) = 4 pantallas/piezas. El editor de plantillas (B1-B4) ya está completo. C1 (lista de eventos), C2 (crear evento) y C3 (cámara, dentro de la cabina) ya están construidas y conectadas.
 - **Etapa 2 — Futuro, solo mapeado:** 5 pantallas propias de cuenta/suscripción (D1-D5) + 4 flujos completos reusados y adaptados por plataforma (E, F, G, H).
 

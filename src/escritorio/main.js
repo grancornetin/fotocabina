@@ -16,7 +16,7 @@ const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
 const { pathToFileURL, fileURLToPath } = require('url');
 
-const { buscarEdsdk } = require('./config');
+const { buscarEdsdk, ajusteDeImpresora } = require('./config');
 const { CamaraCanon } = require('./camara/camara-canon');
 const { ImpresoraWindows } = require('./impresion/impresora-windows');
 
@@ -95,10 +95,21 @@ function prepararImpresion() {
     return { impresoras: salidaPrueba ? todas.map((i) => ({ ...i, virtual: false })).filter((i) => /xps|pdf/i.test(i.nombre)) : todas };
   });
   manejar('impresion:estado', async (nombre) => ({ estado: await impresora.estado(String(nombre || '')) }));
+  // Ajuste de fábrica (mm) de una impresora para un tipo de papel; la pantalla lo suma al número que lee el operador.
+  manejar('impresion:ajuste-base', async (datos) => {
+    const d = datos || {};
+    const a = ajusteDeImpresora(String(d.nombre || ''), app.getPath('userData'), d.partir ? 'corte' : 'normal');
+    return { ajuste: a };
+  });
   manejar('impresion:imprimir', async (datos) => {
     const d = datos || {};
     if (!d.nombre || !d.imagen) { const e = new Error('Faltan datos para imprimir.'); e.codigo = 'datos'; throw e; }
+    // El ajuste que guardó el operador en la cabina ("Alinear el corte") viaja con la orden y manda; sin él, el de fábrica.
+    const base = ajusteDeImpresora(String(d.nombre), app.getPath('userData'), d.partir ? 'corte' : 'normal');
+    const xMm = Number.isFinite(Number(d.ajusteXMm)) && d.ajusteXMm !== null ? Math.max(-15, Math.min(15, Number(d.ajusteXMm))) : base.xMm;
+    const yMm = Number.isFinite(Number(d.ajusteYMm)) && d.ajusteYMm !== null ? Math.max(-15, Math.min(15, Number(d.ajusteYMm))) : base.yMm;
     const r = await impresora.imprimir({
+      ajusteXMm: xMm, ajusteYMm: yMm, partir: !!d.partir,
       nombre: String(d.nombre), hojas: Math.min(99, Math.max(1, Math.round(Number(d.hojas) || 1))), anchoMm: Number(d.anchoMm) || 101.6, altoMm: Number(d.altoMm) || 152.4,
       imagen: Buffer.from(d.imagen), trabajoId: d.trabajoId,
       salidaArchivo: salidaPrueba ? path.join(String(salidaPrueba), `hoja-${Date.now()}.xps`) : null,

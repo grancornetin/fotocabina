@@ -20,6 +20,7 @@ const path = require('path');
 
 const SERVIDOR = path.join(__dirname, 'servidor.ps1');
 const ARRANQUE_MS = 20000;
+const ESPERA_OPERADOR_SEG = 900; // debe coincidir con $EsperaOperadorSeg de servidor.ps1
 
 class ImpresoraWindows {
   constructor() {
@@ -148,11 +149,14 @@ class ImpresoraWindows {
         copias: hojas,
         anchoMm: datos.anchoMm,
         altoMm: datos.altoMm,
+        partir: !!datos.partir, // la hoja lleva dos tiras: si el driver tiene papel "Split" (HiTi), la impresora corta al medio
+        ajusteXMm: Number(datos.ajusteXMm) || 0, // calibración por impresora (config.js): corrimiento fino de la imagen en mm
+        ajusteYMm: Number(datos.ajusteYMm) || 0,
         // Sufijo único por intento: un trabajo viejo pegado en el spooler nunca se confunde con el de este intento.
         documento: 'FotoCabina-' + String(datos.trabajoId || Date.now()).replace(/[^\w-]/g, '') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         salidaArchivo: datos.salidaArchivo || null, // solo pruebas: guarda el trabajo en un archivo en vez de imprimir
         esperaSeg: Math.min(900, 60 + hojas * 60),
-      }, (60 + hojas * 60 + 30) * 1000);
+      }, (60 + hojas * 60 + 30 + ESPERA_OPERADOR_SEG + 30) * 1000); // incluye el tiempo que el operador tiene para decidir en el aviso del driver (servidor.ps1)
     } finally {
       this._imprimiendo -= 1;
       try { fs.unlinkSync(archivo); } catch (e) { /* ya no estaba */ }

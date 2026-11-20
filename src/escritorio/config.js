@@ -51,4 +51,25 @@ function buscarEdsdk(carpetaDatos) {
   return { carpeta: null, intentadas: candidatos.map((c) => c.base) };
 }
 
-module.exports = { buscarEdsdk, carpetaConDll };
+// Calibración de impresión por impresora: cuántos mm hay que correr la imagen (+X a la derecha, +Y hacia abajo) para que el
+// recorte quede parejo. Medida con una hoja de calibración real. Se puede cambiar sin tocar el código poniendo
+// "ajusteImpresoras": { "<nombre de la impresora en Windows>": { "xMm": 0, "yMm": 0 } } en configuracion.json de los datos del programa.
+// Valores de fábrica por impresora y tipo de papel ('normal' = hoja 4x6 entera; 'corte' = papel "Split": la impresora corta la
+// hoja en dos tiras). Son un punto de partida: el operador los afina con "Alinear el corte" en Ajustes de la cabina, y esa
+// corrección (guardada por impresora y tipo de papel) manda sobre estos valores.
+const AJUSTE_POR_DEFECTO = {
+  // 2026-11-20: sin ajuste la imagen salía 2,6 mm corrida a la izquierda (el driver informa márgenes 0). Para el papel Split
+  // se midió entre 0,8 mm (queda 1 mm corrida a la izquierda) y 2,6 mm (2 mm a la derecha): ~1,5 mm.
+  'HiTi P510L': { normal: { xMm: 2.6, yMm: 0 }, corte: { xMm: 1.5, yMm: 0 } },
+};
+
+function ajusteDeImpresora(nombre, carpetaDatos, modo) {
+  const tipo = modo === 'corte' ? 'corte' : 'normal';
+  const propio = carpetaDatos && leerJson(path.join(carpetaDatos, 'configuracion.json'));
+  const tabla = (propio && propio.ajusteImpresoras) || {};
+  const a = (tabla[nombre] && (tabla[nombre][tipo] || (tabla[nombre].xMm !== undefined ? tabla[nombre] : null)))
+    || (AJUSTE_POR_DEFECTO[nombre] && AJUSTE_POR_DEFECTO[nombre][tipo]) || {};
+  return { xMm: Number(a.xMm) || 0, yMm: Number(a.yMm) || 0 };
+}
+
+module.exports = { buscarEdsdk, carpetaConDll, ajusteDeImpresora };

@@ -53,6 +53,7 @@ const ImpresionEscritorio = (() => {
     class ImpresoraDeWindows extends Base {
       constructor(datos) {
         super({ id: PREFIJO + datos.nombre, nombre: datos.nombre, medios: mediosDe(datos.medios) });
+        this.mediosCrudos = Array.isArray(datos.medios) ? datos.medios : [];
         this.simulada = false;
         this.nombreWindows = datos.nombre;
         this.driver = datos.driver || '';
@@ -65,17 +66,25 @@ const ImpresionEscritorio = (() => {
         this._estado = estado; this._detalle = detalle || '';
         return cambio;
       }
+      // Papel con corte ("Split") que el driver ofrece para una hoja 4x6 (HiTi): { anchoMm, altoMm } o null si la impresora no corta.
+      lienzoCorte() {
+        const hallado = this.mediosCrudos.find((m) => m && /split/i.test(m.nombre || '') && Number(m.anchoMm) > 95 && Number(m.anchoMm) < 115 && Number(m.altoMm) > 145 && Number(m.altoMm) < 165);
+        return hallado ? { anchoMm: Number(hallado.anchoMm), altoMm: Number(hallado.altoMm) } : null;
+      }
       instantanea() {
         let estado = this._estado;
         if (this._ocupada && (estado === 'lista' || estado === 'ocupada')) estado = 'imprimiendo';
+        const lienzo = this.lienzoCorte();
         return {
           id: this.id, nombre: this.nombre, simulada: false, estado,
+          puedeCortar: !!lienzo, lienzoCorteMm: lienzo,
           detalle: this._detalle || (Impresion.MENSAJES_ESTADO[estado] || ''),
           segundosPorHoja: SEG_POR_HOJA, lenta: false,
           medios: this.medios.map((m) => ({ ...m })),
           driver: this.driver,
         };
       }
+      puedeCortarAhora() { return !!this.lienzoCorte(); }
       async consultar() {
         if (this._ocupada) return this.instantanea(); // imprimiendo: Windows está ocupado con nuestra hoja, no se le molesta
         try {
@@ -91,12 +100,17 @@ const ImpresionEscritorio = (() => {
         if (!contenido || !contenido.blob) { const e = new Error('No se encontró la hoja que había que imprimir.'); e.codigo = 'sin-contenido'; e.definitivo = true; throw e; }
         const medidas = contenido.medidas || {};
         const imagen = new Uint8Array(await contenido.blob.arrayBuffer());
+        // Hoja con dos tiras: que la impresora la corte al medio si puede. La corrección de alineación que guardó el operador
+        // ("Alinear el corte") es por impresora y tipo de papel; sin ella, el programa usa el valor de fábrica.
+        const partir = Number(medidas.copias) === 2;
+        const alineacion = (typeof AlineacionImpresion !== 'undefined') ? AlineacionImpresion.leer(this.id, partir && this.puedeCortarAhora() ? 'corte' : 'normal') : null;
         this._ocupada = true;
         let r;
         try {
           r = await api.imprimir({
             nombre: this.nombreWindows, hojas: trabajo.hojas, anchoMm: medidas.anchoMm || 101.6, altoMm: medidas.altoMm || 152.4,
-            imagen, trabajoId: trabajo.id,
+            imagen, trabajoId: trabajo.id, partir,
+            ajusteXMm: alineacion ? alineacion.xMm : null, ajusteYMm: alineacion ? alineacion.yMm : null,
           });
         } catch (err) {
           // No se sabe si el trabajo llegó al spooler (tiempo agotado, PowerShell caído): reintentar solo podría imprimir
@@ -114,7 +128,8 @@ const ImpresionEscritorio = (() => {
           e.codigo = codigo === 'envio' ? 'error' : codigo;
           // 'envio' (no se sabe si llegó al spooler), 'servidor' (falló el servidor de impresión) y 'trabajo-pegado'
           // (no se pudo sacar del spooler) no se reintentan solos: podrían imprimir doble.
-          if (codigo === 'sin-contenido' || codigo === 'envio' || codigo === 'servidor' || codigo === 'trabajo-pegado') e.definitivo = true;
+          // 'impresora-cancelada' (el operador canceló en el aviso del driver) tampoco: no sale nada y no debe volver a imprimirse solo.
+          if (codigo === 'sin-contenido' || codigo === 'envio' || codigo === 'servidor' || codigo === 'trabajo-pegado' || codigo === 'impresora-cancelada') e.definitivo = true;
           // Si Windows dice que la impresora tiene un problema, el próximo estado lo refleja.
           const problema = codigo.indexOf('impresora-') === 0 ? codigo.slice('impresora-'.length) : null;
           if (problema && Impresion.ESTADOS_PROBLEMA.indexOf(problema) >= 0) this._poner(problema, e.message);
@@ -135,7 +150,7 @@ const ImpresionEscritorio = (() => {
         const previos = new Map(adaptadores.map((a) => [a.id, a]));
         adaptadores = reales.map((i) => {
           const a = previos.get(PREFIJO + i.nombre);
-          if (a) { a._poner(i.estado, i.detalle); a.medios = mediosDe(i.medios); a.driver = i.driver || ''; return a; }
+          if (a) { a._poner(i.estado, i.detalle); a.medios = mediosDe(i.medios); a.mediosCrudos = Array.isArray(i.medios) ? i.medios : []; a.driver = i.driver || ''; return a; }
           return new ImpresoraDeWindows(i);
         });
         avisar();

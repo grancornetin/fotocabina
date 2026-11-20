@@ -1623,6 +1623,10 @@ button { font-family: inherit; }
 .copies-step--compact svg { width: 20px; height: 20px; }
 
 .c4-acciones { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.template-meta--aviso { color: var(--color-amber); }
+/* Alinear el corte: respiro entre la explicación, los botones y el campo. */
+#c4Alinear > * + * { margin-top: var(--sp-1); }
+#c4Alinear > .c4-sub { margin-bottom: 0; }
 .c4-cola { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .c4-job {
   display: flex;

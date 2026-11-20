@@ -165,13 +165,21 @@ function Accion-Imprimir($o) {
 
   # Papel: el del driver que mejor coincide con la hoja (centésimas de pulgada), sin las variantes "Split/2UP/Combo".
   $objW = [int][math]::Round($AnchoMm / 25.4 * 100); $objH = [int][math]::Round($AltoMm / 25.4 * 100)
-  $mejor = $null; $mejorD = [double]::MaxValue
-  foreach ($s in $doc.PrinterSettings.PaperSizes) {
-    if ($s.PaperName -match '(?i)split|2up|3up|combo|up\)') { continue }
-    $d1 = [math]::Abs($s.Width - $objW) / $objW + [math]::Abs($s.Height - $objH) / $objH
-    $d2 = [math]::Abs($s.Width - $objH) / $objH + [math]::Abs($s.Height - $objW) / $objW
-    $d = [math]::Min($d1, $d2)
-    if ($d -lt $mejorD) { $mejorD = $d; $mejor = $s }
+  # Si la hoja lleva dos tiras ("partir"), se busca el papel "Split" del driver (la HiTi corta la hoja al medio); si la impresora
+  # no lo tiene (p. ej. la SELPHY) se imprime como hoja normal, sin corte.
+  $mejor = $null; $mejorD = [double]::MaxValue; $partirOk = $false
+  foreach ($vuelta in @($(if ([bool]$o.partir) { 'split' }), 'normal')) {
+    if (-not $vuelta) { continue }
+    $mejor = $null; $mejorD = [double]::MaxValue
+    foreach ($s in $doc.PrinterSettings.PaperSizes) {
+      $variante = ($s.PaperName -match '(?i)split|2up|3up|combo|up\)')
+      if ($vuelta -eq 'split') { if ($s.PaperName -notmatch '(?i)split') { continue } } elseif ($variante) { continue }
+      $d1 = [math]::Abs($s.Width - $objW) / $objW + [math]::Abs($s.Height - $objH) / $objH
+      $d2 = [math]::Abs($s.Width - $objH) / $objH + [math]::Abs($s.Height - $objW) / $objW
+      $d = [math]::Min($d1, $d2)
+      if ($d -lt $mejorD) { $mejorD = $d; $mejor = $s }
+    }
+    if ($mejor -and $mejorD -le 0.12) { $partirOk = ($vuelta -eq 'split'); break }
   }
   if ($mejor -and $mejorD -le 0.12) { $papel = $mejor } else { $papel = New-Object System.Drawing.Printing.PaperSize('FotoCabina', $objW, $objH) }
   $doc.DefaultPageSettings.PaperSize = $papel
@@ -181,6 +189,9 @@ function Accion-Imprimir($o) {
   $papelVertical = ($papel.Height -ge $papel.Width)
   if (($img.Height -ge $img.Width) -ne $papelVertical) { $img.RotateFlip([System.Drawing.RotateFlipType]::Rotate90FlipNone) }
 
+  # Ajuste fino por impresora (mm): algunas impresoras corren la imagen aunque el driver diga que no tiene márgenes.
+  $script:ajusteX = $(if ($o.ajusteXMm) { [single]([double]$o.ajusteXMm / 25.4 * 100) } else { [single]0 })
+  $script:ajusteY = $(if ($o.ajusteYMm) { [single]([double]$o.ajusteYMm / 25.4 * 100) } else { [single]0 })
   $script:imagen = $img; $script:papelW = $papel.Width; $script:papelH = $papel.Height
   $doc.add_PrintPage({
     param($remitente, $e)
@@ -189,7 +200,7 @@ function Accion-Imprimir($o) {
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     # El origen del dibujo es el borde imprimible; se retrocede lo que el driver reserva para cubrir el papel completo.
-    $ox = -[single]$e.PageSettings.HardMarginX; $oy = -[single]$e.PageSettings.HardMarginY
+    $ox = -[single]$e.PageSettings.HardMarginX + $script:ajusteX; $oy = -[single]$e.PageSettings.HardMarginY + $script:ajusteY
     $w = [single]$script:papelW; $h = [single]$script:papelH
     $ri = $script:imagen.Width / $script:imagen.Height; $rp = $w / $h
     if ([math]::Abs($ri / $rp - 1) -le 0.04) {
@@ -212,23 +223,48 @@ function Accion-Imprimir($o) {
   $img.Dispose()
   if ($aArchivo) { return Resultado-Impresion $true 'completado' $null 'Guardado en archivo (modo de prueba).' $nombrePapel }
 
-  # Esperar a que el spooler termine, o detectar que la impresora no puede (y sacar el trabajo para no imprimir doble).
+  # Esperar a que el spooler termine.
+  # Si la impresora se detiene (sin papel, sin cinta, atasco...) el driver de HiTi retiene el trabajo y muestra su propio aviso
+  # con "Volver a imprimir esta página" / "Cancelar la impresión". El trabajo NO se cancela ni se reintenta desde aquí (si el
+  # operador apretaba "Volver a imprimir" saldría doble): se espera a que el operador decida en ese aviso.
+  #   · "Volver a imprimir": el trabajo vuelve a un estado sano, imprime y sale del spooler -> 'completado' (una sola hoja).
+  #   · "Cancelar": el trabajo queda "Deleting" o desaparece sin haber vuelto a un estado sano -> 'impresora-cancelada'
+  #     (definitivo: no sale nada y la cola no reintenta sola).
+  #   · Nadie decide en $EsperaOperadorSeg: 'trabajo-pegado' (definitivo; el trabajo sigue en la cola de Windows).
+  $EsperaOperadorSeg = 900
   $limite = (Get-Date).AddSeconds($EsperaSeg)
   $visto = $false; $sinTrabajo = 0
+  $enError = $false; $recuperado = $false; $detalleError = ''
   while ((Get-Date) -lt $limite) {
-    Start-Sleep -Milliseconds 700
+    Start-Sleep -Milliseconds $(if ($enError) { 300 } else { 700 })
     $trabajo = $null
     try { $trabajo = @(Get-PrintJob -PrinterName $Impresora -ErrorAction Stop | Where-Object { $_.DocumentName -eq $Documento }) | Select-Object -First 1 } catch { }
     if (-not $trabajo) {
+      if ($enError) {
+        if ($recuperado) { return Resultado-Impresion $true 'completado' $null '' $nombrePapel }
+        return Resultado-Impresion $false 'error' 'impresora-cancelada' 'El trabajo se canceló en el aviso de la impresora: no salió ninguna hoja.' $nombrePapel
+      }
       $sinTrabajo++
       if ($visto -or $sinTrabajo -ge 4) { return Resultado-Impresion $true 'completado' $null '' $nombrePapel }
       continue
     }
     $visto = $true; $sinTrabajo = 0
     $js = [string]$trabajo.JobStatus
-    if ($js -match '(?i)paperout') { return Resultado-Fallo-Spooler $Impresora $trabajo 'impresora-sin-papel' 'La impresora se quedó sin papel.' $nombrePapel }
-    if ($js -match '(?i)offline') { return Resultado-Fallo-Spooler $Impresora $trabajo 'impresora-desconectada' 'La impresora está sin conexión.' $nombrePapel }
-    if ($js -match '(?i)error|userintervention|blocked') { return Resultado-Fallo-Spooler $Impresora $trabajo 'impresora-error' ('La impresora no pudo imprimir (' + $js + ').') $nombrePapel }
+    if ($js -match '(?i)deleting|deleted') {
+      return Resultado-Impresion $false 'error' 'impresora-cancelada' 'El trabajo se canceló en el aviso de la impresora: no salió ninguna hoja.' $nombrePapel
+    }
+    if ($js -match '(?i)paperout|offline|error|userintervention|blocked') {
+      if (-not $enError) {
+        $enError = $true; $recuperado = $false
+        $detalleError = 'La impresora pidió ayuda (' + $js + '): falta papel o cinta, o hay un atasco.'
+        $limite = (Get-Date).AddSeconds($EsperaOperadorSeg)   # el operador tiene unos minutos para reponer y decidir en el aviso del driver
+      }
+      continue
+    }
+    if ($enError) { $recuperado = $true }   # el trabajo volvió a un estado sano: el operador apretó "Volver a imprimir"
+  }
+  if ($enError -and -not $recuperado) {
+    return Resultado-Impresion $false 'error' 'trabajo-pegado' ($detalleError + ' Nadie respondió en el aviso de la impresora; el trabajo sigue en la cola de Windows. Resuélvelo ahí (volver a imprimir o cancelar) antes de reintentar desde la cabina: podría salir una hoja doble.') $nombrePapel
   }
   return Resultado-Impresion $true 'en-spooler' $null 'El trabajo sigue en el spooler de Windows.' $nombrePapel
 }

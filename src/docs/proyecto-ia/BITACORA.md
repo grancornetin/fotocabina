@@ -183,3 +183,11 @@
 - **Qué:** solo se leyó la documentación y se dejó el plan de las 8 piezas (C10, C11, C6, C8, C5, C2c, C7, diapositivas) con sus filas de navegación a decidir y lo que pasa a la Fase B. No hay archivos de código ni carpetas nuevas.
 - **Dónde verlo:** `src/docs/proyecto-ia/PUNTO-DE-RETOMA-bloque2.md`.
 - **Estado:** EN CURSO, pausada por orden del dueño (uso del plan cerca de 88 %). Sin commit.
+
+## [2026-11-20 14:00] cambio | Prueba con papel real (HiTi P510L + T5), corte en dos tiras y "Alinear el corte"
+- **Quién:** sesión principal (Claude), con el dueño presente probando el hardware.
+- **Qué cambió:** (1) impresión real probada con papel: sin ventanas, sin estirar, con un corrimiento de la imagen que se corrige con un ajuste por impresora y tipo de papel; (2) papel agotado: el driver de HiTi retiene el trabajo y muestra su aviso; el programa ya no cancela ni reintenta, espera al operador (evita la hoja doble); (3) la hoja con dos tiras usa el papel "Split" de la HiTi y sale cortada al medio; (4) nueva sección "Alinear el corte" en Ajustes › Impresora con hoja de alineación, número leído por el operador, corrección guardada por impresora y papel, y aviso suave en la tarjeta del evento (decisiones del dueño: por impresora y papel, el operador escribe el número, aviso suave).
+- **Por qué:** el corrimiento cambia al mover papel o rollo y el dueño quiere un sistema fiable y fácil para alinear antes de cada evento.
+- **Dónde verlo:** `src/escritorio/` (`config.js`, `main.js`, `preload.js`, `impresion/servidor.ps1`, `impresion/impresora-windows.js`), `src/pages/shared/alineacion-impresion.js` (nuevo), `src/pages/shared/impresion-escritorio.js`, `src/pages/01-camera-flow/{app.js,index.html,styles.css,README.md}`, resultados en `src/docs/PRUEBA_TECNICA_ESCRITORIO.md`.
+- **Estado:** probado con hardware real (sesión completa, alineación con corte justo en el 0, papel agotado: volver a imprimir = 1 hoja, cancelar = 0). Sin certificación independiente de estos cambios.
+- **Sin resolver:** selector rápido de corte y papel (pedido por el dueño); aviso al operador dentro de la cabina cuando la impresora pide ayuda; aviso ámbar de "papel no admitido" con la HiTi (el driver informa 4,1 × 6,1 in); cinta agotada y SELPHY sin probar; pruebas automáticas del módulo de alineación.

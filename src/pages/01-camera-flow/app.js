@@ -116,6 +116,7 @@
   // antes de intentar y los manda a la impresora (hoy una SIMULADA; mañana un adaptador real con la misma interfaz).
   // La cola pide la imagen justo antes de imprimir: la hoja ya compuesta que guarda la sesión (así una reimpresión
   // sale idéntica a la original). La sesión actual además queda en memoria por si el guardado en disco falló.
+  const NOMBRE_TRABAJO_ALINEACION = 'Alineación del corte';
   const contenidoReciente = new Map();
   function recordarContenido(sesionId, blob, medidas) {
     if (!sesionId || !blob) return;
@@ -123,6 +124,11 @@
     while (contenidoReciente.size > 4) contenidoReciente.delete(contenidoReciente.keys().next().value);
   }
   async function contenidoDeImpresion(trabajo) {
+    // La hoja de alineación del corte viaja como trabajo de "prueba" con este nombre (la cola solo conoce los orígenes de siempre).
+    if (trabajo.origen === 'prueba' && trabajo.eventoNombre === NOMBRE_TRABAJO_ALINEACION && typeof AlineacionImpresion !== 'undefined') {
+      const lienzo = impresion ? impresion.estado('ambos').impresora.lienzoCorteMm : null;
+      return { blob: await aBlob(AlineacionImpresion.dibujarHoja(lienzo)), medidas: { ...HOJA_4X6_MM, copias: 2 } };
+    }
     if (trabajo.origen === 'prueba') return { blob: await hojaDePrueba(), medidas: HOJA_4X6_MM };
     const enMemoria = contenidoReciente.get(trabajo.sesionId);
     if (enMemoria) return enMemoria;
@@ -270,6 +276,16 @@
         hojasEl.hidden = !th;
         hojasEl.textContent = th ? th.charAt(0).toUpperCase() + th.slice(1) : '';
       }
+    }
+
+    // Aviso suave (no bloquea): si la hoja lleva dos tiras que la impresora corta y hoy no se alineó el corte.
+    const alinearEl = q('#templateAlinear');
+    if (alinearEl) {
+      const i = impresoraQueCorta();
+      const dosTiras = !!plantillaActiva && !!plantillaActiva.papel && !!plantillaActiva.papel.duplicarEnHoja;
+      const falta = !!i && dosTiras && modoDelEventoActual() !== 'digital' && !AlineacionImpresion.alineadoHoy(i.id, 'corte');
+      alinearEl.hidden = !falta;
+      alinearEl.textContent = falta ? 'Falta alinear el corte de hoy (opcional)' : '';
     }
 
     // Con plantilla real, el número de fotos lo manda la plantilla: el selector manual no se ofrece.
@@ -1858,7 +1874,7 @@
     const nuevaHoja = hoja.copias === 1 ? null : await aBlob(hoja.canvas);
     finalBlob = nuevaTira;
     hojaBlob = nuevaHoja;
-    hojaMedidas = { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm };
+    hojaMedidas = { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm, copias: hoja.copias };
   }
 
   // Sin evento (demostración): el diseño fijo de siempre.
@@ -2496,6 +2512,7 @@
     c4.totales.textContent = cont ? `Esta impresora lleva ${plural(cont.impresas, 'hoja', 'hojas')} en total${cont.cambioEn ? `; último cambio de rollo: ${formatearFecha(cont.cambioEn).replace(/\.$/, '')}` : ''}.` : 'Esta impresora todavía no imprimió nada.';
 
     pintarTrabajosDelPanel();
+    pintarAlineacion();
 
     // Simulación (solo con la impresora simulada).
     const sim = impresion.simulacion();
@@ -2509,6 +2526,70 @@
       if (document.activeElement !== c4.simRollo) c4.simRollo.value = sim.rolloRestante === null ? '' : String(sim.rolloRestante);
     }
   }
+
+  // ---------- Alinear el corte (solo con una impresora que corta la hoja en dos tiras: HiTi, papel Split) ----------
+  // El operador imprime la hoja de alineación, lee en qué número cayó el corte y lo escribe; shared/alineacion-impresion.js
+  // guarda la corrección por impresora y tipo de papel y la impresora real la aplica en cada hoja.
+  const alinear = {
+    seccion: q('#c4Alinear'), imprimir: q('#c4AlinearImprimir'), numero: q('#c4AlinearNumero'),
+    guardar: q('#c4AlinearGuardar'), restablecer: q('#c4AlinearRestablecer'), estado: q('#c4AlinearEstado'),
+  };
+  let avisoAlinear = '';
+  const textoMm = (n) => `${String(n).replace('.', ',')} mm`;
+
+  // La impresora elegida si es real y corta; si no, null (la sección no se muestra).
+  function impresoraQueCorta() {
+    if (!impresion || typeof AlineacionImpresion === 'undefined') return null;
+    const i = impresion.estado('ambos').impresora;
+    return i && i.puedeCortar && !i.simulada ? i : null;
+  }
+
+  function pintarAlineacion() {
+    if (!alinear.seccion) return;
+    const i = impresoraQueCorta();
+    alinear.seccion.hidden = !i;
+    if (!i) return;
+    const g = AlineacionImpresion.leer(i.id, 'corte');
+    const base = g
+      ? `Corrección guardada: ${textoMm(g.xMm)}${g.fecha ? ' (' + new Date(g.fecha).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ')' : ''}.`
+      : 'Todavía no se alineó en este equipo: se usa el valor de fábrica.';
+    alinear.estado.textContent = avisoAlinear ? `${avisoAlinear} ${base}` : base;
+  }
+
+  function avisarAlineacion(texto) { avisoAlinear = texto; refrescarImpresora(true); }
+
+  alinear.imprimir.addEventListener('click', () => {
+    if (!impresoraQueCorta()) return;
+    impresion.encolar({ sesionId: null, eventoId: null, eventoNombre: NOMBRE_TRABAJO_ALINEACION, copias: 1, origen: 'prueba' });
+    avisarAlineacion('Hoja de alineación enviada a la impresora. Cuando salga cortada, escribe el número que ves junto al corte.');
+  });
+
+  alinear.guardar.addEventListener('click', async () => {
+    const i = impresoraQueCorta();
+    if (!i) return;
+    const texto = alinear.numero.value.trim().replace(',', '.');
+    const leido = Number(texto);
+    if (texto === '' || !Number.isFinite(leido)) { avisarAlineacion('Escribe el número que ves junto al corte (por ejemplo -2 o 1,5).'); return; }
+    if (Math.abs(leido) > AlineacionImpresion.ESCALA_MM) { avisarAlineacion(`El número debe estar entre -${AlineacionImpresion.ESCALA_MM} y ${AlineacionImpresion.ESCALA_MM}: es el rango que muestra la hoja.`); return; }
+    let vigente = AlineacionImpresion.leer(i.id, 'corte');
+    if (!vigente) {
+      // Sin corrección guardada se parte del valor de fábrica que usa el programa de escritorio.
+      try { vigente = await window.fotocabinaEscritorio.impresion.ajusteBase({ nombre: i.nombre, partir: true }); } catch (e) { vigente = { xMm: 0, yMm: 0 }; }
+    }
+    const nuevo = AlineacionImpresion.corregir(vigente, leido);
+    if (!nuevo || nuevo.fuera) { avisarAlineacion(`Esa corrección pasaría de ${AlineacionImpresion.LIMITE_MM} mm: revisa el papel y vuelve a imprimir la hoja de alineación.`); return; }
+    const r = AlineacionImpresion.guardar(i.id, 'corte', nuevo);
+    if (!r.ok) { avisarAlineacion('No se pudo guardar la corrección en este equipo.'); return; }
+    alinear.numero.value = '';
+    avisarAlineacion(`Listo: nueva corrección ${textoMm(r.ajuste.xMm)}. Imprime otra hoja de alineación para comprobar: el corte debe caer en el 0.`);
+  });
+
+  alinear.restablecer.addEventListener('click', () => {
+    const i = impresoraQueCorta();
+    if (!i) return;
+    AlineacionImpresion.borrar(i.id, 'corte');
+    avisarAlineacion('Se volvió al valor de fábrica.');
+  });
 
   function cambiarImpresoraDesdePanel(id) {
     const r = impresion.cambiarImpresora(id);
@@ -2740,7 +2821,7 @@
     return {
       tira: await aBlob(tira),
       hoja: hoja.copias === 1 ? null : await aBlob(hoja.canvas),
-      medidas: { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm },
+      medidas: { anchoMm: hoja.anchoMm, altoMm: hoja.altoMm, copias: hoja.copias },
     };
   }
 

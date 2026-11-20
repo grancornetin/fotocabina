@@ -77,6 +77,7 @@
           <p class="template-meta" id="templateMeta">3 fotos · 2×6 en 4×6 · cuenta 3 s · pausa 3 s</p>
           <p class="template-meta" id="templateEntrega" hidden></p>
           <p class="template-meta" id="templateHojas" hidden></p>
+          <p class="template-meta template-meta--aviso" id="templateAlinear" hidden></p>
           <p class="template-stats" id="templateStats">Sin sesiones todavía</p>
         </div>
         <button class="thumb-chip" id="templateChangeBtn" type="button">Cambiar</button>
@@ -543,6 +544,24 @@
         <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4CambioRollo" type="button">Rollo nuevo</button>
         <p class="drawer-help drawer-help--first" id="c4Totales"></p>
 
+        <!-- Alinear el corte: solo aparece con una impresora que corta la hoja en dos tiras (HiTi, papel Split) -->
+        <div id="c4Alinear" hidden>
+          <h4 class="c4-sub">Alinear el corte</h4>
+          <p class="drawer-help drawer-help--first" id="c4AlinearAyuda">Hazlo antes del evento y cada vez que cambies el papel o el rollo. Imprime la hoja de alineación y, cuando salga cortada, mira la tira de la izquierda: busca junto al corte el último número que se ve completo y escríbelo aquí, con su signo.</p>
+          <div class="c4-acciones">
+            <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4AlinearImprimir" type="button">Imprimir hoja de alineación</button>
+          </div>
+          <label class="drawer-field">
+            <span class="ds-select-label">Número que se ve junto al corte</span>
+            <input class="ds-input" id="c4AlinearNumero" type="number" min="-8" max="8" step="0.5" inputmode="decimal" placeholder="Por ejemplo -2 o 1,5" />
+          </label>
+          <div class="c4-acciones">
+            <button class="ds-btn ds-btn--secondary ds-btn--compact" id="c4AlinearGuardar" type="button">Guardar corrección</button>
+            <button class="ds-btn ds-btn--ghost ds-btn--compact" id="c4AlinearRestablecer" type="button">Volver al valor de fábrica</button>
+          </div>
+          <p class="drawer-help drawer-help--first" id="c4AlinearEstado" role="status" aria-live="polite"></p>
+        </div>
+
         <h4 class="c4-sub">Trabajos de impresión</h4>
         <p class="drawer-help drawer-help--first" id="c4ColaResumen">No hay nada pendiente.</p>
         <ul class="c4-cola" id="c4Cola" aria-live="polite"></ul>
@@ -643,6 +662,7 @@
   <script src="../shared/almacen-plantillas.js"></script>
   <script src="../shared/equipo.js"></script>
   <script src="../shared/impresion.js"></script>
+  <script src="../shared/alineacion-impresion.js"></script>
   <script src="../shared/impresion-escritorio.js"></script>
   <script src="../shared/camara-escritorio.js"></script>
   <script src="almacen-sesiones.js"></script>

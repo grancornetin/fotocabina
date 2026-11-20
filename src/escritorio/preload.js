@@ -41,7 +41,9 @@ contextBridge.exposeInMainWorld('fotocabinaEscritorio', {
   impresion: {
     listar: async () => (await pedir('impresion:listar')).impresoras,
     estado: async (nombre) => (await pedir('impresion:estado', nombre)).estado,
-    // datos: { nombre, hojas, anchoMm, altoMm, imagen: ArrayBuffer | Uint8Array, trabajoId }
+    // datos: { nombre, hojas, anchoMm, altoMm, imagen: ArrayBuffer | Uint8Array, trabajoId, partir, ajusteXMm, ajusteYMm }
     imprimir: async (datos) => (await pedir('impresion:imprimir', datos)).resultado,
+    // { nombre, partir } -> { xMm, yMm }: el ajuste de fábrica de esa impresora y tipo de papel.
+    ajusteBase: async (datos) => (await pedir('impresion:ajuste-base', datos)).ajuste,
   },
 });
