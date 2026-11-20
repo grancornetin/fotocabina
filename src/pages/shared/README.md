@@ -153,6 +153,12 @@ Estados de impresora: `lista`, `ocupada`, `imprimiendo`, `sin-papel`, `sin-cinta
 - **Rollo (3b):** el conteo es por impresora, persistente y se acumula entre eventos; solo `cambiarRollo()` lo reinicia (suma `rollos` y anota `cambioEn`). `restantesRollo()` devuelve también `rollos`.
 - **`crearEspera({ ms, alLiberar, temporizador? })`:** espera de confirmación de la impresión automática. `armar(datos)`, `confirmar()` (entrega a `alLiberar` una sola vez), `descartar()` (sin rastro) y `enEspera(sesionId)`; se libera sola a los `ms`. No toca la cola hasta liberar.
 
+## Programa de escritorio (hito 4)
+Dos archivos que solo hacen algo dentro del programa de escritorio (`src/escritorio/`); en un navegador existen pero `disponible` es `false`.
+- `impresion-escritorio.js` — `ImpresionEscritorio.proveedor`: las impresoras reales de Windows como adaptadores de `AdaptadorImpresora` (ids `win:<nombre>`). Se enchufa con `Impresion.crearServicio({ proveedor })`: `impresoras()` las lista primero, `cambiarImpresora('win:…')` las elige, la cola envía la hoja por `window.fotocabinaEscritorio.impresion.imprimir` y los errores `impresora-*` vuelven con su código. Una impresora real elegida que Windows ya no lista queda "desconectada" (`ImpresoraNoEncontrada`), nunca se cae a la simulada en silencio. Se vigila el estado de la elegida cada 8 s.
+- `camara-escritorio.js` — `CamaraEscritorio.crearFuente(video)`: la cámara Canon por cable. La vista previa se dibuja en un canvas y su `captureStream()` es el `srcObject` del `<video>`; `disparar()` trae la foto completa.
+Pruebas: `tests-validador.html` (7 casos nuevos de "Impresoras de Windows", con un puente falso). Detalle: `src/escritorio/README.md` y `ARQUITECTURA_FLUJO.md` §7.12.
+
 ## Hallazgos abiertos
 
 1. **`AlmacenEventos` sigue síncrono** (regla 7 de `docs/ARQUITECTURA_FLUJO.md` §5.1): la conversión a promesas se difirió del hito 0.1b. Hoy `04`, `05`, `01` y el editor lo llaman de forma síncrona; hacerlo asíncrono obliga a tocar todas.

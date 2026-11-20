@@ -2,7 +2,7 @@
 
 > Documento de continuidad del proyecto. Mantenerlo actualizado cuando se tome una decisión de producto, hardware o arquitectura.
 >
-> Última revisión: 2026-11-18 (hito 3b: sección 3.16, decisiones sobre hojas, rollo, copias y borrar; antes, hito 3: sección 3.15, impresión con impresora simulada; antes, hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
+> Última revisión: 2026-11-19 (programa de escritorio: sección 3.17, decisión Electron + EDSDK + impresión silenciosa; antes, hito 3b: sección 3.16, decisiones sobre hojas, rollo, copias y borrar; antes, hito 3: sección 3.15, impresión con impresora simulada; antes, hito 1.6: sección 3.14, respaldo y restauración; antes, hito 1.3: sección 3.13, ciclo de vida del evento; antes, hito 0.1b: sección 3.12, decisiones de plantilla congelada, eventos sin plantilla y recorte de cámara; antes, esqueleto de arquitectura: sección 3.11 y documento maestro `docs/ARQUITECTURA_FLUJO.md`).
 >
 > **Qué documento manda sobre qué** (para no duplicar):
 > - `PRODUCT.md` — verdad del producto para diseño (quién lo usa, para qué, restricciones). Se lee primero.
@@ -307,6 +307,13 @@ Construido contra una impresora **simulada** detrás de un adaptador (`pages/sha
 - **"Copias adicionales (operador)" no lleva PIN;** se pide en modo operador (galería), no en la pantalla del invitado.
 - **Con impresión automática, nada sale a la impresora hasta que el invitado confirma;** "Borrar y empezar de nuevo" lo cancela sin gastar hoja ni tope y lleva a la pantalla de inicio (no repite la sesión; cambia lo anotado en 3.x sobre "Borrar y repetir sesión").
 - **La prueba técnica de escritorio (D8) se personalizó** a HiTi P510L, Canon SELPHY CP1500 y Canon EOS T5; sigue sin ejecutarse.
+
+### 3.17 Programa de escritorio, cámara Canon e impresión silenciosa (2026-11-19, decisiones del dueño)
+- **Decisión:** dejar de depender de dslrBooth (suscripción) y terminar la app propia, **sin costo alguno**. La cabina de producción es un **programa de escritorio de Windows** hecho con **Electron** (gratis; se eligió sobre Tauri porque Tauri exige instalar Rust y Visual Studio Build Tools). Código en `src/escritorio/`; las pantallas de `src/pages/` se abren sin cambios.
+- **Cámara:** Canon EOS Rebel T5 por el SDK oficial de Canon (EDSDK 13.21.10, gratis, descargado por el dueño), llamado desde un proceso aparte con `koffi`. Medido: vista previa ~21 cuadros/s a 1056×704; foto completa 5184×3456 en ~1 s tras el disparo. **Los archivos del SDK nunca entran al repo** (licencia de Canon, repo público): ruta configurable. Cómo empaquetarlos en el instalador queda como pregunta abierta al dueño.
+- **Impresión:** por el driver normal de Windows, en silencio (como hacía dslrBooth). Probado hasta el driver con impresora virtual; falta la prueba con papel real (HiTi P510L principal; Canon SELPHY CP1500 solo con el driver genérico, riesgo de tamaño Letter y escala de grises).
+- **Alcance acordado para después (bloque 2):** A2, A12 (con pantalla de bloqueo), C2c, C5, C8, C9 + A8 con QR real, C10, C11, C6, C7, A10 final, y tres funciones extra: exportación automática a carpeta/pendrive, aviso de uso de fotos y diapositivas del evento en otra pantalla. Pospuesto a `IDEAS.md`: pantalla verde, filtros y accesorios digitales, encuesta, firma en la impresión, idiomas, apariencia personalizable, GIF/Boomerang como modos propios. Descartado por ahora: video/360, disparadores y API, compartir por email/SMS/redes.
+- Detalle técnico y límites: `ARQUITECTURA_FLUJO.md` §7.12.
 
 ## 4. Requisitos del editor de layouts
 

@@ -1,0 +1,14 @@
+{
+  "name": "fotocabina-escritorio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Programa de escritorio de FotoCabina: abre las pantallas de src/pages y habla con la camara Canon y la impresora.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "45.4.1",
+    "koffi": "3.3.8"
+  }
+}

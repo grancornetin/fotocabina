@@ -130,7 +130,12 @@
     const blob = guardada && (guardada.hoja || guardada.tira);
     return blob ? { blob, medidas: guardada.impresion || null } : null;
   }
-  const impresion = (typeof Impresion !== 'undefined') ? Impresion.crearServicio({ resolverContenido: contenidoDeImpresion, topeDe: (id) => topeVigenteDe(id) }) : null;
+  const impresion = (typeof Impresion !== 'undefined') ? Impresion.crearServicio({
+    resolverContenido: contenidoDeImpresion,
+    topeDe: (id) => topeVigenteDe(id),
+    // Programa de escritorio: impresoras reales de Windows (sin él, solo la simulada).
+    proveedor: (typeof ImpresionEscritorio !== 'undefined' && ImpresionEscritorio.disponible) ? ImpresionEscritorio.proveedor : null,
+  }) : null;
   // Espera de confirmación de la impresión automática (ver "Impresión automática" más abajo).
   const ESPERA_CONFIRMACION_MS = 20000;
   const esperaImpresion = (typeof Impresion !== 'undefined') ? Impresion.crearEspera({
@@ -291,6 +296,10 @@
   // resolución real) más las demás que el navegador lista.
   function camarasVivas() {
     if (!cabin.classList.contains('is-connected')) return [];
+    if (fuenteDslr) {
+      const canon = { id: esc.ID, etiqueta: esc.ETIQUETA, activa: true, anchoPx: fuenteDslr.fotoAncho || null, altoPx: fuenteDslr.fotoAlto || null };
+      return [canon, ...camarasListadas.filter((c) => c.id !== esc.ID)];
+    }
     const pista = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
     const aj = pista && pista.getSettings ? pista.getSettings() : {};
     const id = aj.deviceId || ajustes.camaraId || 'activa';
@@ -513,6 +522,9 @@
   const ICONO_DESCARGAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
 
   let stream = null;
+  // Programa de escritorio: cámara Canon por cable (shared/camara-escritorio.js). En un navegador `esc` es null y todo sigue como siempre.
+  const esc = (typeof CamaraEscritorio !== 'undefined' && CamaraEscritorio.disponible) ? CamaraEscritorio : null;
+  let fuenteDslr = null;
   let photos = [];
   let finalBlob = null;
   let gifBlob = null;
@@ -942,19 +954,39 @@
   // cámara puede haberse desenchufado — si el guardado ya no sirve, cae sola a la cámara
   // genérica del equipo en vez de dejar la cabina bloqueada hasta que el operador entre a
   // Ajustes a mano.
+  //
+  // En el programa de escritorio la cámara Canon por cable va primero (si no hay elección de otra cámara o se eligió la
+  // Canon); si no se puede usar, cae a la cámara web con un aviso que dice por qué. La Canon entrega la foto completa
+  // al disparar y su vista previa llega como cuadros que se muestran en el mismo <video>.
   async function connectCamera(forzarGenerica) {
     hideNotice();
     connectBtn.disabled = true;
     connectBtn.textContent = 'Conectando…';
     setCameraStatus('warn', 'Cámara conectando');
 
-    const usarIdGuardado = ajustes.camaraId && !forzarGenerica;
+    let razonSinDslr = '';
+    if (esc && forzarGenerica !== true && (!ajustes.camaraId || ajustes.camaraId === esc.ID)) {
+      if (await conectarDslr()) return;
+      razonSinDslr = fuenteDslr === null ? (ultimoErrorDslr || '') : '';
+    } else if (fuenteDslr) {
+      await soltarDslr();
+    }
+
+    const usarIdGuardado = ajustes.camaraId && ajustes.camaraId !== (esc && esc.ID) && forzarGenerica !== true;
     try {
+      if (fuenteDslr) await soltarDslr();
       if (stream) stream.getTracks().forEach((t) => t.stop());
       const videoConstraints = usarIdGuardado
         ? { deviceId: { exact: ajustes.camaraId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
         : { facingMode: { ideal: 'user' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
-      stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+      const pedido = navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+      // Si el tiempo límite gana, un stream que llegue tarde se apaga (no debe quedar la luz de la cámara encendida).
+      pedido.then((tarde) => { if (tarde !== stream) setTimeout(() => { if (tarde !== stream) tarde.getTracks().forEach((t) => t.stop()); }, 0); }, () => {});
+      // En el programa de escritorio los permisos ya están dados: si en 15 s no hay respuesta es que no hay cámara web
+      // (Electron a veces no rechaza en ese caso). En el navegador se espera sin límite porque puede haber un aviso de permiso.
+      stream = esc
+        ? await Promise.race([pedido, new Promise((_, rechazar) => setTimeout(() => rechazar(Object.assign(new Error('Sin cámara web'), { name: 'NotFoundError' })), 15000))])
+        : await pedido;
       video.srcObject = stream;
       await video.play();
       vigilarDesconexion(stream);
@@ -963,10 +995,12 @@
       connectHint.classList.remove('stage-hint--error');
       setCameraStatus('ready', 'Cámara lista');
       connectHint.textContent = `Todo listo. Lanza el evento cuando quieras. Durante el evento, toca "Operador" e ingresa tu PIN para volver aquí.`;
+      if (razonSinDslr) connectHint.textContent = `${razonSinDslr} Mientras tanto se usa la cámara web del equipo.`;
       connectBtn.textContent = 'Cámara conectada';
       actualizarLanzamiento();
       poblarSelectorCamaras();
     } catch (e) {
+      if (razonSinDslr) { connectBtn.disabled = false; connectBtn.textContent = 'Reintentar cámara'; setCameraStatus('error', 'Cámara sin conectar'); mostrarErrorEnPanelCamara(`${razonSinDslr} Tampoco se pudo usar la cámara web: ${mensajeErrorCamara(e)}`); return; }
       if (usarIdGuardado) {
         // La cámara elegida ya no responde: se prueba una vez más con la genérica del
         // equipo antes de rendirse, para no dejar la cabina sin cámara por un deviceId
@@ -1016,6 +1050,52 @@
     });
   }
 
+  // ---------- Cámara Canon por cable (programa de escritorio) ----------
+
+  let ultimoErrorDslr = '';
+
+  async function soltarDslr() {
+    const f = fuenteDslr;
+    fuenteDslr = null;
+    if (f) { try { await f.desconectar(); } catch (e) { /* ya estaba suelta */ } }
+  }
+
+  // Devuelve true si la Canon quedó lista. Si no, deja el motivo en `ultimoErrorDslr` y la cabina cae a la cámara web.
+  async function conectarDslr() {
+    ultimoErrorDslr = '';
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    await soltarDslr();
+    const f = esc.crearFuente(video);
+    try {
+      await f.conectar();
+    } catch (e) {
+      ultimoErrorDslr = esc.mensajeDeError(e);
+      return false;
+    }
+    fuenteDslr = f;
+    f.alCambiarEstado((e) => {
+      if (fuenteDslr !== f) return;
+      fuenteDslr = null;
+      f.desconectar();
+      cabin.classList.remove('is-connected');
+      setCameraStatus('error', e.estado === 'durmiendo' ? 'Cámara dormida' : 'Cámara desconectada');
+      connectBtn.disabled = false;
+      connectBtn.textContent = 'Reconectar cámara';
+      launchBtn.disabled = true;
+      mostrarErrorEnPanelCamara(e.estado === 'durmiendo'
+        ? 'La cámara Canon se apagó o se durmió (apagado automático). Enciéndela y toca "Reconectar cámara". Conviene desactivar el apagado automático en el menú de la cámara.'
+        : 'Se perdió la conexión con la cámara Canon. Revisa el cable y que esté encendida, y toca "Reconectar cámara".');
+    });
+    cabin.classList.add('is-connected');
+    connectHint.classList.remove('stage-hint--error');
+    setCameraStatus('ready', 'Cámara Canon lista');
+    connectHint.textContent = 'Todo listo. Lanza el evento cuando quieras. Durante el evento, toca "Operador" e ingresa tu PIN para volver aquí.';
+    connectBtn.textContent = 'Cámara conectada';
+    actualizarLanzamiento();
+    poblarSelectorCamaras();
+    return true;
+  }
+
   // Lista las cámaras reales del equipo en el selector de Ajustes › Cámara. El navegador
   // solo entrega nombres (label) de dispositivo después de que el operador ya dio permiso
   // de cámara al menos una vez — por eso se llama recién tras un connectCamera() exitoso,
@@ -1028,6 +1108,8 @@
     } catch (e) {
       return;
     }
+    // Programa de escritorio: la cámara Canon por cable va primero en la lista.
+    if (esc) dispositivos = [{ deviceId: esc.ID, label: esc.ETIQUETA }, ...dispositivos];
     if (!dispositivos.length) return;
     camarasListadas = dispositivos.map((d, i) => ({ id: d.deviceId, etiqueta: d.label || `Cámara ${i + 1}` }));
     actualizarLanzamiento();
@@ -1048,8 +1130,11 @@
       menu.appendChild(opcion);
     });
 
-    const activa = dispositivos.find((d) => d.deviceId === ajustes.camaraId);
+    // Con la Canon conectada es la activa aunque no haya elección guardada.
+    const idActivo = fuenteDslr ? esc.ID : ajustes.camaraId;
+    const activa = dispositivos.find((d) => d.deviceId === idActivo);
     value.textContent = activa ? (activa.label || 'Cámara elegida') : dispositivos[0].label || 'Cámara del dispositivo';
+    Array.from(menu.children).forEach((li) => li.setAttribute('aria-selected', String(!!activa && li.dataset.value === activa.deviceId)));
     if (!activa) menu.querySelector('.ds-select-option').setAttribute('aria-selected', 'true');
   }
 
@@ -1256,11 +1341,11 @@
         updateFrameWindow(i + 1);
         countdownLabel.textContent = `Foto ${i + 1} de ${total}`;
         await countdown(ajustes.cuenta);
-        let foto = capture();
+        let foto = await capture();
         if (!foto) {
           // La cámara no entregó imagen: se avisa y se repite esta foto (hasta 3 veces) sin perder la sesión.
           let intentos = 1;
-          while (!foto && intentos < 3) { showNotice('La cámara no entregó imagen. Repitiendo la foto…'); await countdown(ajustes.cuenta); foto = capture(); intentos++; }
+          while (!foto && intentos < 3) { showNotice('La cámara no entregó imagen. Repitiendo la foto…'); await countdown(ajustes.cuenta); foto = await capture(); intentos++; }
           if (!foto) { showNotice('La cámara no entregó imagen. La sesión se canceló.'); throw new SessionCancelled(); }
         }
         photos[i] = foto;
@@ -1359,26 +1444,43 @@
     return recorteCentrado(vw, vh, ratio);
   }
 
-  function capture() {
+  // Asíncrona porque la cámara Canon entrega la foto completa un par de segundos después del disparo.
+  // Devuelve la foto (data URL) o null si la cámara no entregó imagen.
+  async function capture() {
     const region = regionDeCaptura();
+    if (!region) return null; // el video no entrega imagen: nunca se guarda una foto negra
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
-    if (region) {
-      // Tamaño de salida: el del recorte en píxeles reales del video (hasta un tope), con la
-      // proporción exacta del marco.
-      const escala = Math.min(1, LADO_MAXIMO_FOTO / Math.max(region.sw, region.sh));
-      c.width = Math.max(1, Math.round(region.sw * escala));
-      c.height = Math.max(1, Math.round(region.sh * escala));
-      if (ajustes.espejo) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
-      // En espejo, el video se dibuja sin reflejar su región y el canvas se refleja: igual que la pantalla.
-      ctx.drawImage(video, region.sx, region.sy, region.sw, region.sh, 0, 0, c.width, c.height);
-    } else {
-      return null; // el video no entrega imagen: nunca se guarda una foto negra
-    }
 
-    flash.classList.remove('on');
-    void flash.offsetWidth;
-    flash.classList.add('on');
+    let fuente = video;   // lo que se dibuja: el <video> o, con la Canon, la foto completa
+    let k = { x: 1, y: 1 };
+    let liberar = null;
+    if (fuenteDslr) {
+      const f = fuenteDslr;
+      flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); // el flash sale con el disparo
+      try {
+        const foto = await f.disparar();
+        // La región se midió sobre la vista previa; la foto tiene la misma proporción pero más píxeles.
+        k = { x: foto.ancho / (video.videoWidth || f.ancho || foto.ancho), y: foto.alto / (video.videoHeight || f.alto || foto.alto) };
+        f.fotoAncho = foto.ancho; f.fotoAlto = foto.alto;
+        fuente = foto.imagen;
+        liberar = () => { if (foto.imagen.close) foto.imagen.close(); };
+      } catch (e) {
+        showNotice(esc.mensajeDeError(e));
+        return null;
+      }
+    }
+    // Tamaño de salida: el del recorte en píxeles reales de la fuente (hasta un tope), con la proporción exacta del marco.
+    const sx = region.sx * k.x, sy = region.sy * k.y, sw = region.sw * k.x, sh = region.sh * k.y;
+    const escala = Math.min(1, LADO_MAXIMO_FOTO / Math.max(sw, sh));
+    c.width = Math.max(1, Math.round(sw * escala));
+    c.height = Math.max(1, Math.round(sh * escala));
+    if (ajustes.espejo) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+    // En espejo, la fuente se dibuja sin reflejar su región y el canvas se refleja: igual que la pantalla.
+    ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    if (liberar) liberar();
+
+    if (!fuenteDslr) { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); }
 
     return c.toDataURL('image/jpeg', 0.92);
   }
@@ -1646,7 +1748,7 @@
     countdownLabel.textContent = `Repitiendo foto ${index + 1} de ${numeroDeFotos()}`;
     try {
       await countdown(ajustes.cuenta);
-      const foto = capture();
+      const foto = await capture();
       if (!foto) {
         showNotice('La cámara no entregó imagen. Toca "Repetir" de nuevo.');
         endCapture();
@@ -2720,7 +2822,7 @@
   poblarSelectorEventos();
   initSelects();
 
-  connectBtn.addEventListener('click', connectCamera);
+  connectBtn.addEventListener('click', () => connectCamera());
   launchBtn.addEventListener('click', pedirLanzamiento);
   galleryBtn.addEventListener('click', abrirGaleria);
   aplicarAjustesAControles();

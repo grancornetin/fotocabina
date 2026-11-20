@@ -20,6 +20,8 @@
 |---|---|---|---|---|
 | orquestador | coordina, consolida RETOMAR; dirige el esqueleto de arquitectura, el hito 0.1a y los hitos 0.2, 1.1, 0.1b y 0.3 | activo | | 2026-11-17 |
 | frontend | Frontend Developer: construyó 0.2, 1.1, 0.1b, 0.3 y 1.2; 1.3 construido (en certificación independiente) | libre | | 2026-11-17 |
+| orquestador-escritorio | Agents Orchestrator: programa de escritorio (Electron), cámara T5 por EDSDK e impresión silenciosa (bloque 1) | hecho: Bloque 1 certificado con reservas y commiteado (2026-11-19) | | 2026-11-19 |
+| orquestador-bloque2 | Agents Orchestrator: bloque 2 fase A (pantallas C10, C11, C6, C8, C5, C2c, C7 y diapositivas) | en curso, pausada por uso del plan (2026-11-19); nada construido aún; retoma en `PUNTO-DE-RETOMA-bloque2.md` | | 2026-11-19 |
 
 ## Tareas
 | # | Tarea | Agente | Estado | Archivos | Inicio | Fin / notas |
@@ -37,6 +39,8 @@
 | 11 | Mini-hito A: "Lanzar" deshabilitado en eventos "No lanzable" | orquestador | hecha | `src/pages/04-lista-eventos/*` | 2026-11-18 | Commit `d25655d` |
 | 12 | Hito 3: impresión con impresora simulada (cola, A9, A10, C4, tope y conteo de hojas) | frontend (orquestado) | hecha (certificada con reservas) | `src/pages/shared/impresion.js`, `src/pages/01-camera-flow/*`, `src/pages/shared/{README.md,tests-validador.html}`, docs, `src/docs/PRUEBA_TECNICA_ESCRITORIO.md` | 2026-11-18 | Prueba técnica D8 preparada, no ejecutada. Reservas en `ARQUITECTURA_FLUJO.md` §7.10 |
 | 13 | Hito 3b: hojas en el respaldo, rollo acumulado, copias sin PIN, borrar con impresión automática, doc D8 | orquestador | hecha (certificada) | `shared/{impresion,respaldo}.js`, `shared/{README.md,tests-validador.html}`, `01-camera-flow/*`, `04-lista-eventos/*`, `06-respaldo/*`, docs | 2026-11-18 | Detalle en `ARQUITECTURA_FLUJO.md` §7.11 |
+| 14 | Programa de escritorio (bloque 1): caparazón Electron, cámara real T5 por EDSDK, impresión silenciosa por driver de Windows | orquestador-escritorio | hecha: certificada con reservas (Code Reviewer, Evidence Collector, Reality Checker) y commiteada; falta prueba con papel real y T5 recertificada | `src/escritorio/` (nueva), `src/pages/shared/{impresion.js,impresion-escritorio.js (nuevo),camara-escritorio.js (nuevo),README.md,tests-validador.html}`, `src/pages/01-camera-flow/{app.js,index.html,README.md}`, `.gitignore`, docs del hito, `src/docs/proyecto-ia/PUNTO-DE-RETOMA-escritorio.md` | 2026-11-19 | Punto de retoma en `PUNTO-DE-RETOMA-escritorio.md` |
+| 15 | Bloque 2, fase A: pantallas nuevas C10, C11, C6, C8, C5, C2c, C7 y diapositivas (carpetas nuevas en `src/pages/`) | orquestador-bloque2 | en curso, pausada por uso del plan (nada construido; sin carpetas ni reservas tomadas) | ninguno todavía | 2026-11-19 | Plan y siguiente paso en `PUNTO-DE-RETOMA-bloque2.md`. Fase B espera al commit del bloque 1 |
 
 ## Reservas (qué archivo o carpeta está tomando cada agente)
 | Archivo o carpeta | Agente | Desde | Estado | Motivo |
@@ -58,6 +62,7 @@
 | src/docs/ARQUITECTURA_FLUJO.md (§2.3, §2.6, §6, §7.2, §7.6, §7.7, §7.8, §8), MAPA_DE_PANTALLAS.md, FLUJO_NAVEGACION.md, proyecto-ia/BITACORA.md, proyecto-ia/TABLERO.md | writer (orquestador) | 2026-11-17 | liberada | Documentación del hito 1.3 |
 | src/pages/06-respaldo/, src/pages/shared/ (respaldo.js, almacen-eventos.js, almacen-plantillas.js, tests-validador.html, README.md), src/pages/01-camera-flow/almacen-sesiones.js, src/pages/04-lista-eventos/ | frontend (orquestado) | 2026-11-17 | liberada | Hito 1.6 hecho (commit) |
 | src/pages/shared/impresion.js, src/pages/01-camera-flow/, src/pages/04-lista-eventos/ (un texto), docs del hito 3 | frontend (orquestado) | 2026-11-18 | liberada | Hito 3 hecho (commit) |
+| src/escritorio/ (nueva), src/pages/shared/{impresion.js, impresion-escritorio.js, camara-escritorio.js, README.md, tests-validador.html}, src/pages/01-camera-flow/{app.js, index.html, README.md}, .gitignore, MAPA_DE_PANTALLAS.md, ARQUITECTURA_FLUJO.md (§7.12), FLUJO_NAVEGACION.md (si aplica), DSLRBOOTH_PRODUCT_CONTEXT.md, BITACORA.md, RETOMAR.md | orquestador-escritorio | 2026-11-19 | liberada (commiteado) | Bloque 1 del programa de escritorio |
 
 ## Esperas (quién espera a quién)
 | Agente | Espera a | Por qué | Retoma cuando |
@@ -76,6 +81,7 @@
 | 7 | Hito 3: el editor `03-editor-plantillas` tiene 5 botones lima a 1366 px y desborda a 390 px (ya existía, no es del hito) | Evidence Collector | @desarrollador | abierto | |
 | 8 | Hito 3: la cola de impresión y sus conteos no entran al respaldo de `06-respaldo` (restaurar reinicia el tope) | frontend | @desarrollador | resuelto | orquestador, 2026-11-18 (hito 3b): los conteos entran; la cola no |
 | 9 | Hito 3b: el candado del operador queda tapado por la capa de resultado en la cabina (solo se entra con Escape + PIN) | Evidence Collector | @desarrollador | abierto | |
+| 10 | PREGUNTA PARA EL DUEÑO: cómo se empaquetará el EDSDK de Canon en el instalador respetando la licencia de Canon (el repo es público y no puede llevar las DLL; hoy el programa las busca en una ruta configurable). No la decide el agente | orquestador-escritorio | @dueño (vía sesión principal) | abierto | |
 
 ## Lecciones del equipo
 <!-- Una línea por lección: fecha · qué pasó · qué regla se cambió -->

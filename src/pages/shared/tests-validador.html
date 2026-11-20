@@ -40,6 +40,7 @@
 <script src="almacen-plantillas.js"></script>
 <script src="respaldo.js"></script>
 <script src="impresion.js"></script>
+<script src="impresion-escritorio.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1205,6 +1206,97 @@
       var p = pruebas[i], ok = false, error = '';
       try { await p.fn(); ok = true; } catch (e) { error = (e && e.message) || String(e); }
       window.registrarCaso('Impresión · ' + p.nombre, ok, error);
+    }
+  })();
+})();
+</script>
+<script>
+// ---------- Impresoras reales de Windows (programa de escritorio): adaptador y proveedor contra un puente FALSO ----------
+// No imprime nada ni necesita el programa de escritorio: `api` es un doble que responde lo que Windows respondería.
+(function () {
+  'use strict';
+  var I = Impresion, E = ImpresionEscritorio;
+  var pruebas = [];
+  function prueba(nombre, fn) { pruebas.push({ nombre: nombre, fn: fn }); }
+  function aserta(c, msg) { if (!c) throw new Error(msg || 'no se cumple'); }
+  function igual(a, b, msg) { if (a !== b) throw new Error((msg || 'distinto') + ': esperaba ' + JSON.stringify(b) + ' y hay ' + JSON.stringify(a)); }
+  var reloj = { t: 1700000000000, ahora: function () { return reloj.t; }, esperar: function (ms) { reloj.t += ms; return Promise.resolve(); } };
+
+  function apiFalsa(over) {
+    var api = {
+      enviados: [],
+      respuestaEstado: { estado: 'lista', detalle: '' },
+      respuestaImprimir: { ok: true, estado: 'completado', papel: '4 x 6 pulg. (400x600)' },
+      listar: async function () {
+        return [
+          { nombre: 'HiTi P520L', driver: 'HiTi', virtual: false, estado: 'lista', detalle: '', medios: [{ nombre: '6x4', anchoMm: 101.6, altoMm: 152.4 }, { nombre: '6x4-Split (6x2 2 prints)', anchoMm: 105, altoMm: 157 }, { nombre: '6x4 bis', anchoMm: 101.6, altoMm: 152.4 }] },
+          { nombre: 'Microsoft Print to PDF', driver: 'pdf', virtual: true, estado: 'lista', detalle: '', medios: [] },
+        ];
+      },
+      estado: async function () { return api.respuestaEstado; },
+      imprimir: async function (d) { api.enviados.push(d); return api.respuestaImprimir; },
+    };
+    for (var k in (over || {})) api[k] = over[k];
+    return api;
+  }
+  function nuevo(api) {
+    var proveedor = E.crearProveedor(api, I.AdaptadorImpresora, I);
+    var svc = I.crearServicio({
+      almacenamiento: I.almacenamientoEnMemoria(), reloj: reloj, proveedor: proveedor,
+      resolverContenido: async function () { return { blob: new Blob(['hoja']), medidas: { anchoMm: 101.6, altoMm: 152.4 } }; },
+    });
+    return { svc: svc, proveedor: proveedor, api: api };
+  }
+  var trabajo = { sesionId: 's-1', eventoId: 'ev-1', eventoNombre: 'Boda', copias: 2, origen: 'invitado' };
+
+  prueba('Proveedor: lista las impresoras de verdad, esconde las virtuales y las variantes "Split" del papel', async function () {
+    var t = nuevo(apiFalsa()); await t.proveedor.actualizar();
+    var a = t.proveedor.adaptadores(); igual(a.length, 1); igual(a[0].id, 'win:HiTi P520L'); aserta(I.AdaptadorImpresora.cumple(a[0]), 'no cumple la interfaz');
+    igual(a[0].medios.length, 1, 'papeles repetidos o variantes Split'); igual(a[0].simulada, false);
+  });
+  prueba('Servicio: las impresoras reales salen primero, después las simuladas; se puede elegir una y el id se conserva', async function () {
+    var t = nuevo(apiFalsa()); await t.proveedor.actualizar();
+    var l = t.svc.impresoras(); igual(l[0].id, 'win:HiTi P520L'); aserta(l.some(function (x) { return x.simulada; }), 'faltan las simuladas');
+    aserta(t.svc.cambiarImpresora('win:HiTi P520L').ok, 'no dejó elegirla'); igual(t.svc.perfil().impresoraId, 'win:HiTi P520L');
+    igual(t.svc.esSimulada(), false); igual(t.svc.cambiarImpresora('win:NoExiste').motivo, 'desconocida');
+  });
+  prueba('Enviar: la hoja viaja con el papel, las hojas y el nombre de Windows; el trabajo queda hecho y cuenta', async function () {
+    var api = apiFalsa(); var t = nuevo(api); await t.proveedor.actualizar(); t.svc.cambiarImpresora('win:HiTi P520L');
+    t.svc.encolar(trabajo); await t.svc.procesarTodo();
+    igual(api.enviados.length, 1); igual(api.enviados[0].nombre, 'HiTi P520L'); igual(api.enviados[0].hojas, 2); igual(api.enviados[0].anchoMm, 101.6);
+    aserta(api.enviados[0].imagen instanceof Uint8Array, 'la imagen no viaja como bytes');
+    igual(t.svc.listar({ estados: ['hecho'] }).length, 1); igual(t.svc.hojasDelEvento('ev-1', null).impresas, 2);
+  });
+  prueba('Error de la impresora: "sin papel" pausa la cola sin imprimir doble y el estado lo refleja', async function () {
+    var api = apiFalsa({ respuestaImprimir: { ok: false, estado: 'error', codigo: 'impresora-sin-papel', detalle: 'La impresora se quedó sin papel.' } });
+    var t = nuevo(api); await t.proveedor.actualizar(); t.svc.cambiarImpresora('win:HiTi P520L'); t.svc.encolar(trabajo); await t.svc.procesarTodo();
+    igual(api.enviados.length, 1, 'reenvió de inmediato'); igual(t.svc.listar({ estados: ['hecho'] }).length, 0, 'dio por hecho algo que falló');
+    igual(t.svc.instantanea().estado, 'sin-papel');
+  });
+  prueba('Una impresora que Windows ya no lista queda "desconectada" (nunca se cae a la simulada sin avisar)', async function () {
+    var api = apiFalsa(); var t = nuevo(api); await t.proveedor.actualizar(); t.svc.cambiarImpresora('win:HiTi P520L');
+    api.listar = async function () { return []; }; await t.proveedor.actualizar();
+    igual(t.svc.instantanea().estado, 'desconectada'); aserta(t.svc.impresoras().some(function (x) { return x.id === 'win:HiTi P520L' && x.actual; }), 'se escondió la impresora elegida');
+    t.svc.encolar(trabajo); await t.svc.procesarTodo(); igual(t.svc.listar({ estados: ['hecho'] }).length, 0);
+  });
+  prueba('Estado: consultar() lee a Windows; si Windows no responde, el estado es "desconocido" (el validador lo trata como no comprobable)', async function () {
+    var api = apiFalsa(); var t = nuevo(api); await t.proveedor.actualizar();
+    var a = t.proveedor.adaptadores()[0];
+    api.respuestaEstado = { estado: 'desconectada', detalle: 'sin conexión' }; igual((await a.consultar()).estado, 'desconectada');
+    api.estado = async function () { throw new Error('x'); }; igual((await a.consultar()).estado, 'desconocido');
+    t.svc.cambiarImpresora('win:HiTi P520L'); igual(t.svc.paraValidador(), null, 'el validador debía recibir null');
+  });
+  prueba('Sin hoja que imprimir: error definitivo, no se reintenta', async function () {
+    var t = nuevo(apiFalsa()); await t.proveedor.actualizar();
+    var a = t.proveedor.adaptadores()[0]; var cod = null; try { await a.enviar({ id: 'x', hojas: 1 }, null); } catch (e) { cod = e; }
+    aserta(cod && cod.codigo === 'sin-contenido' && cod.definitivo === true, 'debía ser definitivo');
+  });
+
+  (async function () {
+    for (var i = 0; i < pruebas.length; i++) {
+      var p = pruebas[i], ok = false, error = '';
+      try { await p.fn(); ok = true; } catch (e) { error = (e && e.message) || String(e); }
+      window.registrarCaso('Impresoras de Windows · ' + p.nombre, ok, error);
     }
   })();
 })();

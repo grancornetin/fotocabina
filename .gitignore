@@ -14,3 +14,12 @@ cerebro-fotocabina/
 src/docs/proyecto-ia/TIEMPO.md
 src/docs/proyecto-ia/MEMORIA-PROYECTO.md
 .claude/settings.local.json
+
+# Programa de escritorio: dependencias, binarios y el SDK de Canon (su licencia no permite repartirlo; el repo es publico)
+src/escritorio/node_modules/
+src/escritorio/dist/
+src/escritorio/edsdk/
+src/escritorio/configuracion.local.json
+EDSDK*.dll
+EdsImage.dll
+SDK-Canon/

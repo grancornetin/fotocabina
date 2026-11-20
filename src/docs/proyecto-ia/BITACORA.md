@@ -168,3 +168,18 @@
 - **Quién:** orquestador (construyó y corrigió), Code Reviewer (sin bloqueantes; 5 importantes corregidos), Evidence Collector (Chrome real, todo pasa), Reality Checker; el doc de la prueba D8 lo redactó el Desktop App Engineer.
 - **Qué:** el conteo de hojas (por evento y rollo por impresora) entra al respaldo y a exportar/importar evento; el rollo se acumula entre eventos y solo "Rollo nuevo" (con confirmación) lo reinicia; "Copias adicionales" sin PIN y solo en modo operador (galería); con impresión automática el trabajo espera la confirmación del invitado y "Borrar y empezar de nuevo" lo cancela sin gastar hoja y lleva al inicio; `PRUEBA_TECNICA_ESCRITORIO.md` personalizada a HiTi P510L, SELPHY CP1500 y EOS T5 (no ejecutada).
 - **Dónde verlo:** `src/pages/shared/{impresion,respaldo}.js`, `src/pages/01-camera-flow/`, `src/pages/06-respaldo/`, `src/docs/ARQUITECTURA_FLUJO.md` §7.11, `DSLRBOOTH_PRODUCT_CONTEXT.md` 3.16. Pruebas: `tests-validador.html`.
+
+## 2026-11-19 · Hito 4 (bloque 1): programa de escritorio, cámara Canon e impresión silenciosa (certificado con reservas)
+- **Quién:** orquestador-escritorio (construyó y probó), Code Reviewer (rechazó con 4 graves; re-revisión aprobó con reservas), Evidence Collector, Desktop App Engineer (correcciones), Reality Checker.
+- **Qué:** `src/escritorio/` (Electron): ventana con las pantallas actuales, cámara Canon T5 por EDSDK (proceso aparte, koffi) con vista previa y foto completa dentro de la cabina, respaldo a cámara web, y adaptador real de impresión por driver de Windows que se enchufa a la cola existente (`shared/impresion-escritorio.js`, `shared/camara-escritorio.js`). Decisión Electron vs Tauri: Electron (Tauri exige Rust y Visual Studio Build Tools).
+- **Por qué:** el dueño deja la suscripción de dslrBooth y termina su propia app, sin costo.
+- **Dónde verlo:** `src/escritorio/README.md`, `ARQUITECTURA_FLUJO.md` §7.12, `DSLRBOOTH_PRODUCT_CONTEXT.md` 3.17, `PUNTO-DE-RETOMA-escritorio.md`. Pruebas: 175/175; sesión real de 3 fotos con la T5; impresión de punta a punta solo con la impresora virtual XPS.
+- **Incidente:** antes de la instrucción del dueño se enviaron 2 trabajos de prueba a la Epson L5190 (apagada); quedaron cancelados, no salió nada.
+- **Certificación independiente (2026-11-19):** Code Reviewer APROBADO CON RESERVAS (4 graves y 4 medias corregidas); Evidence Collector PASA lo probado (webcam e impresora virtual XPS, 175/175; T5 desconectada, no verificada); tras sus hallazgos H1-H6 y bajo 9 se corrigieron (comilla simple en nombres de impresora, trabajo pegado en el spooler sin reintento, foto vieja, temporizador, oyente duplicado) y Reality Checker dio LISTO CON RESERVAS. Reservas: T5 real sin recertificar tras las correcciones; sin papel real ni HiTi; rama `trabajo-pegado` solo leída; selector de cámara muestra "Canon" aunque se use webcam.
+- **Pendiente:** prueba con papel real (la pide el dueño), apagado automático de la cámara sin probar, decisión de empaquetado del EDSDK.
+
+## 2026-11-19 · Bloque 2, fase A: PAUSADA por uso del plan (sin construir nada)
+- **Quién:** orquestador-bloque2.
+- **Qué:** solo se leyó la documentación y se dejó el plan de las 8 piezas (C10, C11, C6, C8, C5, C2c, C7, diapositivas) con sus filas de navegación a decidir y lo que pasa a la Fase B. No hay archivos de código ni carpetas nuevas.
+- **Dónde verlo:** `src/docs/proyecto-ia/PUNTO-DE-RETOMA-bloque2.md`.
+- **Estado:** EN CURSO, pausada por orden del dueño (uso del plan cerca de 88 %). Sin commit.

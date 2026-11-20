@@ -2,9 +2,10 @@
   Impresión (hito 3, docs/ARQUITECTURA_FLUJO.md §5.3, §5.5 y §7.10): adaptador de impresora, cola de trabajos
   PERSISTENTE y conteo de hojas. Sin dependencias y sin tocar la pantalla.
 
-  Hoy NO existe hardware, driver ni servidor local: todo corre contra una impresora SIMULADA (ImpresoraSimulada).
-  Las pantallas hablan solo con el servicio (crearServicio) y este con un AdaptadorImpresora; el día que haya una
-  impresora real se escribe otro adaptador con la misma interfaz y no se toca ninguna pantalla.
+  En el navegador todo corre contra una impresora SIMULADA (ImpresoraSimulada). En el programa de escritorio
+  (src/escritorio/) `shared/impresion-escritorio.js` aporta las impresoras reales de Windows como adaptadores con la misma
+  interfaz (opción `proveedor` de crearServicio; ids con prefijo "win:"): las pantallas no cambian.
+  Las pantallas hablan solo con el servicio (crearServicio) y este con un AdaptadorImpresora.
 
   ───────────── Interfaz del adaptador (AdaptadorImpresora) ─────────────
     id, nombre, simulada            identidad ('simulada' = true solo en las de prueba)
@@ -68,6 +69,9 @@ const Impresion = (() => {
     'simulada-5x7': { id: 'simulada-5x7', nombre: 'Impresora simulada 5×7', medios: [{ id: '5x7', anchoMm: 127, altoMm: 177.8 }] },
   });
   const IMPRESORA_POR_DEFECTO = 'simulada-4x6';
+  // Las impresoras reales de Windows (programa de escritorio, shared/impresion-escritorio.js) llevan este prefijo en su id.
+  const PREFIJO_REAL = 'win:';
+  const esIdReal = (id) => typeof id === 'string' && id.indexOf(PREFIJO_REAL) === 0 && id.length > PREFIJO_REAL.length;
   const SEG_POR_HOJA = 8;
   const SEG_POR_HOJA_LENTA = 45;
 
@@ -131,6 +135,18 @@ const Impresion = (() => {
     e.codigo = codigo;
     if (definitivo) e.definitivo = true;
     return e;
+  }
+
+  // Impresora real que ya no está instalada o no se encuentra (se desenchufó, cambió de nombre): siempre "desconectada",
+  // así el validador bloquea el lanzamiento y la cola no gasta intentos.
+  class ImpresoraNoEncontrada extends AdaptadorImpresora {
+    constructor(id) {
+      super({ id, nombre: id.slice(PREFIJO_REAL.length), medios: [] });
+    }
+    instantanea() {
+      return { id: this.id, nombre: this.nombre, simulada: false, estado: 'desconectada', detalle: 'Windows no encuentra esta impresora. Elige otra en Ajustes de impresora.', segundosPorHoja: SEG_POR_HOJA, lenta: false, medios: [] };
+    }
+    async enviar() { throw errorDeImpresion('impresora-desconectada', 'Windows no encuentra esta impresora.'); }
   }
 
   // Impresora de mentira: su estado lo decide el operador (control "Simulación" de C4) y se guarda en el registro,
@@ -205,7 +221,7 @@ const Impresion = (() => {
     if (esObjeto(crudo.perfil)) {
       const p = crudo.perfil;
       r.perfil = {
-        impresoraId: typeof p.impresoraId === 'string' && MODELOS[p.impresoraId] ? p.impresoraId : base.perfil.impresoraId,
+        impresoraId: typeof p.impresoraId === 'string' && (MODELOS[p.impresoraId] || esIdReal(p.impresoraId)) ? p.impresoraId : base.perfil.impresoraId,
         hojasPorRollo: entero(p.hojasPorRollo, 0, 0, 9999),
         avisoRestantes: entero(p.avisoRestantes, base.perfil.avisoRestantes, 0, 999),
       };
@@ -238,6 +254,8 @@ const Impresion = (() => {
     let procesando = false;
     let temporizador = null;
     let procesarEnCurso = null;
+    // Impresoras reales (programa de escritorio): { adaptadores(), adaptadorDe(id), actualizar(), seleccionar(id), alCambiar(fn) } o null.
+    const proveedor = op.proveedor && typeof op.proveedor.adaptadores === 'function' ? op.proveedor : null;
 
     // ----- lectura y escritura -----
     function leer() {
@@ -292,6 +310,12 @@ const Impresion = (() => {
     function obtenerAdaptador() {
       const id = leer().perfil.impresoraId;
       if (op.adaptador && AdaptadorImpresora.cumple(op.adaptador)) return op.adaptador;
+      if (esIdReal(id)) {
+        const real = proveedor && proveedor.adaptadorDe ? proveedor.adaptadorDe(id) : null;
+        if (real && AdaptadorImpresora.cumple(real)) return real;
+        if (!adaptador || adaptador.id !== id || adaptador.simulada !== false) adaptador = new ImpresoraNoEncontrada(id);
+        return adaptador;
+      }
       if (!adaptador || adaptador.id !== id) adaptador = new ImpresoraSimulada(MODELOS[id] || MODELOS[IMPRESORA_POR_DEFECTO], acceso(id), reloj);
       return adaptador;
     }
@@ -508,12 +532,17 @@ const Impresion = (() => {
 
     function impresoras() {
       const actual = leer().perfil.impresoraId;
-      return Object.values(MODELOS).map((m) => ({ id: m.id, nombre: m.nombre, simulada: true, medios: m.medios.map((x) => ({ ...x })), actual: m.id === actual }));
+      const reales = proveedor ? proveedor.adaptadores().map((a) => ({ id: a.id, nombre: a.nombre, simulada: false, medios: (a.medios || []).map((x) => ({ ...x })), actual: a.id === actual })) : [];
+      // Una impresora real elegida que Windows ya no lista sigue apareciendo (desconectada), para no esconder el problema.
+      if (esIdReal(actual) && !reales.some((r) => r.id === actual)) reales.push({ id: actual, nombre: actual.slice(PREFIJO_REAL.length), simulada: false, medios: [], actual: true });
+      const simuladas = Object.values(MODELOS).map((m) => ({ id: m.id, nombre: m.nombre, simulada: true, medios: m.medios.map((x) => ({ ...x })), actual: m.id === actual }));
+      return [...reales, ...simuladas];
     }
 
     // Cambiar de impresora con trabajos sin imprimir: se pide una decisión ('trasladar' | 'retener' | 'cancelar').
     function cambiarImpresora(id, decision) {
-      if (!MODELOS[id]) return { ok: false, motivo: 'desconocida' };
+      const existe = !!MODELOS[id] || (esIdReal(id) && !!proveedor && proveedor.adaptadores().some((a) => a.id === id));
+      if (!existe) return { ok: false, motivo: 'desconocida' };
       const r0 = leer();
       if (r0.perfil.impresoraId === id) return { ok: true, sinCambio: true };
       const pendientes = r0.trabajos.filter((t) => ESTADOS_ACTIVOS.includes(t.estado) || t.estado === 'fallido' || t.estado === 'retenido');
@@ -545,6 +574,7 @@ const Impresion = (() => {
         });
       });
       adaptador = null;
+      if (proveedor && proveedor.seleccionar) proveedor.seleccionar(id);
       emitir('impresora.estado', null);
       despertar();
       return { ok: true, decision: decision || null, pendientes: pendientes.length };
@@ -808,20 +838,30 @@ const Impresion = (() => {
       return recuperados;
     }
 
+    let quitarAlCambiar = null, alOcultar = null; // enlaces de iniciar(); detener() los quita para no duplicarlos al reiniciar
     function iniciar() {
       if (temporizador !== null && temporizador !== 'detenido') return;
       recuperar();
       temporizador = setTimeout(pulso, 0);
+      if (proveedor) {
+        // Impresoras reales: se lee la lista de Windows y se vigila la elegida; cualquier cambio avisa a las pantallas.
+        if (quitarAlCambiar) quitarAlCambiar();
+        quitarAlCambiar = proveedor.alCambiar(() => { emitir('impresora.estado', null); despertar(); });
+        proveedor.actualizar().then(() => { proveedor.seleccionar(leer().perfil.impresoraId); emitir('impresora.estado', null); despertar(); }).catch(() => { /* sin lista, queda la simulada */ });
+      }
       // Al cerrar o recargar la página se suelta el arriendo para que la carga siguiente no espere a que venza.
-      if (typeof window !== 'undefined' && window.addEventListener) {
-        window.addEventListener('pagehide', () => {
+      if (typeof window !== 'undefined' && window.addEventListener && !alOcultar) {
+        alOcultar = () => {
           try { cambiar((r) => { if (r.arriendo && r.arriendo.pestana === pestana) r.arriendo = null; }); } catch (e) { /* sin almacenamiento */ }
-        });
+        };
+        window.addEventListener('pagehide', alOcultar);
       }
     }
     function detener() {
       if (temporizador !== null && temporizador !== 'detenido') clearTimeout(temporizador);
       temporizador = 'detenido';
+      if (quitarAlCambiar) { quitarAlCambiar(); quitarAlCambiar = null; }
+      if (alOcultar && typeof window !== 'undefined' && window.removeEventListener) { window.removeEventListener('pagehide', alOcultar); alOcultar = null; }
     }
 
     function suscribir(fn) {
@@ -838,6 +878,9 @@ const Impresion = (() => {
       hojasDelEvento, contadores, restantesRollo, cambiarRollo,
       procesar: procesarUno, procesarTodo, recuperar, iniciar, detener, suscribir,
       errorDeGuardado: () => errorDeGuardado,
+      // Vuelve a leer las impresoras de Windows (programa de escritorio); sin proveedor no hace nada.
+      actualizarImpresoras: () => (proveedor ? proveedor.actualizar() : Promise.resolve()),
+      hayImpresorasReales: () => !!proveedor,
     };
   }
 
@@ -976,7 +1019,7 @@ const Impresion = (() => {
 
   return {
     CLAVE, VERSION, ESTADOS_OK, ESTADOS_PROBLEMA, ESTADOS_SIMULABLES, ESTADOS_ACTIVOS, MENSAJES_ESTADO, MODELOS, ORIGENES, CONFIG_BASE,
-    AdaptadorImpresora, ImpresoraSimulada, crearServicio, almacenamientoEnMemoria,
+    PREFIJO_REAL, esIdReal, AdaptadorImpresora, ImpresoraSimulada, ImpresoraNoEncontrada, crearServicio, almacenamientoEnMemoria,
     crearEspera, exportarParaRespaldo, importarDesdeRespaldo, datosRespaldoValidos, tomarInstantanea, devolverInstantanea,
   };
 })();
